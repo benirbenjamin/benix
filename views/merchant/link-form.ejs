@@ -86,7 +86,7 @@
                   <span class="input-group-text">clicks</span>
                 </div>
                 <small class="text-muted">
-                  Cost per click: $<%= parseFloat(costPerClick).toFixed(2) %><br>
+                  Cost per click: $<%= parseFloat(costPerClick).toFixed(4) %><br>
                   Total cost: $<span id="totalCost">0.00</span>
                 </small>
               </div>
@@ -126,7 +126,7 @@
     const costPerClickValue = parseFloat(document.getElementById('click_target').dataset.costPerClick);
     
     function updateTotalCost() {
-      const totalCost = (clickTarget.value * costPerClickValue).toFixed(2);
+      const totalCost = (clickTarget.value * costPerClickValue).toFixed(4);
       document.getElementById('totalCost').textContent = totalCost;
     }
 
