@@ -649,21 +649,43 @@ app.get('/', async (req, res) => {
       totalLinks: 0,
       clickCount: 0,
       totalEarnings: 0
-    };
-
-    try {
-      // Fetch active links
+    };    try {      // Fetch active links with smart engagement-based ranking
       const [activeLinks] = await pool.query(`
-        SELECT l.*, u.username as merchant_name, u.business_name
+        SELECT l.*, 
+               u.username as merchant_name,
+               u.business_name,
+               COUNT(DISTINCT sl.id) as total_shares,
+               COALESCE(SUM(sl.clicks), 0) as total_clicks,
+               COALESCE(SUM(sl.earnings), 0) as total_earnings,
+               (
+                 COALESCE(SUM(sl.clicks), 0) / 
+                 GREATEST(DATEDIFF(NOW(), l.created_at), 1) + 
+                 (COUNT(DISTINCT sl.id) * 2) +
+                 (CASE 
+                   WHEN l.created_at > DATE_SUB(NOW(), INTERVAL 24 HOUR) THEN 50
+                   WHEN l.created_at > DATE_SUB(NOW(), INTERVAL 7 DAY) THEN 20
+                   ELSE 0
+                 END)
+               ) as engagement_score
         FROM links l
-        JOIN users u ON l.merchant_id = u.id
-        WHERE l.is_active = true
-        ORDER BY l.created_at DESC
+        JOIN users u ON l.merchant_id = u.id  
+        LEFT JOIN shared_links sl ON l.id = sl.link_id        WHERE l.is_active = true
+        GROUP BY l.id, u.username, u.business_name
+        ORDER BY 
+          engagement_score DESC,
+          CASE 
+            WHEN l.created_at > DATE_SUB(NOW(), INTERVAL 24 HOUR) THEN 3
+            WHEN l.created_at > DATE_SUB(NOW(), INTERVAL 7 DAY) THEN 2 
+            WHEN l.created_at > DATE_SUB(NOW(), INTERVAL 30 DAY) THEN 1
+            ELSE 0
+          END DESC,
+          total_clicks DESC,
+          l.created_at DESC
         LIMIT 12
       `);
       links = activeLinks;
 
-      // Fetch products
+      // Fetch products with popularity ranking
       const [activeProducts] = await pool.query(`
         SELECT p.*, u.username as merchant_name 
         FROM products p

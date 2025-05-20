@@ -2,10 +2,9 @@
   "name": "benixspace",
   "version": "1.0.0",
   "description": "Affiliate Link & Product Sharing Platform",
-  "main": "app.js",
-  "scripts": {
-    "start": "node app.js",
-    "dev": "nodemon app.js"
+  "main": "app.js",  "scripts": {
+    "start": "node --max-old-space-size=2048 --max-semi-space-size=512 app.js",
+    "dev": "nodemon --max-old-space-size=2048 app.js"
   },
   "dependencies": {
     "axios": "^1.6.2",
