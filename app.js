@@ -649,7 +649,7 @@ app.get('/', async (req, res) => {
       totalLinks: 0,
       clickCount: 0,
       totalEarnings: 0
-    };    try {      // Fetch active links with smart engagement-based ranking
+    };try {      // Fetch active links with smart engagement-based ranking
       const [activeLinks] = await pool.query(`
         SELECT l.*, 
                u.username as merchant_name,
@@ -757,10 +757,33 @@ app.get('/', async (req, res) => {
       testimonials: [],
       error: 'An error occurred',
       success: null
-    });
-  }
+    });  }
 });
 // Update the home route to fetch links correctly
+
+// About Us page route
+app.get('/about', (req, res) => {
+  res.render('about', {
+    title: 'About Us | BenixSpace',
+    user: req.session.user || null
+  });
+});
+
+// Privacy Policy page route
+app.get('/privacy-policy', (req, res) => {
+  res.render('privacy-policy', {
+    title: 'Privacy Policy | BenixSpace',
+    user: req.session.user || null
+  });
+});
+
+// Terms & Conditions page route
+app.get('/terms', (req, res) => {
+  res.render('terms', {
+    title: 'Terms & Conditions | BenixSpace',
+    user: req.session.user || null
+  });
+});
 
 // Shop redirect route
 app.get('/shop', (req, res) => {
