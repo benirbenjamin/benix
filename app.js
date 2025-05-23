@@ -681,7 +681,7 @@ app.get('/', async (req, res) => {
           END DESC,
           total_clicks DESC,
           l.created_at DESC
-        LIMIT 12
+       LIMIT 100
       `);
       links = activeLinks;
 
@@ -692,7 +692,6 @@ app.get('/', async (req, res) => {
         JOIN users u ON p.merchant_id = u.id
         WHERE p.is_active = true
         ORDER BY p.created_at DESC
-        LIMIT 6
       `);
       products = activeProducts;
 
