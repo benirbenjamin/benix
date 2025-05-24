@@ -73,11 +73,10 @@
             </a>
           </li>
           <li class="nav-item dropdown">
-            <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-              <div class="user-avatar d-inline-flex align-items-center justify-content-center rounded-circle bg-primary text-white" style="width: 30px; height: 30px;">
-                <%= user.username.charAt(0).toUpperCase() %>
+            <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">              <div class="user-avatar d-inline-flex align-items-center justify-content-center rounded-circle bg-primary text-white" style="width: 30px; height: 30px;">
+                <%= user && user.username ? user.username.charAt(0).toUpperCase() : 'U' %>
               </div>
-              <span class="ms-1 d-none d-md-inline-block"><%= user.username %></span>
+              <span class="ms-1 d-none d-md-inline-block"><%= user && user.username ? user.username : 'User' %></span>
             </a>
             <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
               <li><a class="dropdown-item" href="/profile"><i class="fas fa-user me-2"></i>Profile</a></li>

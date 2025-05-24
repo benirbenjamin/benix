@@ -15,6 +15,7 @@ const { v4: uuidv4 } = require('uuid');
 const axios = require('axios');
 const nodemailer = require('nodemailer');
 const MySQLStore = require('express-mysql-session')(session);
+const productRoutes=require('./routes/productRoutes');
 
 
 
@@ -115,7 +116,7 @@ const pool = mysql.createPool({
   host: process.env.DB_HOST || 'localhost',
   user: process.env.DB_USER || 'root',
   password: process.env.DB_PASSWORD || '',
-  database: process.env.DB_NAME || 'benixs_benix',
+  database: process.env.DB_NAME || 'benix',
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0
@@ -2449,6 +2450,8 @@ app.get('/l/:code', async (req, res) => {
   }
 });
 
+//Product Routes
+app.use('/', productRoutes);
 // Cart route
 app.get('/cart', async (req, res) => {
   try {
@@ -5002,6 +5005,7 @@ app.get('/admin/settings', isAuthenticated, isAdmin, async (req, res) => {
 
 // Admin settings update route
 // Admin settings update route
+
 app.post('/admin/settings/update', isAuthenticated, isAdmin, async (req, res) => {
   try {
     const { key_name, value } = req.body;
