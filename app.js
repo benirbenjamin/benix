@@ -1421,7 +1421,8 @@ app.post('/register', async (req, res) => {
       business_description, 
       referral_code,
       country,
-      phone // this comes from the name="phone" in the form
+      phone,
+      full_phone // Get the full phone number with country code
     } = req.body;
     
     // Basic validation
@@ -1462,10 +1463,8 @@ app.post('/register', async (req, res) => {
     
     // Get the country code from the selected country
     const countryCode = country;
-    
-    // Format the phone number with the country code
-    const countryDialCode = req.body.dialCode || '+1'; // Default to +1 if not provided
-    const phone_number = `${countryDialCode}${phone}`;
+      // Use the full phone number from the hidden field or build it from components
+    const phone_number = full_phone || phone;
     
     // Check if user exists
     const [existingUsers] = await pool.query(

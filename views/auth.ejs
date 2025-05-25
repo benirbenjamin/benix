@@ -137,13 +137,12 @@
                   <option value="">Select your country</option>
                   <!-- Countries will be loaded via JavaScript -->
                 </select>
-              </div>
-
-              <div class="mb-3">
+              </div>              <div class="mb-3">
                 <label class="form-label">Phone Number</label>
                 <div class="input-group">
                   <span class="input-group-text" id="countryCode">+1</span>
                   <input type="tel" name="phone" class="form-control" required placeholder="Phone number">
+                  <input type="hidden" name="full_phone" id="fullPhoneNumber">
                 </div>
                 <small class="form-text text-muted">Please enter your phone number without the country code.</small>
               </div>
@@ -439,12 +438,12 @@
         // Set US as default
         countrySelect.value = 'RW';
         document.getElementById('countryCode').textContent = '+250'; // Default to Rwanda's dial code
-        
-        // Add change event listener to update country code
+          // Add change event listener to update country code
         countrySelect.addEventListener('change', function() {
           const selectedOption = this.options[this.selectedIndex];
           const dialCode = selectedOption.getAttribute('data-dial-code');
           document.getElementById('countryCode').textContent = dialCode;
+          updateFullPhoneNumber();
         });
       }
       
@@ -459,6 +458,35 @@
           merchantInputs.forEach(input => {
             input.required = this.value === 'merchant';
           });
+        });
+      }
+        // Function to update the full phone number hidden field
+      function updateFullPhoneNumber() {
+        const phoneInput = document.querySelector('input[name="phone"]');
+        const countryCode = document.getElementById('countryCode').textContent;
+        const fullPhoneField = document.getElementById('fullPhoneNumber');
+        
+        if (phoneInput && fullPhoneField) {
+          const phoneValue = phoneInput.value.trim();
+          // Remove any leading zeros from the phone number
+          const cleanPhone = phoneValue.replace(/^0+/, '');
+          // Combine country code and phone number
+          fullPhoneField.value = countryCode + cleanPhone;
+        }
+      }
+        // Add event listener to phone input to update the full phone number
+      const phoneInput = document.querySelector('input[name="phone"]');
+      if (phoneInput) {
+        phoneInput.addEventListener('input', updateFullPhoneNumber);
+        // Initialize the full phone field when the page loads
+        updateFullPhoneNumber();
+      }
+      
+      // Ensure the full phone number is updated when the form is submitted
+      const registerForm = document.querySelector('form[action="/register"]');
+      if (registerForm) {
+        registerForm.addEventListener('submit', function(e) {
+          updateFullPhoneNumber();
         });
       }
       
