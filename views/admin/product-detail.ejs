@@ -104,6 +104,31 @@
                 <% } %>
             </div>
         </div>
+
+        <!-- Merchant Section -->
+        <% if (merchant) { %>
+        <div class="card mb-4">
+          <div class="card-header">
+            <h5 class="mb-0">Merchant Information</h5>
+          </div>
+          <div class="card-body">
+            <div class="row">
+              <div class="col-md-6">
+                <p><strong>Username:</strong> <%= merchant.username %></p>
+                <p><strong>Email:</strong> <%= merchant.email %></p>
+                <% if (merchant.phone_number) { %>
+                  <p><strong>Phone:</strong> <%= merchant.phone_number %></p>
+                <% } %>
+              </div>
+              <div class="col-md-6 text-end">
+                <a href="/admin/users/<%= merchant.id %>" class="btn btn-primary">
+                  <i class="bi bi-eye"></i> View Merchant Profile
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+        <% } %>
     </div>
 
     <script>

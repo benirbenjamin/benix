@@ -82,13 +82,6 @@
             padding: 15px;
             margin-bottom: 20px;
         }
-        .bank-details {
-            background-color: #f0f8ff;
-            border-radius: 10px;
-            padding: 15px;
-            margin-bottom: 20px;
-            border: 1px solid #cfe2ff;
-        }
     </style>
 </head>
 <body class="bg-light">
@@ -109,7 +102,7 @@
                             <i class="bi bi-cart"></i>
                         </div>
                         <div class="progress-step-label">Order Placed</div>
-                        <small><%= new Date(order.created_at).toLocaleString() %></small>
+                        <small><%= formatDate(order.created_at) %></small>
                     </div>
                     
                     <div class="progress-step <%= ['processing', 'shipped', 'delivered', 'completed'].indexOf(order.status) >= 0 ? 'completed' : (order.status === 'pending' ? 'active' : '') %>">
@@ -139,7 +132,7 @@
                         </div>
                         <div class="progress-step-label">Completed</div>
                         <% if (order.status === 'completed' && order.completed_at) { %>
-                            <small><%= new Date(order.completed_at).toLocaleString() %></small>
+                            <small><%= formatDate(order.completed_at) %></small>
                         <% } %>
                     </div>
                 </div>
@@ -193,7 +186,9 @@
                                                     <% } %>
                                                     <div>
                                                         <a href="/products/<%= item.product_id %>" class="product-title"><%= item.name %></a>
-                                                        <small class="d-block text-muted">Merchant: <%= item.merchant_name %></small>
+                                                        <% if (item.variant) { %>
+                                                            <small class="d-block text-muted">Variant: <%= item.variant %></small>
+                                                        <% } %>
                                                     </div>
                                                 </div>
                                             </td>
@@ -204,24 +199,6 @@
                                     <% }); %>
                                 </tbody>
                             </table>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Shipping Address -->
-                <div class="card mb-4">
-                    <div class="card-header">
-                        <h5 class="mb-0">Shipping Details</h5>
-                    </div>
-                    <div class="card-body">
-                        <p><strong>Shipping Address:</strong></p>
-                        <div class="address-card">
-                            <%= order.shipping_address %>
-                        </div>
-                        
-                        <p><strong>Contact Number:</strong></p>
-                        <div class="address-card">
-                            <%= order.phone_number %>
                         </div>
                     </div>
                 </div>
@@ -236,7 +213,7 @@
                     <div class="card-body">
                         <div class="d-flex justify-content-between mb-2">
                             <span>Subtotal:</span>
-                            <span>$<%= parseFloat(order.total_amount || 0).toFixed(2) %></span>
+                            <span>$<%= parseFloat(order.subtotal || order.total_amount).toFixed(2) %></span>
                         </div>
                         <% if (order.shipping_cost) { %>
                             <div class="d-flex justify-content-between mb-2">
@@ -261,39 +238,59 @@
                             <span>Total:</span>
                             <span>$<%= parseFloat(order.total_amount).toFixed(2) %></span>
                         </div>
+                        
+                        <div class="mt-3">
+                            <h6 class="mb-2">Payment Details</h6>
+                            <p class="mb-1"><strong>Method:</strong> <%= order.payment_method || 'Not specified' %></p>
+                            <p class="mb-1"><strong>Status:</strong> 
+                                <span class="badge bg-<%= order.payment_status === 'paid' ? 'success' : 'warning' %>">
+                                    <%= order.payment_status ? order.payment_status.toUpperCase() : 'PENDING' %>
+                                </span>
+                            </p>
+                            <% if (order.transaction_id) { %>
+                                <p class="mb-1"><strong>Transaction ID:</strong> <%= order.transaction_id %></p>
+                            <% } %>
+                        </div>
                     </div>
                 </div>
                 
-                <!-- Payment Information -->
-                <div class="card mb-4">
-                    <div class="card-header">
-                        <h5 class="mb-0">Payment Information</h5>
-                    </div>
-                    <div class="card-body">
-                        <% if (order.payment_status === 'paid') { %>
-                            <div class="alert alert-success mb-3">
-                                <i class="bi bi-check-circle-fill me-2"></i> Payment completed
-                            </div>
-                        <% } else { %>
-                            <div class="alert alert-warning mb-3">
-                                <i class="bi bi-exclamation-triangle-fill me-2"></i> Payment pending
-                            </div>
-                            
-                            <div class="bank-details">
-                                <h6 class="mb-3">Bank Transfer Details</h6>
-                                <p class="mb-2"><strong>Bank:</strong> <%= paymentInfo.bankName %></p>
-                                <p class="mb-2"><strong>Account Name:</strong> <%= paymentInfo.accountName %></p>
-                                <p class="mb-2"><strong>Account Number:</strong> <%= paymentInfo.accountNumber %></p>
-                                <% if (paymentInfo.swiftCode) { %>
-                                    <p class="mb-2"><strong>Swift Code:</strong> <%= paymentInfo.swiftCode %></p>
-                                <% } %>
-                                <div class="alert alert-info mt-3 mb-0">
-                                    <small>Please include your Order #<%= order.id %> as payment reference</small>
+                <% if (order.shipping_address || order.billing_address) { %>
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h5 class="mb-0">Addresses</h5>
+                        </div>
+                        <div class="card-body">
+                            <% if (order.shipping_address) { %>
+                                <div class="mb-3">
+                                    <h6>Shipping Address</h6>
+                                    <div class="address-card">
+                                        <%= order.shipping_address %>
+                                    </div>
                                 </div>
-                            </div>
-                        <% } %>
+                            <% } %>
+                            
+                            <% if (order.billing_address && order.billing_address !== order.shipping_address) { %>
+                                <div>
+                                    <h6>Billing Address</h6>
+                                    <div class="address-card">
+                                        <%= order.billing_address %>
+                                    </div>
+                                </div>
+                            <% } %>
+                        </div>
                     </div>
-                </div>
+                <% } %>
+                
+                <% if (order.notes) { %>
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h5 class="mb-0">Order Notes</h5>
+                        </div>
+                        <div class="card-body">
+                            <p class="mb-0"><%= order.notes %></p>
+                        </div>
+                    </div>
+                <% } %>
                 
                 <div class="d-grid gap-2 mt-4">
                     <a href="/orders" class="btn btn-outline-secondary">

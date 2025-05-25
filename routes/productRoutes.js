@@ -34,18 +34,12 @@ router.get('/product/:id', async (req, res) => {
                 message: 'Product not found',
                 error: { status: 404, stack: '' }
             });
-<<<<<<< HEAD
         }
         
         const product = products[0];
         
         // Get cart count for the user if logged in
         if (req.session && req.session.userId) {
-=======
-        }        // Get cart count for the user if logged in        
-        let cartCount = 0;
-        if (req.session.userId) {
->>>>>>> 70fd2b40662174610f19d20ee6c9811708db0829
             try {
                 const [cartItems] = await pool.query(
                     'SELECT SUM(quantity) as total FROM cart_items WHERE user_id = ?',

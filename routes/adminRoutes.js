@@ -296,6 +296,43 @@ router.post('/admin/api/links/:id/toggle-status', isAdmin, async (req, res) => {
   }
 });
 
+// Toggle user premium status
+router.post('/admin/users/:id/toggle-premium', isAdmin, async (req, res) => {
+  try {
+    const userId = req.params.id;
+    
+    // Get current premium status
+    const [users] = await pool.query('SELECT has_lifetime_commission FROM users WHERE id = ?', [userId]);
+    
+    if (users.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+    
+    const currentStatus = users[0].has_lifetime_commission || 0;
+    const newStatus = currentStatus ? 0 : 1;
+    
+    // Update user's premium status
+    await pool.query(
+      'UPDATE users SET has_lifetime_commission = ? WHERE id = ?',
+      [newStatus, userId]
+    );
+    
+    res.json({
+      success: true,
+      message: newStatus ? 'User upgraded to premium successfully' : 'Premium status removed successfully'
+    });
+  } catch (err) {
+    console.error('Error toggling user premium status:', err);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update user premium status'
+    });
+  }
+});
+
 // Product detail view for admin
 router.get('/admin/products/:id', isAdmin, async (req, res) => {
   try {
@@ -317,6 +354,19 @@ router.get('/admin/products/:id', isAdmin, async (req, res) => {
     
     const product = products[0];
     
+    // Get merchant details if available
+    let merchant = null;
+    if (product.merchant_id) {
+      const [merchantResults] = await pool.query(
+        'SELECT id, username, email, phone_number FROM users WHERE id = ?', 
+        [product.merchant_id]
+      );
+      
+      if (merchantResults.length > 0) {
+        merchant = merchantResults[0];
+      }
+    }
+    
     // Get shared links for this product
     const [sharedLinks] = await pool.query(`
       SELECT sl.*, u.username as shared_by
@@ -330,6 +380,7 @@ router.get('/admin/products/:id', isAdmin, async (req, res) => {
     res.render('admin/product-detail', {
       user: req.user,
       product,
+      merchant,
       sharedLinks
     });
   } catch (err) {
@@ -668,6 +719,276 @@ router.get('/admin/run-migration/:name', isAdmin, async (req, res) => {
   } catch (err) {
     console.error('Migration error:', err);
     return res.status(500).send(`Migration failed: ${err.message}`);
+  }
+});
+
+// Users management route
+router.get('/admin/users', isAdmin, async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = 20;
+    const offset = (page - 1) * limit;
+    const selectedRole = req.query.role || '';
+    const searchQuery = req.query.search || '';
+
+    // Build the query with filters
+    let query = `
+      SELECT u.*, 
+             (SELECT COUNT(*) FROM shared_links WHERE user_id = u.id) as total_shared_links,
+             (SELECT COUNT(*) FROM orders WHERE user_id = u.id) as total_orders
+      FROM users u
+      WHERE 1=1
+    `;
+    
+    const queryParams = [];
+    
+    if (selectedRole) {
+      query += ` AND u.role = ?`;
+      queryParams.push(selectedRole);
+    }
+    
+    if (searchQuery) {
+      query += ` AND (u.username LIKE ? OR u.email LIKE ?)`;
+      queryParams.push(`%${searchQuery}%`, `%${searchQuery}%`);
+    }
+    
+    // Count query for pagination
+    const [countResults] = await pool.query(
+      `SELECT COUNT(*) as total FROM users u WHERE 1=1 ${
+        selectedRole ? ' AND u.role = ?' : ''
+      }${searchQuery ? ' AND (u.username LIKE ? OR u.email LIKE ?)' : ''}`,
+      queryParams
+    );
+    
+    const totalUsers = countResults[0].total;
+    const totalPages = Math.ceil(totalUsers / limit);
+    
+    // Add pagination to the query
+    query += ` ORDER BY u.created_at DESC LIMIT ? OFFSET ?`;
+    queryParams.push(limit, offset);
+    
+    // Execute the query
+    const [users] = await pool.query(query, queryParams);
+    
+    res.render('admin/users', {
+      user: req.user,
+      users,
+      currentPage: page,
+      totalPages,
+      selectedRole,
+      searchQuery
+    });
+  } catch (err) {
+    console.error('Admin users error:', err);
+    res.status(500).render('error', {
+      message: 'Error loading users',
+      error: { status: 500, stack: process.env.NODE_ENV === 'development' ? err.stack : '' }
+    });
+  }
+});
+
+// User detail view for admin
+router.get('/admin/users/:id', isAdmin, async (req, res) => {
+  try {
+    const userId = req.params.id;
+    
+    // Get detailed user information
+    const [users] = await pool.query(`
+      SELECT u.*, 
+             (SELECT COUNT(*) FROM shared_links WHERE user_id = u.id) as total_shared_links,
+             (SELECT COUNT(*) FROM orders WHERE user_id = u.id) as total_orders
+      FROM users u
+      WHERE u.id = ?
+    `, [userId]);
+    
+    if (users.length === 0) {
+      return res.status(404).render('error', {
+        message: 'User not found',
+        error: { status: 404, stack: '' }
+      });
+    }
+    
+    const user = users[0];
+    
+    // Get user's orders
+    const [orders] = await pool.query(`
+      SELECT o.*, 
+             COUNT(oi.id) as item_count,
+             SUM(oi.price * oi.quantity) as order_value
+      FROM orders o
+      LEFT JOIN order_items oi ON o.id = oi.order_id
+      WHERE o.user_id = ?
+      GROUP BY o.id
+      ORDER BY o.created_at DESC
+      LIMIT 10
+    `, [userId]);
+    
+    // Get user's shared links
+    const [sharedLinks] = await pool.query(`
+      SELECT sl.*, l.title, l.type, l.url, u.username as merchant_name
+      FROM shared_links sl
+      JOIN links l ON sl.link_id = l.id
+      JOIN users u ON l.merchant_id = u.id
+      WHERE sl.user_id = ?
+      ORDER BY sl.clicks DESC
+      LIMIT 10
+    `, [userId]);
+    
+    // Get user's transactions
+    const [transactions] = await pool.query(`
+      SELECT * FROM transactions
+      WHERE user_id = ?
+      ORDER BY created_at DESC
+      LIMIT 20
+    `, [userId]);
+    
+    // Get referrals if any
+    const [referrals] = await pool.query(`
+      SELECT r.*, u.username as referred_username, u.email as referred_email,
+             u.created_at as referred_created_at
+      FROM referrals r
+      JOIN users u ON r.referred_id = u.id
+      WHERE r.referrer_id = ?
+      ORDER BY r.created_at DESC
+    `, [userId]);
+    
+    res.render('admin/user-detail', {
+      user: req.user, // Admin user
+      targetUser: user, // User being viewed
+      orders,
+      sharedLinks,
+      transactions,
+      referrals,
+      success: req.query.success,
+      error: req.query.error
+    });
+  } catch (err) {
+    console.error('Admin user detail error:', err);
+    res.status(500).render('error', {
+      message: 'Error loading user details',
+      error: { status: 500, stack: process.env.NODE_ENV === 'development' ? err.stack : '' }
+    });
+  }
+});
+
+// Reset user password
+router.post('/admin/users/:id/set-password', isAdmin, async (req, res) => {
+  try {
+    const userId = req.params.id;
+    const { new_password } = req.body;
+    
+    if (!new_password || new_password.length < 8) {
+      return res.status(400).json({
+        success: false,
+        message: 'Password must be at least 8 characters long'
+      });
+    }
+    
+    // Check if user exists
+    const [users] = await pool.query('SELECT id FROM users WHERE id = ?', [userId]);
+    
+    if (users.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+    
+    // Hash the new password
+    const bcrypt = require('bcrypt');
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(new_password, salt);
+    
+    // Update user's password
+    await pool.query(
+      'UPDATE users SET password = ? WHERE id = ?',
+      [hashedPassword, userId]
+    );
+    
+    res.json({
+      success: true,
+      message: 'Password has been reset successfully'
+    });
+  } catch (err) {
+    console.error('Error resetting user password:', err);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to reset password'
+    });
+  }
+});
+
+// Update user notes
+router.post('/admin/users/:id/update-notes', isAdmin, async (req, res) => {
+  try {
+    const userId = req.params.id;
+    const { notes } = req.body;
+    
+    // Check if user exists
+    const [users] = await pool.query('SELECT id FROM users WHERE id = ?', [userId]);
+    
+    if (users.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+    
+    // Update user's notes
+    await pool.query(
+      'UPDATE users SET notes = ? WHERE id = ?',
+      [notes, userId]
+    );
+    
+    res.json({
+      success: true,
+      message: 'User notes updated successfully'
+    });
+  } catch (err) {
+    console.error('Error updating user notes:', err);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update user notes'
+    });
+  }
+});
+
+// Delete user
+router.delete('/admin/users/:id/delete', isAdmin, async (req, res) => {
+  try {
+    const userId = req.params.id;
+    
+    // Check if user exists
+    const [users] = await pool.query('SELECT id, role FROM users WHERE id = ?', [userId]);
+    
+    if (users.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+    
+    // Don't allow deletion of admin users
+    if (users[0].role === 'admin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Cannot delete admin users'
+      });
+    }
+    
+    // Delete user (in production, you might want to use a transaction here)
+    await pool.query('DELETE FROM users WHERE id = ?', [userId]);
+    
+    res.json({
+      success: true,
+      message: 'User has been deleted successfully'
+    });
+  } catch (err) {
+    console.error('Error deleting user:', err);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to delete user'
+    });
   }
 });
 

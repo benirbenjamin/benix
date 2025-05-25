@@ -18,6 +18,7 @@ const nodemailer = require('nodemailer');
 const MySQLStore = require('express-mysql-session')(session);
 const productRoutes = require('./routes/productRoutes');
 const adminRoutes = require('./routes/adminRoutes');
+const userRoutes = require('./routes/userRoutes');
 
 
 
@@ -1036,6 +1037,10 @@ function isAuthenticated(req, res, next) {
 //       business_description || null,
 //       account_name,
 //       account_number,
+
+
+
+
 //       bank_code,
 //       userId
 //     ]);
@@ -1077,231 +1082,231 @@ function isAuthenticated(req, res, next) {
 
 // Modified registration GET route to handle referral codes
 // Add this GET route before your POST route
-app.get('/profile', isAuthenticated, async (req, res) => {
-  try {
-    const userId = req.session.userId;
+// app.get('/profile', isAuthenticated, async (req, res) => {
+//   try {
+//     const userId = req.session.userId;
     
-    // Get user data with all fields
-    const [users] = await pool.query(`
-      SELECT id, username, email, role, country, phone_number,
-             business_name, business_description, account_name,
-             account_number, bank_code, created_at, has_lifetime_commission
-      FROM users 
-      WHERE id = ?
-    `, [userId]);
+//     // Get user data with all fields
+//     const [users] = await pool.query(`
+//       SELECT id, username, email, role, country, phone_number,
+//              business_name, business_description, account_name,
+//              account_number, bank_code, created_at, has_lifetime_commission
+//       FROM users 
+//       WHERE id = ?
+//     `, [userId]);
 
-    if (users.length === 0) {
-      return res.status(404).render('error', { message: 'User not found' });
-    }
-      const user = users[0];
-    console.log('Retrieved user data:', user);
-      // Parse the phone number to separate country code and number
-    let phoneDetails = { countryCode: '+1', number: '' };
-    if (user.phone_number) {
-      console.log('Processing phone number:', user.phone_number);
-      // Try different phone number formats
-      let match = user.phone_number.match(/^(\+\d{1,3}|\d{1,3})(\d+)$/);
-      if (match) {
-        phoneDetails.countryCode = match[1].startsWith('+') ? match[1] : '+' + match[1];
-        phoneDetails.number = match[2];
-      } else {
-        // If format is completely different, try to extract numbers
-        const numbers = user.phone_number.replace(/[^\d]/g, '');
-        if (numbers.length > 3) {
-          // Assume first 1-3 digits are country code
-          const countryCode = numbers.slice(0, Math.min(3, numbers.length - 4));
-          phoneDetails.countryCode = '+' + countryCode;
-          phoneDetails.number = numbers.slice(countryCode.length);
-        } else {
-          // If all else fails, treat entire number as local number
-          phoneDetails.number = numbers;
-        }
-      }
-      console.log('Parsed phone details:', phoneDetails);
-    }
+//     if (users.length === 0) {
+//       return res.status(404).render('error', { message: 'User not found' });
+//     }
+//       const user = users[0];
+//     console.log('Retrieved user data:', user);
+//       // Parse the phone number to separate country code and number
+//     let phoneDetails = { countryCode: '+1', number: '' };
+//     if (user.phone_number) {
+//       console.log('Processing phone number:', user.phone_number);
+//       // Try different phone number formats
+//       let match = user.phone_number.match(/^(\+\d{1,3}|\d{1,3})(\d+)$/);
+//       if (match) {
+//         phoneDetails.countryCode = match[1].startsWith('+') ? match[1] : '+' + match[1];
+//         phoneDetails.number = match[2];
+//       } else {
+//         // If format is completely different, try to extract numbers
+//         const numbers = user.phone_number.replace(/[^\d]/g, '');
+//         if (numbers.length > 3) {
+//           // Assume first 1-3 digits are country code
+//           const countryCode = numbers.slice(0, Math.min(3, numbers.length - 4));
+//           phoneDetails.countryCode = '+' + countryCode;
+//           phoneDetails.number = numbers.slice(countryCode.length);
+//         } else {
+//           // If all else fails, treat entire number as local number
+//           phoneDetails.number = numbers;
+//         }
+//       }
+//       console.log('Parsed phone details:', phoneDetails);
+//     }
 
-    // Get stats based on user role
-    const stats = {
-      totalLinks: 0,
-      totalClicks: 0,
-      totalEarnings: 0
-    };
+//     // Get stats based on user role
+//     const stats = {
+//       totalLinks: 0,
+//       totalClicks: 0,
+//       totalEarnings: 0
+//     };
     
-    if (user.role === 'merchant') {
-      // Get merchant stats
-      const [linkCountResults] = await pool.query('SELECT COUNT(*) as count FROM links WHERE merchant_id = ?', [userId]);
-      stats.totalLinks = linkCountResults[0].count || 0;
+//     if (user.role === 'merchant') {
+//       // Get merchant stats
+//       const [linkCountResults] = await pool.query('SELECT COUNT(*) as count FROM links WHERE merchant_id = ?', [userId]);
+//       stats.totalLinks = linkCountResults[0].count || 0;
       
-      const [clickResults] = await pool.query(`
-        SELECT COALESCE(SUM(sl.clicks), 0) as totalClicks
-        FROM links l
-        LEFT JOIN shared_links sl ON l.id = sl.link_id
-        WHERE l.merchant_id = ?
-      `, [userId]);
+//       const [clickResults] = await pool.query(`
+//         SELECT COALESCE(SUM(sl.clicks), 0) as totalClicks
+//         FROM links l
+//         LEFT JOIN shared_links sl ON l.id = sl.link_id
+//         WHERE l.merchant_id = ?
+//       `, [userId]);
       
-      stats.totalClicks = clickResults[0].totalClicks || 0;
-    } else {
-      // Regular user stats
-      const [linkCountResults] = await pool.query('SELECT COUNT(*) as count FROM shared_links WHERE user_id = ?', [userId]);
-      stats.totalLinks = linkCountResults[0].count || 0;
+//       stats.totalClicks = clickResults[0].totalClicks || 0;
+//     } else {
+//       // Regular user stats
+//       const [linkCountResults] = await pool.query('SELECT COUNT(*) as count FROM shared_links WHERE user_id = ?', [userId]);
+//       stats.totalLinks = linkCountResults[0].count || 0;
       
-      const [clickResults] = await pool.query('SELECT COALESCE(SUM(clicks), 0) as totalClicks FROM shared_links WHERE user_id = ?', [userId]);
-      stats.totalClicks = clickResults[0].totalClicks || 0;
+//       const [clickResults] = await pool.query('SELECT COALESCE(SUM(clicks), 0) as totalClicks FROM shared_links WHERE user_id = ?', [userId]);
+//       stats.totalClicks = clickResults[0].totalClicks || 0;
       
-      stats.totalEarnings = parseFloat(user.earnings || 0);
-    }
+//       stats.totalEarnings = parseFloat(user.earnings || 0);
+//     }
     
-    res.render('user/profile', { 
-      user,
-      stats,
-      phoneDetails,
-      success: req.query.success,
-      error: req.query.error
-    });
-  } catch (err) {
-    console.error('Profile page error:', err);
-    res.status(500).render('error', { message: 'Server error. Please try again later.' });
-  }
-});
-app.post('/profile/update', isAuthenticated, async (req, res) => {
-  try {
-    const userId = req.session.userId;
-    const {
-      username,
-      email,
-      current_password,
-      new_password,
-      business_name,
-      business_description,
-      account_name,
-      account_number,
-      bank_code,
-      country,
-      phone,
-      dialCode
-    } = req.body;
+//     res.render('user/profile', { 
+//       user,
+//       stats,
+//       phoneDetails,
+//       success: req.query.success,
+//       error: req.query.error
+//     });
+//   } catch (err) {
+//     console.error('Profile page error:', err);
+//     res.status(500).render('error', { message: 'Server error. Please try again later.' });
+//   }
+// });
+// app.post('/profile/update', isAuthenticated, async (req, res) => {
+//   try {
+//     const userId = req.session.userId;
+//     const {
+//       username,
+//       email,
+//       current_password,
+//       new_password,
+//       business_name,
+//       business_description,
+//       account_name,
+//       account_number,
+//       bank_code,
+//       country,
+//       phone,
+//       dialCode
+//     } = req.body;
 
-    // Debug log the received form data
-    console.log('Form data received:', {
-      country,
-      phone,
-      dialCode
-    });
+//     // Debug log the received form data
+//     console.log('Form data received:', {
+//       country,
+//       phone,
+//       dialCode
+//     });
 
-    // Check if username or email already exists
-    const [existingUsers] = await pool.query(
-      'SELECT id FROM users WHERE (username = ? OR email = ?) AND id != ?',
-      [username, email, userId]
-    );
+//     // Check if username or email already exists
+//     const [existingUsers] = await pool.query(
+//       'SELECT id FROM users WHERE (username = ? OR email = ?) AND id != ?',
+//       [username, email, userId]
+//     );
 
-    if (existingUsers.length > 0) {
-      const [user] = await pool.query('SELECT * FROM users WHERE id = ?', [userId]);
-      return res.render('user/profile', {
-        user: user[0],
-        error: 'Username or email already in use'
-      });
-    }    // Format phone number with country code if both values exist    let phone_number = null;
-    if (phone || dialCode) {
-      // Ensure we have both values
-      if (!phone || !dialCode) {
-        const [user] = await pool.query(`
-          SELECT id, username, email, role, country, phone_number,
-                 business_name, business_description, account_name,
-                 account_number, bank_code, created_at, has_lifetime_commission 
-          FROM users WHERE id = ?`, [userId]);
-        return res.render('user/profile', {
-          user: user[0],
-          error: 'Please provide both phone number and select a country',
-          stats: { totalLinks: 0, totalClicks: 0, totalEarnings: 0 },
-          phoneDetails: { countryCode: dialCode || '+1', number: phone || '' }
-        });
-      }
+//     if (existingUsers.length > 0) {
+//       const [user] = await pool.query('SELECT * FROM users WHERE id = ?', [userId]);
+//       return res.render('user/profile', {
+//         user: user[0],
+//         error: 'Username or email already in use'
+//       });
+//     }    // Format phone number with country code if both values exist    let phone_number = null;
+//     if (phone || dialCode) {
+//       // Ensure we have both values
+//       if (!phone || !dialCode) {
+//         const [user] = await pool.query(`
+//           SELECT id, username, email, role, country, phone_number,
+//                  business_name, business_description, account_name,
+//                  account_number, bank_code, created_at, has_lifetime_commission 
+//           FROM users WHERE id = ?`, [userId]);
+//         return res.render('user/profile', {
+//           user: user[0],
+//           error: 'Please provide both phone number and select a country',
+//           stats: { totalLinks: 0, totalClicks: 0, totalEarnings: 0 },
+//           phoneDetails: { countryCode: dialCode || '+1', number: phone || '' }
+//         });
+//       }
       
-      // Clean up the phone number and dial code
-      const cleanPhone = phone.replace(/[^\d]/g, '');
-      const cleanDialCode = dialCode.replace(/[^\d]/g, '').replace(/^([^+])/, '+$1');
+//       // Clean up the phone number and dial code
+//       const cleanPhone = phone.replace(/[^\d]/g, '');
+//       const cleanDialCode = dialCode.replace(/[^\d]/g, '').replace(/^([^+])/, '+$1');
       
-      // Validate phone number format
-      if (cleanPhone.length < 6 || cleanPhone.length > 15) {
-        const [user] = await pool.query(`
-          SELECT id, username, email, role, country, phone_number,
-                 business_name, business_description, account_name,
-                 account_number, bank_code, created_at, has_lifetime_commission 
-          FROM users WHERE id = ?`, [userId]);
-        return res.render('user/profile', {
-          user: user[0],
-          error: 'Please enter a valid phone number (6-15 digits)',
-          stats: { totalLinks: 0, totalClicks: 0, totalEarnings: 0 },
-          phoneDetails: { countryCode: cleanDialCode, number: cleanPhone }
-        });
-      }
+//       // Validate phone number format
+//       if (cleanPhone.length < 6 || cleanPhone.length > 15) {
+//         const [user] = await pool.query(`
+//           SELECT id, username, email, role, country, phone_number,
+//                  business_name, business_description, account_name,
+//                  account_number, bank_code, created_at, has_lifetime_commission 
+//           FROM users WHERE id = ?`, [userId]);
+//         return res.render('user/profile', {
+//           user: user[0],
+//           error: 'Please enter a valid phone number (6-15 digits)',
+//           stats: { totalLinks: 0, totalClicks: 0, totalEarnings: 0 },
+//           phoneDetails: { countryCode: cleanDialCode, number: cleanPhone }
+//         });
+//       }
       
-      console.log('Setting phone number with:', { cleanDialCode, cleanPhone });
-      phone_number = `${cleanDialCode}${cleanPhone}`;
-      console.log('Final phone_number:', phone_number);
-    }
+//       console.log('Setting phone number with:', { cleanDialCode, cleanPhone });
+//       phone_number = `${cleanDialCode}${cleanPhone}`;
+//       console.log('Final phone_number:', phone_number);
+//     }
 
-    console.log('Formatted phone number:', phone_number);
+//     console.log('Formatted phone number:', phone_number);
 
-    // Update basic info
-    await pool.query(`
-      UPDATE users 
-      SET username = ?, 
-          email = ?,
-          business_name = ?,
-          business_description = ?,
-          account_name = ?,
-          account_number = ?,
-          bank_code = ?,
-          country = ?,
-          phone_number = ?
-      WHERE id = ?
-    `, [
-      username,
-      email,
-      business_name || null,
-      business_description || null,
-      account_name,
-      account_number,
-      bank_code,
-      country,
-      phone_number,
-      userId
-    ]);
+//     // Update basic info
+//     await pool.query(`
+//       UPDATE users 
+//       SET username = ?, 
+//           email = ?,
+//           business_name = ?,
+//           business_description = ?,
+//           account_name = ?,
+//           account_number = ?,
+//           bank_code = ?,
+//           country = ?,
+//           phone_number = ?
+//       WHERE id = ?
+//     `, [
+//       username,
+//       email,
+//       business_name || null,
+//       business_description || null,
+//       account_name,
+//       account_number,
+//       bank_code,
+//       country,
+//       phone_number,
+//       userId
+//     ]);
 
-    // Update password if provided
-    if (current_password && new_password) {
-      const [user] = await pool.query('SELECT password FROM users WHERE id = ?', [userId]);
-      const passwordMatch = await bcrypt.compare(current_password, user[0].password);
+//     // Update password if provided
+//     if (current_password && new_password) {
+//       const [user] = await pool.query('SELECT password FROM users WHERE id = ?', [userId]);
+//       const passwordMatch = await bcrypt.compare(current_password, user[0].password);
 
-      if (!passwordMatch) {
-        return res.render('user/profile', {
-          user: { ...req.body, id: userId },
-          error: 'Current password is incorrect'
-        });
-      }
+//       if (!passwordMatch) {
+//         return res.render('user/profile', {
+//           user: { ...req.body, id: userId },
+//           error: 'Current password is incorrect'
+//         });
+//       }
 
-      const hashedPassword = await bcrypt.hash(new_password, 10);
-      await pool.query('UPDATE users SET password = ? WHERE id = ?', [hashedPassword, userId]);
-    }
+//       const hashedPassword = await bcrypt.hash(new_password, 10);
+//       await pool.query('UPDATE users SET password = ? WHERE id = ?', [hashedPassword, userId]);
+//     }
 
-    // Get updated user data
-    const [updatedUser] = await pool.query('SELECT * FROM users WHERE id = ?', [userId]);
+//     // Get updated user data
+//     const [updatedUser] = await pool.query('SELECT * FROM users WHERE id = ?', [userId]);
     
-    console.log('Updated user data:', {
-      country: updatedUser[0].country,
-      phone_number: updatedUser[0].phone_number
-    });
+//     console.log('Updated user data:', {
+//       country: updatedUser[0].country,
+//       phone_number: updatedUser[0].phone_number
+//     });
 
-    res.render('user/profile', {
-      user: updatedUser[0],
-      success: 'Profile updated successfully'
-    });
-  } catch (err) {
-    console.error('Profile update error:', err);
-    res.status(500).render('error', { message: 'Server error. Please try again later.' });
-  }
-});
+//     res.render('user/profile', {
+//       user: updatedUser[0],
+//       success: 'Profile updated successfully'
+//     });
+//   } catch (err) {
+//     console.error('Profile update error:', err);
+//     res.status(500).render('error', { message: 'Server error. Please try again later.' });
+//   }
+// });
 
 
 
@@ -2457,6 +2462,8 @@ app.use('/', productRoutes);
 
 // Admin Routes
 app.use('/', adminRoutes);
+//userRoutes
+app.use('/', userRoutes);
 
 // Cart route
 app.get('/cart', async (req, res) => {
@@ -2554,34 +2561,34 @@ app.post('/api/cart/add', isAuthenticated, async (req, res) => {
 
 });
 // User orders page
-app.get('/user/orders', isAuthenticated, async (req, res) => {
-  try {
-    const userId = req.session.userId;
+// app.get('/user/orders', isAuthenticated, async (req, res) => {
+//   try {
+//     const userId = req.session.userId;
     
-    // Get user's orders with summary information
-    const [orders] = await pool.query(`
-      SELECT o.*, 
-             COUNT(oi.id) as item_count
-      FROM orders o
-      LEFT JOIN order_items oi ON o.id = oi.order_id
-      WHERE o.user_id = ?
-      GROUP BY o.id
-      ORDER BY o.created_at DESC
-    `, [userId]);
+//     // Get user's orders with summary information
+//     const [orders] = await pool.query(`
+//       SELECT o.*, 
+//              COUNT(oi.id) as item_count
+//       FROM orders o
+//       LEFT JOIN order_items oi ON o.id = oi.order_id
+//       WHERE o.user_id = ?
+//       GROUP BY o.id
+//       ORDER BY o.created_at DESC
+//     `, [userId]);
     
-    res.render('user/orders', {
-      user: {
-        id: req.session.userId,
-        username: req.session.username,
-        role: req.session.role
-      },
-      orders: orders
-    });
-  } catch (err) {
-    console.error('User orders error:', err);
-    res.status(500).render('error', { message: 'Server error. Please try again later.' });
-  }
-});
+//     res.render('user/orders', {
+//       user: {
+//         id: req.session.userId,
+//         username: req.session.username,
+//         role: req.session.role
+//       },
+//       orders: orders
+//     });
+//   } catch (err) {
+//     console.error('User orders error:', err);
+//     res.status(500).render('error', { message: 'Server error. Please try again later.' });
+//   }
+// });
 
 // Order details
 // app.get('/user/orders/:id', isAuthenticated, async (req, res) => {
@@ -2622,58 +2629,58 @@ app.get('/user/orders', isAuthenticated, async (req, res) => {
 //   }
 // });
 // Order details
-app.get('/user/orders/:id', isAuthenticated, async (req, res) => {
-  try {
-    const orderId = req.params.id;
-    const userId = req.session.userId;
+// app.get('/user/orders/:id', isAuthenticated, async (req, res) => {
+//   try {
+//     const orderId = req.params.id;
+//     const userId = req.session.userId;
     
-    // Get order details
-    const [orders] = await pool.query(`
-      SELECT * FROM orders
-      WHERE id = ? AND user_id = ?
-    `, [orderId, userId]);
+//     // Get order details
+//     const [orders] = await pool.query(`
+//       SELECT * FROM orders
+//       WHERE id = ? AND user_id = ?
+//     `, [orderId, userId]);
     
-    if (orders.length === 0) {
-      return res.status(404).render('error', { message: 'Order not found.' });
-    }
+//     if (orders.length === 0) {
+//       return res.status(404).render('error', { message: 'Order not found.' });
+//     }
     
-    // Get order items
-    const [orderItems] = await pool.query(`
-      SELECT oi.*, p.name, p.image_url, u.username as merchant_name
-      FROM order_items oi
-      JOIN products p ON oi.product_id = p.id
-      JOIN users u ON p.merchant_id = u.id
-      WHERE oi.order_id = ?
-    `, [orderId]);
+//     // Get order items
+//     const [orderItems] = await pool.query(`
+//       SELECT oi.*, p.name, p.image_url, u.username as merchant_name
+//       FROM order_items oi
+//       JOIN products p ON oi.product_id = p.id
+//       JOIN users u ON p.merchant_id = u.id
+//       WHERE oi.order_id = ?
+//     `, [orderId]);
     
-    // Get payment information from config
-    const bankName = await getConfig('manual_payment_bank_name');
-    const accountName = await getConfig('manual_payment_account_name');
-    const accountNumber = await getConfig('manual_payment_account_number');
-    const swiftCode = await getConfig('manual_payment_swift_code');
+//     // Get payment information from config
+//     const bankName = await getConfig('manual_payment_bank_name');
+//     const accountName = await getConfig('manual_payment_account_name');
+//     const accountNumber = await getConfig('manual_payment_account_number');
+//     const swiftCode = await getConfig('manual_payment_swift_code');
     
-    const paymentInfo = {
-      bankName: bankName || 'Bank of Africa',
-      accountName: accountName || 'BenixSpace Ltd',
-      accountNumber: accountNumber || '00012345678',
-      swiftCode: swiftCode || null
-    };
+//     const paymentInfo = {
+//       bankName: bankName || 'Bank of Africa',
+//       accountName: accountName || 'BenixSpace Ltd',
+//       accountNumber: accountNumber || '00012345678',
+//       swiftCode: swiftCode || null
+//     };
     
-    res.render('user/order-details', {
-      user: {
-        id: req.session.userId,
-        username: req.session.username,
-        role: req.session.role
-      },
-      order: orders[0],
-      items: orderItems,
-      paymentInfo: paymentInfo
-    });
-  } catch (err) {
-    console.error('Order details error:', err);
-    res.status(500).render('error', { message: 'Server error. Please try again later.' });
-  }
-});
+//     res.render('user/order-details', {
+//       user: {
+//         id: req.session.userId,
+//         username: req.session.username,
+//         role: req.session.role
+//       },
+//       order: orders[0],
+//       items: orderItems,
+//       paymentInfo: paymentInfo
+//     });
+//   } catch (err) {
+//     console.error('Order details error:', err);
+//     res.status(500).render('error', { message: 'Server error. Please try again later.' });
+//   }
+// });
 // // API to update cart item quantity
 // app.post('/api/cart/update', isAuthenticated, async (req, res) => {
 //   try {
