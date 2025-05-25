@@ -17,7 +17,10 @@ const pool = mysql.createPool({
 router.get('/product/:id', async (req, res) => {
     try {
         const productId = req.params.id;
-          // Get product details by ID
+        // Initialize cartCount at the beginning to ensure it's always defined
+        let cartCount = 0;
+        
+        // Get product details by ID
         const [products] = await pool.query(
             `SELECT p.*, u.username as merchant_name
              FROM products p 
@@ -26,21 +29,25 @@ router.get('/product/:id', async (req, res) => {
             [productId]
         );
         
-        const product = products[0];
-        
-        if (!product) {
+        if (!products || products.length === 0) {
             return res.status(404).render('error', { 
                 message: 'Product not found',
                 error: { status: 404, stack: '' }
             });
-        }        // Get cart count for the user if logged in        let cartCount = 0;
-        if (req.session.userId) {
+        }
+        
+        const product = products[0];
+        
+        // Get cart count for the user if logged in
+        if (req.session && req.session.userId) {
             try {
                 const [cartItems] = await pool.query(
                     'SELECT SUM(quantity) as total FROM cart_items WHERE user_id = ?',
                     [req.session.userId]
                 );
-                cartCount = cartItems[0]?.total || 0;
+                if (cartItems && cartItems[0] && cartItems[0].total) {
+                    cartCount = parseInt(cartItems[0].total) || 0;
+                }
             } catch (cartErr) {
                 console.error('Error fetching cart count:', cartErr);
                 // Continue with cartCount = 0
@@ -48,17 +55,21 @@ router.get('/product/:id', async (req, res) => {
         }
         
         // Get related products in the same category
-        const [relatedProducts] = await pool.query(
-            `SELECT p.*, u.username as merchant_name
-             FROM products p
-             JOIN users u ON p.merchant_id = u.id
-             WHERE p.category = ? AND p.id != ? AND p.is_active = 1
-             LIMIT 4`,
-            [product.category, productId]
-        );
-          // Fetch user data if user is logged in
+        let relatedProducts = [];
+        if (product.category) {
+            [relatedProducts] = await pool.query(
+                `SELECT p.*, u.username as merchant_name
+                 FROM products p
+                 JOIN users u ON p.merchant_id = u.id
+                 WHERE p.category = ? AND p.id != ? AND p.is_active = 1
+                 LIMIT 4`,
+                [product.category, productId]
+            );
+        }
+        
+        // Fetch user data if user is logged in
         let userData = null;
-        if (req.session.userId) {
+        if (req.session && req.session.userId) {
             try {
                 const [users] = await pool.query('SELECT * FROM users WHERE id = ?', [req.session.userId]);
                 if (users.length > 0) {

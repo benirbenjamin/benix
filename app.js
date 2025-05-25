@@ -10,12 +10,14 @@ const mysql = require('mysql2/promise');
 const bcrypt = require('bcrypt');
 const path = require('path');
 const multer = require('multer');
+// const flash = require('connect-flash');
 const fs = require('fs');
 const { v4: uuidv4 } = require('uuid');
 const axios = require('axios');
 const nodemailer = require('nodemailer');
 const MySQLStore = require('express-mysql-session')(session);
-const productRoutes=require('./routes/productRoutes');
+const productRoutes = require('./routes/productRoutes');
+const adminRoutes = require('./routes/adminRoutes');
 
 
 
@@ -2452,6 +2454,10 @@ app.get('/l/:code', async (req, res) => {
 
 //Product Routes
 app.use('/', productRoutes);
+
+// Admin Routes
+app.use('/', adminRoutes);
+
 // Cart route
 app.get('/cart', async (req, res) => {
   try {
