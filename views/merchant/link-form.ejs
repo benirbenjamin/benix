@@ -39,7 +39,7 @@
                 <label for="type" class="form-label">Link Type</label>
                 <select class="form-select" id="type" name="type" required>
                   <option value="link" <%= link && link.type === 'link' ? 'selected' : '' %>>Regular Link</option>
-                  <option value="product" <%= link && link.type === 'product' ? 'selected' : '' %>>Product</option>
+
                   <option value="youtube" <%= link && link.type === 'youtube' ? 'selected' : '' %>>YouTube Video</option>
                 </select>
               </div>

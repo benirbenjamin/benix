@@ -231,18 +231,7 @@ async function initializeDatabase() {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       ) ROW_FORMAT=DYNAMIC
     `);
-    // Create referrals table if it doesn't exist
-await connection.query(`
-  CREATE TABLE IF NOT EXISTS referrals (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    referrer_id INT NOT NULL,
-    referred_id INT NOT NULL,
-    commission_paid DECIMAL(10,4) DEFAULT 0.0200,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (referrer_id) REFERENCES users(id),
-    FOREIGN KEY (referred_id) REFERENCES users(id)
-  )
-`);
+
 
 
     // Create users table
@@ -354,7 +343,18 @@ await connection.query(`
     } catch (err) {
       console.error('Error updating users table schema:', err);
     }
-
+    // Create referrals table if it doesn't exist
+await connection.query(`
+  CREATE TABLE IF NOT EXISTS referrals (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    referrer_id INT NOT NULL,
+    referred_id INT NOT NULL,
+    commission_paid DECIMAL(10,4) DEFAULT 0.0200,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (referrer_id) REFERENCES users(id),
+    FOREIGN KEY (referred_id) REFERENCES users(id)
+  )
+`);
     // Create links table
     await connection.query(`
       CREATE TABLE IF NOT EXISTS links (
@@ -389,15 +389,6 @@ try {
   console.error('Error updating users decimal precision:', err);
 }
 
-// Also update other tables with monetary values
-try {
-  await connection.query(`
-    ALTER TABLE shared_links 
-    MODIFY earnings DECIMAL(10,4) DEFAULT 0.0000
-  `);
-} catch (err) {
-  console.error('Error updating shared_links decimal precision:', err);
-}
 
 try {
   await connection.query(`
@@ -462,6 +453,15 @@ try {
         FOREIGN KEY (user_id) REFERENCES users(id)
       )
     `);
+// Also update other tables with monetary values
+try {
+  await connection.query(`
+    ALTER TABLE shared_links 
+    MODIFY earnings DECIMAL(10,4) DEFAULT 0.0000
+  `);
+} catch (err) {
+  console.error('Error updating shared_links decimal precision:', err);
+}
 
     // Create clicks table
     await connection.query(`
@@ -3136,6 +3136,114 @@ app.get('/merchant/products', isAuthenticated, isMerchant, async (req, res) => {
 
 // Form to create a new product
 // Form to create a new product
+// Create a new product - Updated to use image URL instead of file upload
+app.post('/merchant/products/create', isAuthenticated, isMerchant, async (req, res) => {
+  try {
+    const merchantId = req.session.userId;
+    const {
+      name,
+      description,
+      price,
+      stock,
+      category,
+      commission_rate,
+      image_url // This now comes directly from the form
+    } = req.body;
+    
+    // Validate required fields
+    if (!name || !price || !stock) {
+      return res.redirect('/merchant/products/create?error=Name, price, and stock are required fields');
+    }
+    
+    // Insert the new product with image URL directly
+    await pool.query(`
+      INSERT INTO products (
+        merchant_id,
+        name, 
+        description, 
+        price, 
+        stock,
+        image_url, 
+        category,
+        commission_rate,
+        is_active
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, true)
+    `, [
+      merchantId,
+      name,
+      description || null,
+      parseFloat(price),
+      parseInt(stock),
+      image_url || null, // Use the URL directly from the form
+      category || null,
+      parseFloat(commission_rate) || 5.00  // Default to 5% if not specified
+    ]);
+    
+    res.redirect('/merchant/products?success=Product created successfully');
+  } catch (err) {
+    console.error('Product creation error:', err);
+    res.redirect('/merchant/products/create?error=Failed to create product. Please try again.');
+  }
+});
+
+// Update a product - Also modified to use image URL
+app.post('/merchant/products/:id/edit', isAuthenticated, isMerchant, async (req, res) => {
+  try {
+    const productId = req.params.id;
+    const merchantId = req.session.userId;
+    const {
+      name,
+      description,
+      price,
+      stock,
+      category,
+      commission_rate,
+      is_active,
+      image_url // Changed from file upload to direct URL
+    } = req.body;
+    
+    // Verify product belongs to this merchant
+    const [products] = await pool.query(`
+      SELECT *
+      FROM products
+      WHERE id = ? AND merchant_id = ?
+    `, [productId, merchantId]);
+    
+    if (products.length === 0) {
+      return res.status(404).render('error', { message: 'Product not found or you don\'t have permission to edit it.' });
+    }
+    
+    // Update the product with the direct image URL
+    await pool.query(`
+      UPDATE products
+      SET name = ?,
+          description = ?,
+          price = ?,
+          stock = ?,
+          image_url = ?,
+          category = ?,
+          commission_rate = ?,
+          is_active = ?
+      WHERE id = ? AND merchant_id = ?
+    `, [
+      name,
+      description || null,
+      parseFloat(price),
+      parseInt(stock),
+      image_url, // Use the provided URL directly
+      category || null,
+      parseFloat(commission_rate) || 5.00,
+      is_active ? 1 : 0,
+      productId,
+      merchantId
+    ]);
+    
+    res.redirect(`/merchant/products?success=Product updated successfully`);
+  } catch (err) {
+    console.error('Product update error:', err);
+    res.redirect(`/merchant/products/${req.params.id}/edit?error=Failed to update product. Please try again.`);
+  }
+});
 app.get('/merchant/products/create', isAuthenticated, isMerchant, async (req, res) => {
   try {
     // Get default commission rate from config
@@ -3159,59 +3267,7 @@ app.get('/merchant/products/create', isAuthenticated, isMerchant, async (req, re
 });
 
 // Create a new product
-app.post('/merchant/products/create', isAuthenticated, isMerchant, upload.single('image'), async (req, res) => {
-  try {
-    const merchantId = req.session.userId;
-    const {
-      name,
-      description,
-      price,
-      stock,
-      category,
-      commission_rate
-    } = req.body;
-    
-    // Validate required fields
-    if (!name || !price || !stock) {
-      return res.redirect('/merchant/products/create?error=Name, price, and stock are required fields');
-    }
-    
-    // Get the file path if an image was uploaded
-    let imageUrl = null;
-    if (req.file) {
-      imageUrl = `/uploads/${req.file.filename}`;
-    }
-    
-    // Insert the new product
-    await pool.query(`
-      INSERT INTO products (
-        merchant_id,
-        name, 
-        description, 
-        price, 
-        stock,
-        image_url, 
-        category,
-        commission_rate,
-        is_active
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, true)
-    `, [
-      merchantId,
-      name,
-      description || null,
-      parseFloat(price),
-      parseInt(stock),
-      imageUrl,
-      category || null,
-      parseFloat(commission_rate) || 5.00  // Default to 5% if not specified
-    ]);
-    
-    res.redirect('/merchant/products?success=Product created successfully');
-  } catch (err) {
-    console.error('Product creation error:', err);
-    res.redirect('/merchant/products/create?error=Failed to create product. Please try again.');
-  }
-});
+
 
 // Edit a product
 
@@ -3250,77 +3306,6 @@ app.get('/merchant/products/:id/edit', isAuthenticated, isMerchant, async (req, 
   }
 });
 
-// Update a product
-app.post('/merchant/products/:id/edit', isAuthenticated, isMerchant, upload.single('image'), async (req, res) => {
-  try {
-    const productId = req.params.id;
-    const merchantId = req.session.userId;
-    const {
-      name,
-      description,
-      price,
-      stock,
-      category,
-      commission_rate,
-      is_active
-    } = req.body;
-    
-    // Verify product belongs to this merchant
-    const [products] = await pool.query(`
-      SELECT *
-      FROM products
-      WHERE id = ? AND merchant_id = ?
-    `, [productId, merchantId]);
-    
-    if (products.length === 0) {
-      return res.status(404).render('error', { message: 'Product not found or you don\'t have permission to edit it.' });
-    }
-    
-    // Get the file path if a new image was uploaded
-    let imageUrl = products[0].image_url;
-    if (req.file) {
-      imageUrl = `/uploads/${req.file.filename}`;
-      
-      // Delete old image if it exists
-      if (products[0].image_url) {
-        const oldImagePath = path.join(__dirname, 'public', products[0].image_url);
-        if (fs.existsSync(oldImagePath)) {
-          fs.unlinkSync(oldImagePath);
-        }
-      }
-    }
-    
-    // Update the product
-    await pool.query(`
-      UPDATE products
-      SET name = ?,
-          description = ?,
-          price = ?,
-          stock = ?,
-          image_url = ?,
-          category = ?,
-          commission_rate = ?,
-          is_active = ?
-      WHERE id = ? AND merchant_id = ?
-    `, [
-      name,
-      description || null,
-      parseFloat(price),
-      parseInt(stock),
-      imageUrl,
-      category || null,
-      parseFloat(commission_rate) || 5.00,
-      is_active ? 1 : 0,
-      productId,
-      merchantId
-    ]);
-    
-    res.redirect(`/merchant/products?success=Product updated successfully`);
-  } catch (err) {
-    console.error('Product update error:', err);
-    res.redirect(`/merchant/products/${req.params.id}/edit?error=Failed to update product. Please try again.`);
-  }
-});
 
 // View product details
 app.get('/merchant/products/:id', isAuthenticated, isMerchant, async (req, res) => {

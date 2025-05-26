@@ -20,10 +20,12 @@
                         <% if (typeof error !== 'undefined' && error) { %>
                             <div class="alert alert-danger"><%= error %></div>
                         <% } %>
+                        <% if (typeof success !== 'undefined' && success) { %>
+                            <div class="alert alert-success"><%= success %></div>
+                        <% } %>
                         
                         <form action="<%= product ? `/merchant/products/${product.id}/edit` : '/merchant/products/create' %>" 
-                              method="POST" 
-                              enctype="multipart/form-data">
+                              method="POST">
                             
                             <div class="mb-3">
                                 <label for="name" class="form-label">Product Name</label>
@@ -71,20 +73,41 @@
                                            <%= product && product.is_active ? 'checked' : '' %>>
                                     <label class="form-check-label" for="is_active">Active (visible to users)</label>
                                 </div>
-                            </div>
-
-                            <div class="mb-3">
-                                <label for="image" class="form-label">Product Image</label>
-                                <input type="file" class="form-control" id="image" name="image" 
-                                       accept="image/jpeg,image/png,image/gif">
-                                <% if (product && product.image_url) { %>
-                                    <div class="mt-2">
-                                        <img src="<%= product.image_url %>" alt="Current product image" 
-                                             style="max-height: 100px;">
+                            </div>                            <div class="mb-3">
+                                <label for="image_url" class="form-label">Product Image URL</label>
+                                <div class="input-group mb-3">
+                                    <input type="url" class="form-control" id="image_url" name="image_url" 
+                                           placeholder="https://example.com/your-image.jpg"
+                                           value="<%= product && product.image_url ? product.image_url : '' %>">
+                                    <div class="input-group-append">
+                                      <a href="https://postimages.org/" target="_blank" class="btn btn-outline-secondary" type="button">
+                                        <i class="fas fa-cloud-upload-alt"></i> Upload Image
+                                      </a>
                                     </div>
-                                <% } %>
+                                  </div>
+                                <small class="form-text text-muted">
+                                    <i class="fas fa-info-circle"></i> Click "Upload Image" to host your image on postimages.org, then copy the direct link and paste it here.
+                                </small>
                             </div>
 
+                            <% if (product && product.image_url) { %>
+                              <div class="mb-3">
+                                <label>Current Image Preview:</label>
+                                <div>
+                                  <img src="<%= product.image_url %>" alt="<%= product.name %>" class="img-thumbnail" style="max-height: 200px;">
+                                </div>
+                              </div>
+                            <% } %>
+                            
+                            <% if (product) { %>
+                              <div class="form-check mb-3">
+                                <input class="form-check-input" type="checkbox" id="is_active" name="is_active" value="1" <%= product.is_active ? 'checked' : '' %>>
+                                <label class="form-check-label" for="is_active">
+                                  Product is active and available for sale
+                                </label>
+                              </div>
+                            <% } %>
+                            
                             <div class="d-grid gap-2">
                                 <button type="submit" class="btn btn-primary">
                                     <%= product ? 'Update' : 'Create' %> Product
