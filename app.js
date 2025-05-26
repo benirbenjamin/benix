@@ -641,6 +641,128 @@ function isMerchant(req, res, next) {
 // =============== ROUTES ===============
 
 // Home route
+// app.get('/', async (req, res) => {
+//   try {
+//     // Initialize all required variables
+//     let links = [];
+//     let products = [];
+//     let merchants = [];
+//     let testimonials = [];
+//     let stats = {
+//       userCount: 0,
+//       totalLinks: 0,
+//       clickCount: 0,
+//       totalEarnings: 0
+//     };try {      // Fetch active links with smart engagement-based ranking
+//       const [activeLinks] = await pool.query(`
+//         SELECT l.*, 
+//                u.username as merchant_name,
+//                u.business_name,
+//                COUNT(DISTINCT sl.id) as total_shares,
+//                COALESCE(SUM(sl.clicks), 0) as total_clicks,
+//                COALESCE(SUM(sl.earnings), 0) as total_earnings,
+//                (
+//                  COALESCE(SUM(sl.clicks), 0) / 
+//                  GREATEST(DATEDIFF(NOW(), l.created_at), 1) + 
+//                  (COUNT(DISTINCT sl.id) * 2) +
+//                  (CASE 
+//                    WHEN l.created_at > DATE_SUB(NOW(), INTERVAL 24 HOUR) THEN 50
+//                    WHEN l.created_at > DATE_SUB(NOW(), INTERVAL 7 DAY) THEN 20
+//                    ELSE 0
+//                  END)
+//                ) as engagement_score
+//         FROM links l
+//         JOIN users u ON l.merchant_id = u.id  
+//         LEFT JOIN shared_links sl ON l.id = sl.link_id        WHERE l.is_active = true
+//         GROUP BY l.id, u.username, u.business_name
+//         ORDER BY 
+//           engagement_score DESC,
+//           CASE 
+//             WHEN l.created_at > DATE_SUB(NOW(), INTERVAL 24 HOUR) THEN 3
+//             WHEN l.created_at > DATE_SUB(NOW(), INTERVAL 7 DAY) THEN 2 
+//             WHEN l.created_at > DATE_SUB(NOW(), INTERVAL 30 DAY) THEN 1
+//             ELSE 0
+//           END DESC,
+//           total_clicks DESC,
+//           l.created_at DESC
+//        LIMIT 100
+//       `);
+//       links = activeLinks;
+
+//       // Fetch products with popularity ranking
+//       const [activeProducts] = await pool.query(`
+//         SELECT p.*, u.username as merchant_name 
+//         FROM products p
+//         JOIN users u ON p.merchant_id = u.id
+//         WHERE p.is_active = true
+//         ORDER BY p.created_at DESC
+//       `);
+//       products = activeProducts;
+
+//       // Fetch merchants
+//       const [activeMerchants] = await pool.query(`
+//         SELECT u.*, COUNT(p.id) as product_count
+//         FROM users u 
+//         LEFT JOIN products p ON u.id = p.merchant_id
+//         WHERE u.role = 'merchant'
+//         GROUP BY u.id
+//         ORDER BY product_count DESC
+//         LIMIT 3
+//       `);
+//       merchants = activeMerchants;
+
+//       // Get stats
+//       const [[userCount]] = await pool.query('SELECT COUNT(*) as count FROM users WHERE role != "admin"');
+//       const [[linkCount]] = await pool.query('SELECT COUNT(*) as count FROM links WHERE is_active = true');
+//       const [[clickCount]] = await pool.query('SELECT COALESCE(SUM(clicks), 0) as count FROM shared_links');
+//       const [[earningsSum]] = await pool.query('SELECT COALESCE(SUM(earnings), 0) as total FROM users');
+
+//       stats = {
+//         userCount: userCount.count || 0,
+//         totalLinks: linkCount.count || 0,
+//         clickCount: clickCount.count || 0,
+//         totalEarnings: parseFloat(earningsSum.total || 0).toFixed(2)
+//       };
+
+//     } catch (dbErr) {
+//       console.error('Database error:', dbErr);
+//     }
+
+//     // Render with all required variables
+//     return res.render('index', {
+//       user: req.session.userId ? {
+//         id: req.session.userId,
+//         username: req.session.username,
+//         role: req.session.role
+//       } : null,
+//       links: links,
+//       products: products,
+//       stats: stats,
+//       merchants: merchants,
+//       testimonials: testimonials,
+//       error: null,
+//       success: null
+//     });
+
+//   } catch (err) {
+//     console.error('Homepage error:', err);
+//     return res.render('index', {
+//       user: null,
+//       links: [],
+//       products: [],
+//       stats: {
+//         userCount: 0,
+//         totalLinks: 0,
+//         clickCount: 0,
+//         totalEarnings: 0
+//       },
+//       merchants: [],
+//       testimonials: [],
+//       error: 'An error occurred',
+//       success: null
+//     });  }
+// });
+// Update the home route to fetch links correctly
 app.get('/', async (req, res) => {
   try {
     // Initialize all required variables
@@ -653,7 +775,10 @@ app.get('/', async (req, res) => {
       totalLinks: 0,
       clickCount: 0,
       totalEarnings: 0
-    };try {      // Fetch active links with smart engagement-based ranking
+    };
+    
+    try {
+      // Fetch active links with smart engagement-based ranking
       const [activeLinks] = await pool.query(`
         SELECT l.*, 
                u.username as merchant_name,
@@ -673,7 +798,8 @@ app.get('/', async (req, res) => {
                ) as engagement_score
         FROM links l
         JOIN users u ON l.merchant_id = u.id  
-        LEFT JOIN shared_links sl ON l.id = sl.link_id        WHERE l.is_active = true
+        LEFT JOIN shared_links sl ON l.id = sl.link_id
+        WHERE l.is_active = true
         GROUP BY l.id, u.username, u.business_name
         ORDER BY 
           engagement_score DESC,
@@ -711,10 +837,13 @@ app.get('/', async (req, res) => {
       `);
       merchants = activeMerchants;
 
-      // Get stats
+      // Get accurate stats
       const [[userCount]] = await pool.query('SELECT COUNT(*) as count FROM users WHERE role != "admin"');
       const [[linkCount]] = await pool.query('SELECT COUNT(*) as count FROM links WHERE is_active = true');
-      const [[clickCount]] = await pool.query('SELECT COALESCE(SUM(clicks), 0) as count FROM shared_links');
+      
+      // Fix: Count actual clicks from the clicks table instead of using shared_links aggregation
+      const [[clickCount]] = await pool.query('SELECT COUNT(*) as count FROM clicks WHERE is_counted = true');
+      
       const [[earningsSum]] = await pool.query('SELECT COALESCE(SUM(earnings), 0) as total FROM users');
 
       stats = {
@@ -760,7 +889,8 @@ app.get('/', async (req, res) => {
       testimonials: [],
       error: 'An error occurred',
       success: null
-    });  }
+    });
+  }
 });
 // Update the home route to fetch links correctly
 
@@ -1308,107 +1438,6 @@ function isAuthenticated(req, res, next) {
 //   }
 // });
 
-
-
-app.get('/register', (req, res) => {
-  try {
-    const referralCode = req.query.ref || '';
-    return res.render('auth', { 
-      page: 'register', 
-      error: null,
-      referralCode: referralCode 
-    });
-  } catch (err) {
-    console.error('Failed to load register page:', err);
-    return res.status(500).render('error', { message: 'Server error. Please try again later.' });
-  }
-});
-
-// Modified registration POST route to process referrals
-// app.post('/register', async (req, res) => {
-//   try {
-//     const { username, email, password, confirmPassword, role, business_name, business_description, referral_code } = req.body;
-    
-//     // Basic validation
-//     if (password !== confirmPassword) {
-//       return res.render('auth', { page: 'register', error: 'Passwords do not match', referralCode: referral_code });
-//     }
-    
-//     // Additional validations...
-//     // [Your existing registration validation code]
-    
-//     // Create user with referral ID
-//     const hashedPassword = await bcrypt.hash(password, 10);
-//     const referralId = uuidv4().substring(0, 8); // Generate unique referral ID
-    
-//     const [result] = await pool.query(
-//       'INSERT INTO users (username, email, password, role, business_name, business_description, referral_id) VALUES (?, ?, ?, ?, ?, ?, ?)',
-//       [username, email, hashedPassword, role, business_name || null, business_description || null, referralId]
-//     );
-    
-//     // Process referral if provided
-//     if (referral_code) {
-//       try {
-//         // Find the referring user
-//         const [referrers] = await pool.query('SELECT * FROM users WHERE referral_id = ?', [referral_code]);
-        
-//         if (referrers.length > 0) {
-//           const referrerId = referrers[0].id;
-          
-//           // Add referral commission to referrer's wallet and earnings
-//           await pool.query(`
-//             UPDATE users 
-//             SET wallet = wallet + 0.0200, 
-//                 earnings = COALESCE(earnings, 0) + 0.0200 
-//             WHERE id = ?
-//           `, [referrerId]);
-          
-//           // Create a transaction record for the referral bonus
-//           await pool.query(`
-//             INSERT INTO transactions (
-//               user_id, type, amount, status, details
-//             ) VALUES (?, ?, ?, ?, ?)
-//           `, [
-//             referrerId,
-//             'commission',
-//             0.2,
-//             'completed',
-//             `Referral commission for new user: ${username}`
-//           ]);
-          
-//           // Record the referral relationship
-//           await pool.query(`
-//             INSERT INTO referrals (referrer_id, referred_id, commission_paid)
-//             VALUES (?, ?, ?)
-//           `, [referrerId, result.insertId, 0.02]);
-//         }
-//       } catch (referralErr) {
-//         console.error('Error processing referral:', referralErr);
-//         // Continue with registration even if referral processing fails
-//       }
-//     }
-    
-//     // Set session
-//     req.session.userId = result.insertId;
-//     req.session.username = username;
-//     req.session.role = role;
-    
-//     res.redirect('/dashboard');
-//   } catch (err) {
-//     console.error('Registration error:', err);
-//     res.render('auth', { 
-//       page: 'register', 
-//       error: 'Server error. Please try again.',
-//       referralCode: req.body.referral_code 
-//     });
-//   }
-// });
-// Add to the database initialization function in app.js
-// Find the CREATE TABLE IF NOT EXISTS users section and add the country and phone_number fields
-
-// Update the users table creation with country field
-
-// Update the registration POST route in app.js
 app.post('/register', async (req, res) => {
   try {
     const { 
@@ -1491,19 +1520,47 @@ app.post('/register', async (req, res) => {
     
     // Process referral if provided
     if (referral_code) {
-      const [referrers] = await pool.query(
-        'SELECT * FROM users WHERE referral_id = ?',
-        [referral_code]
-      );
-      
-      if (referrers.length > 0) {
-        const referrerId = referrers[0].id;
-        
-        // Add to referrals table
-        await pool.query(
-          'INSERT INTO referrals (referrer_id, referred_id) VALUES (?, ?)',
-          [referrerId, result.insertId]
+      try {
+        const [referrers] = await pool.query(
+          'SELECT * FROM users WHERE referral_id = ?',
+          [referral_code]
         );
+        
+        if (referrers.length > 0) {
+          const referrerId = referrers[0].id;
+          
+          // Add referral commission to referrer's wallet and earnings
+          await pool.query(`
+            UPDATE users 
+            SET wallet = wallet + 0.0200, 
+                earnings = COALESCE(earnings, 0) + 0.0200 
+            WHERE id = ?
+          `, [referrerId]);
+          
+          // Create a transaction record for the referral bonus
+          await pool.query(`
+            INSERT INTO transactions (
+              user_id, type, amount, status, details
+            ) VALUES (?, ?, ?, ?, ?)
+          `, [
+            referrerId,
+            'commission',
+            0.0200,
+            'completed',
+            `Referral commission for new user: ${username}`
+          ]);
+          
+          // Add to referrals table
+          await pool.query(
+            'INSERT INTO referrals (referrer_id, referred_id, commission_paid) VALUES (?, ?, ?)',
+            [referrerId, result.insertId, 0.0200]
+          );
+          
+          console.log(`Referral commission of $0.0200 added to user ID ${referrerId} for referring ${username}`);
+        }
+      } catch (referralErr) {
+        console.error('Error processing referral:', referralErr);
+        // Continue with registration even if referral processing fails
       }
     }
     
@@ -1523,7 +1580,22 @@ app.post('/register', async (req, res) => {
   }
 });
 
-// Add this endpoint to provide countries and their codes
+app.get('/register', (req, res) => {
+  try {
+    const referralCode = req.query.ref || '';
+    return res.render('auth', { 
+      page: 'register', 
+      error: null,
+      referralCode: referralCode 
+    });
+  } catch (err) {
+    console.error('Failed to load register page:', err);
+    return res.status(500).render('error', { message: 'Server error. Please try again later.' });
+  }
+});
+
+
+
 app.get('/api/countries', (req, res) => {
   const countries = [
     { name: "Afghanistan", code: "AF", dial_code: "+93" },
@@ -1815,52 +1887,7 @@ app.get('/referrals', isAuthenticated, async (req, res) => {
     res.status(500).render('error', { message: 'Server error. Please try again later.' });
   }
 });
-// Route to show user's referral stats and link
-// app.post('/register', async (req, res) => {
-//   try {
-//     const { username, email, password, confirmPassword } = req.body;
-    
-//     // Basic validation
-//     if (password !== confirmPassword) {
-//       return res.render('auth', { page: 'register', error: 'Passwords do not match' });
-//     }
-    
-//     // Check if user exists
-//     const [existingUsers] = await pool.query(
-//       'SELECT * FROM users WHERE username = ? OR email = ?', 
-//       [username, email]
-//     );
-    
-//     if (existingUsers.length > 0) {
-//       return res.render('auth', { 
-//         page: 'register', 
-//         error: 'Username or email already in use' 
-//       });
-//     }
-    
-//     // Create user
-//     const hashedPassword = await bcrypt.hash(password, 10);
-//     const [result] = await pool.query(
-//       'INSERT INTO users (username, email, password) VALUES (?, ?, ?)',
-//       [username, email, hashedPassword]
-//     );
-    
-//     // Set session
-//     req.session.userId = result.insertId;
-//     req.session.username = username;
-//     req.session.role = 'user';
-    
-//     res.redirect('/dashboard');
-//   } catch (err) {
-//     console.error('Registration error:', err);
-//     res.render('auth', { page: 'register', error: 'Server error. Please try again.' });
-//   }
-// });
 
-app.get('/logout', (req, res) => {
-  req.session.destroy();
-  res.redirect('/');
-});
 
 
 // Wallet route
@@ -3491,114 +3518,6 @@ app.get('/links/:id/share', isAuthenticated, async (req, res) => {
 });
 
 
-app.post('/register', async (req, res) => {
-  try {
-    const { username, email, password, confirmPassword, role, business_name, business_description } = req.body;
-    
-    // Basic validation
-    if (password !== confirmPassword) {
-      return res.render('auth', { page: 'register', error: 'Passwords do not match' });
-    }
-    
-    // Validate role
-    if (!['user', 'merchant'].includes(role)) {
-      return res.render('auth', { page: 'register', error: 'Invalid role selected' });
-    }
-    
-    // Additional validation for merchants
-    if (role === 'merchant' && (!business_name || !business_description)) {
-      return res.render('auth', { 
-        page: 'register', 
-        error: 'Business name and description are required for merchant accounts' 
-      });
-    }
-    
-    // Check if user exists
-    const [existingUsers] = await pool.query(
-      'SELECT * FROM users WHERE username = ? OR email = ?', 
-      [username, email]
-    );
-    
-    if (existingUsers.length > 0) {
-      return res.render('auth', { 
-        page: 'register', 
-        error: 'Username or email already in use' 
-      });
-    }
-    
-    // Create user
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const [result] = await pool.query(
-      'INSERT INTO users (username, email, password, role, business_name, business_description) VALUES (?, ?, ?, ?, ?, ?)',
-      [username, email, hashedPassword, role, business_name || null, business_description || null]
-    );
-    
-    // Set session
-    req.session.userId = result.insertId;
-    req.session.username = username;
-    req.session.role = role;
-    
-    res.redirect('/dashboard');
-  } catch (err) {
-    console.error('Registration error:', err);
-    res.render('auth', { page: 'register', error: 'Server error. Please try again.' });
-  }
-});
-
-app.get('/register', (req, res) => {
-  try{
-
-    return res.render('auth', { page: 'register', error: null });
-  
-
-} catch (err) {
-  console.error('Failed to load register page:', err);
-  return res.status(500).render('error', { message: 'Server error. Please try again later.' });
-}
-});
-
-
-
-// app.post('/register', async (req, res) => {
-//   try {
-//     const { username, email, password, confirmPassword } = req.body;
-    
-//     // Basic validation
-//     if (password !== confirmPassword) {
-//       return res.render('auth', { page: 'register', error: 'Passwords do not match' });
-//     }
-    
-//     // Check if user exists
-//     const [existingUsers] = await pool.query(
-//       'SELECT * FROM users WHERE username = ? OR email = ?', 
-//       [username, email]
-//     );
-    
-//     if (existingUsers.length > 0) {
-//       return res.render('auth', { 
-//         page: 'register', 
-//         error: 'Username or email already in use' 
-//       });
-//     }
-    
-//     // Create user
-//     const hashedPassword = await bcrypt.hash(password, 10);
-//     const [result] = await pool.query(
-//       'INSERT INTO users (username, email, password) VALUES (?, ?, ?)',
-//       [username, email, hashedPassword]
-//     );
-    
-//     // Set session
-//     req.session.userId = result.insertId;
-//     req.session.username = username;
-//     req.session.role = 'user';
-    
-//     res.redirect('/dashboard');
-//   } catch (err) {
-//     console.error('Registration error:', err);
-//     res.render('auth', { page: 'register', error: 'Server error. Please try again.' });
-//   }
-// });
 
 app.get('/logout', (req, res) => {
   req.session.destroy();
@@ -3822,119 +3741,6 @@ app.get('/links/:id/share', isAuthenticated, async (req, res) => {
 
 
 
-app.post('/register', async (req, res) => {
-  try {
-    const { username, email, password, confirmPassword, role, business_name, business_description } = req.body;
-    
-    // Basic validation
-    if (password !== confirmPassword) {
-      return res.render('auth', { page: 'register', error: 'Passwords do not match' });
-    }
-    
-    // Validate role
-    if (!['user', 'merchant'].includes(role)) {
-      return res.render('auth', { page: 'register', error: 'Invalid role selected' });
-    }
-    
-    // Additional validation for merchants
-    if (role === 'merchant' && (!business_name || !business_description)) {
-      return res.render('auth', { 
-        page: 'register', 
-        error: 'Business name and description are required for merchant accounts' 
-      });
-    }
-    
-    // Check if user exists
-    const [existingUsers] = await pool.query(
-      'SELECT * FROM users WHERE username = ? OR email = ?', 
-      [username, email]
-    );
-    
-    if (existingUsers.length > 0) {
-      return res.render('auth', { 
-        page: 'register', 
-        error: 'Username or email already in use' 
-      });
-    }
-    
-    // Create user
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const [result] = await pool.query(
-      'INSERT INTO users (username, email, password, role, business_name, business_description) VALUES (?, ?, ?, ?, ?, ?)',
-      [username, email, hashedPassword, role, business_name || null, business_description || null]
-    );
-    
-    // Set session
-    req.session.userId = result.insertId;
-    req.session.username = username;
-    req.session.role = role;
-    
-    res.redirect('/dashboard');
-  } catch (err) {
-    console.error('Registration error:', err);
-    res.render('auth', { page: 'register', error: 'Server error. Please try again.' });
-  }
-});
-
-app.get('/register', (req, res) => {
-  try{
-
-    return res.render('auth', { page: 'register', error: null });
-  
-
-} catch (err) {
-  console.error('Failed to load register page:', err);
-  return res.status(500).render('error', { message: 'Server error. Please try again later.' });
-}
-});
-
-
-
-// app.post('/register', async (req, res) => {
-//   try {
-//     const { username, email, password, confirmPassword } = req.body;
-    
-//     // Basic validation
-//     if (password !== confirmPassword) {
-//       return res.render('auth', { page: 'register', error: 'Passwords do not match' });
-//     }
-    
-//     // Check if user exists
-//     const [existingUsers] = await pool.query(
-//       'SELECT * FROM users WHERE username = ? OR email = ?', 
-//       [username, email]
-//     );
-    
-//     if (existingUsers.length > 0) {
-//       return res.render('auth', { 
-//         page: 'register', 
-//         error: 'Username or email already in use' 
-//       });
-//     }
-    
-//     // Create user
-//     const hashedPassword = await bcrypt.hash(password, 10);
-//     const [result] = await pool.query(
-//       'INSERT INTO users (username, email, password) VALUES (?, ?, ?)',
-//       [username, email, hashedPassword]
-//     );
-    
-//     // Set session
-//     req.session.userId = result.insertId;
-//     req.session.username = username;
-//     req.session.role = 'user';
-    
-//     res.redirect('/dashboard');
-//   } catch (err) {
-//     console.error('Registration error:', err);
-//     res.render('auth', { page: 'register', error: 'Server error. Please try again.' });
-//   }
-// });
-
-app.get('/logout', (req, res) => {
-  req.session.destroy();
-  res.redirect('/');
-});
 
 // Dashboard routes
 // app.get('/dashboard', isAuthenticated, async (req, res) => {
