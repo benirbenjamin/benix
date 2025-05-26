@@ -1371,7 +1371,7 @@ app.get('/register', (req, res) => {
 //           `, [
 //             referrerId,
 //             'commission',
-//             0.02,
+//             0.2,
 //             'completed',
 //             `Referral commission for new user: ${username}`
 //           ]);
