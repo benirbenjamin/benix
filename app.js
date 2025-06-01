@@ -835,18 +835,12 @@ app.get('/', async (req, res) => {
         ORDER BY product_count DESC
         LIMIT 3
       `);
-      merchants = activeMerchants;
-
-      // Get accurate stats
+      merchants = activeMerchants;      // Get accurate stats
       const [[userCount]] = await pool.query('SELECT COUNT(*) as count FROM users WHERE role != "admin"');
-      const [[linkCount]] = await pool.query('SELECT COUNT(*) as count FROM links WHERE is_active = true');
+      const [[linkCount]] = await pool.query('SELECT COUNT(*) as count FROM links WHERE is_active = 1');
+      const [[clickCount]] = await pool.query('SELECT COUNT(*) as count FROM clicks');
       
-      // Fix: Count actual clicks from the clicks table instead of using shared_links aggregation
-      const [[clickCount]] = await pool.query('SELECT COUNT(*) as count FROM clicks WHERE is_counted = true');
-      
-      const [[earningsSum]] = await pool.query('SELECT COALESCE(SUM(earnings), 0) as total FROM users');
-
-      stats = {
+      const [[earningsSum]] = await pool.query('SELECT COALESCE(SUM(earnings), 0) as total FROM users');      stats = {
         userCount: userCount.count || 0,
         totalLinks: linkCount.count || 0,
         clickCount: clickCount.count || 0,
