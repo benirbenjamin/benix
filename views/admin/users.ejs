@@ -143,7 +143,7 @@
                       </td>
                       <td><%= u.total_shared_links || 0 %></td>
                       <td><%= u.total_orders || 0 %></td>
-                      <td>$<%= parseFloat(u.wallet || 0).toFixed(2) %></td>
+                      <td>$<%= parseFloat(u.wallet || 0).toFixed(4) %></td>
                       <td><%= new Date(u.created_at).toLocaleDateString() %></td>
                       <td>
                         <div class="btn-group btn-group-sm">

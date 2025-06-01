@@ -106,7 +106,7 @@
                             <%= transaction.type.charAt(0).toUpperCase() + transaction.type.slice(1) %>
                           </span>
                         </td>
-                        <td>$<%= parseFloat(transaction.amount).toFixed(2) %></td>
+                        <td>$<%= parseFloat(transaction.amount).toFixed(4) %></td>
                         <td>
                           <span class="badge bg-<%= transaction.status === 'completed' ? 'success' : (transaction.status === 'pending' ? 'warning' : 'danger') %>">
                             <%= transaction.status.charAt(0).toUpperCase() + transaction.status.slice(1) %>

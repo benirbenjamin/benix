@@ -100,7 +100,7 @@
                                     </td>
                                     <td><%= product.merchant_name %></td>
                                     <td><%= product.category || 'Uncategorized' %></td>
-                                    <td>$<%= parseFloat(product.price).toFixed(2) %></td>
+                                    <td>$<%= parseFloat(product.price).toFixed(4) %></td>
                                     <td><%= product.stock %></td>
                                     <td>
                                         <span class="badge bg-<%= product.is_active ? 'success' : 'danger' %>">

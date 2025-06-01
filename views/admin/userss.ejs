@@ -65,8 +65,8 @@
                           </select>
                         </form>
                       </td>
-                      <td>$<%= parseFloat(user.earnings).toFixed(2) %></td>
-                      <td>$<%= parseFloat(user.wallet).toFixed(2) %></td>
+                      <td>$<%= parseFloat(user.earnings).toFixed(4) %></td>
+                      <td>$<%= parseFloat(user.wallet).toFixed(4) %></td>
                       <td>
                         <span class="badge <%= user.has_lifetime_commission ? 'bg-success' : 'bg-secondary' %>">
                           <%= user.has_lifetime_commission ? 'Premium' : 'Standard' %>
@@ -234,15 +234,15 @@
         document.getElementById('modalEmail').textContent = user.email;
         document.getElementById('modalRole').textContent = user.role.charAt(0).toUpperCase() + user.role.slice(1);
         document.getElementById('modalCreated').textContent = new Date(user.created_at).toLocaleDateString();
-        document.getElementById('modalEarnings').textContent = `$${parseFloat(user.earnings).toFixed(2)}`;
-        document.getElementById('modalWallet').textContent = `$${parseFloat(user.wallet).toFixed(2)}`;
+        document.getElementById('modalEarnings').textContent = `$${parseFloat(user.earnings).toFixed(4)}`;
+        document.getElementById('modalWallet').textContent = `$${parseFloat(user.wallet).toFixed(4)}`;
         document.getElementById('modalCommission').textContent = user.has_lifetime_commission ? 'Premium (2x)' : 'Standard';
 
         const merchantDetails = document.getElementById('merchantDetails');
         if (user.role === 'merchant') {
           document.getElementById('modalBusinessName').textContent = user.business_name || 'Not set';
           document.getElementById('modalBusinessDescription').textContent = user.business_description || 'No description';
-          document.getElementById('modalMerchantBalance').textContent = `$${parseFloat(user.merchant_balance).toFixed(2)}`;
+          document.getElementById('modalMerchantBalance').textContent = `$${parseFloat(user.merchant_balance).toFixed(4)}`;
           merchantDetails.style.display = 'block';
         } else {
           merchantDetails.style.display = 'none';

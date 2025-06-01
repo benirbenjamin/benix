@@ -198,8 +198,8 @@
                                                 </div>
                                             </td>
                                             <td class="text-center"><%= item.quantity %></td>
-                                            <td class="text-end">$<%= parseFloat(item.price).toFixed(2) %></td>
-                                            <td class="text-end">$<%= parseFloat(item.price * item.quantity).toFixed(2) %></td>
+                                            <td class="text-end">$<%= parseFloat(item.price).toFixed(4) %></td>
+                                            <td class="text-end">$<%= parseFloat(item.price * item.quantity).toFixed(4) %></td>
                                         </tr>
                                     <% }); %>
                                 </tbody>
@@ -236,30 +236,30 @@
                     <div class="card-body">
                         <div class="d-flex justify-content-between mb-2">
                             <span>Subtotal:</span>
-                            <span>$<%= parseFloat(order.total_amount || 0).toFixed(2) %></span>
+                            <span>$<%= parseFloat(order.total_amount || 0).toFixed(4) %></span>
                         </div>
                         <% if (order.shipping_cost) { %>
                             <div class="d-flex justify-content-between mb-2">
                                 <span>Shipping:</span>
-                                <span>$<%= parseFloat(order.shipping_cost).toFixed(2) %></span>
+                                <span>$<%= parseFloat(order.shipping_cost).toFixed(4) %></span>
                             </div>
                         <% } %>
                         <% if (order.tax_amount) { %>
                             <div class="d-flex justify-content-between mb-2">
                                 <span>Tax:</span>
-                                <span>$<%= parseFloat(order.tax_amount).toFixed(2) %></span>
+                                <span>$<%= parseFloat(order.tax_amount).toFixed(4) %></span>
                             </div>
                         <% } %>
                         <% if (order.discount_amount) { %>
                             <div class="d-flex justify-content-between mb-2 text-success">
                                 <span>Discount:</span>
-                                <span>-$<%= parseFloat(order.discount_amount).toFixed(2) %></span>
+                                <span>-$<%= parseFloat(order.discount_amount).toFixed(4) %></span>
                             </div>
                         <% } %>
                         <hr>
                         <div class="d-flex justify-content-between fw-bold">
                             <span>Total:</span>
-                            <span>$<%= parseFloat(order.total_amount).toFixed(2) %></span>
+                            <span>$<%= parseFloat(order.total_amount).toFixed(4) %></span>
                         </div>
                     </div>
                 </div>

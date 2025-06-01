@@ -70,7 +70,7 @@
             <div class="col-md-3 mb-3">
                 <div class="card bg-info text-white">
                     <div class="card-body text-center">
-                        <h3 id="total-revenue">$<%= parseFloat(stats.total_revenue || 0).toFixed(2) %></h3>
+                        <h3 id="total-revenue">$<%= parseFloat(stats.total_revenue || 0).toFixed(4) %></h3>
                         <h6>Total Revenue</h6>
                     </div>
                 </div>
@@ -164,7 +164,7 @@
                                             </span>
                                         </td>
                                         <td><%= order.item_count %></td>
-                                        <td>$<%= parseFloat(order.total_amount).toFixed(2) %></td>
+                                        <td>$<%= parseFloat(order.total_amount).toFixed(4) %></td>
                                         <td><%= new Date(order.created_at).toLocaleDateString() %></td>
                                         <td>
                                             <span class="badge status-badge bg-<%= 
@@ -527,7 +527,7 @@
                                 const orderAmount = parseFloat($row.data('amount'));
                                 const currentRevenue = parseFloat($('#total-revenue').text().replace('$', ''));
                                 const newRevenue = currentRevenue - orderAmount;
-                                $('#total-revenue').text('$' + newRevenue.toFixed(2));
+                                $('#total-revenue').text('$' + newRevenue.toFixed(4));
                                 
                                 // Remove the cancel button
                                 $row.find('.cancel-order-btn').remove();
@@ -607,9 +607,9 @@
                                         </div>
                                     </td>
                                     <td>${item.merchant_name}</td>
-                                    <td>$${parseFloat(item.price).toFixed(2)}</td>
+                                    <td>$${parseFloat(item.price).toFixed(4)}</td>
                                     <td>${item.quantity}</td>
-                                    <td>$${(parseFloat(item.price) * item.quantity).toFixed(2)}</td>
+                                    <td>$${(parseFloat(item.price) * item.quantity).toFixed(4)}</td>
                                 </tr>`;
                         });
                         
@@ -618,7 +618,7 @@
                                             <tfoot>
                                                 <tr>
                                                     <td colspan="4" class="text-end"><strong>Total Amount:</strong></td>
-                                                    <td><strong>$${parseFloat(data.order.total_amount).toFixed(2)}</strong></td>
+                                                    <td><strong>$${parseFloat(data.order.total_amount).toFixed(4)}</strong></td>
                                                 </tr>
                                             </tfoot>
                                         </table>
@@ -703,7 +703,7 @@
                             if (updateRevenue) {
                                 const currentRevenue = parseFloat($('#total-revenue').text().replace('$', ''));
                                 const newRevenue = currentRevenue - orderAmount;
-                                $('#total-revenue').text('$' + newRevenue.toFixed(2));
+                                $('#total-revenue').text('$' + newRevenue.toFixed(4));
                                 
                                 // Remove cancel button if needed
                                 $row.find('.cancel-order-btn').remove();

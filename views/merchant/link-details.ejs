@@ -49,7 +49,7 @@
             <% if (link.type === 'product') { %>
               <div class="mb-3">
                 <h6>Price</h6>
-                <p class="mb-0">$<%= parseFloat(link.price).toFixed(2) %></p>
+                <p class="mb-0">$<%= parseFloat(link.price).toFixed(4) %></p>
               </div>
               <div class="mb-3">
                 <h6>Category</h6>
@@ -98,7 +98,7 @@
             </div>
             <div class="mb-3">
               <h6>Total Commission Paid</h6>
-              <h3>$<%= parseFloat(analytics.total_earnings || 0).toFixed(2) %></h3>
+              <h3>$<%= parseFloat(analytics.total_earnings || 0).toFixed(4) %></h3>
             </div>
           </div>
         </div>
@@ -129,7 +129,7 @@
                     <td><%= share.username %></td>
                     <td><code><%= share.share_code %></code></td>
                     <td><%= share.clicks %></td>
-                    <td>$<%= parseFloat(share.earnings || 0).toFixed(2) %></td>
+                    <td>$<%= parseFloat(share.earnings || 0).toFixed(4) %></td>
                     <td><small><%= new Date(share.created_at).toLocaleDateString() %></small></td>
                   </tr>
                 <% }) %>

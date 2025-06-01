@@ -43,7 +43,7 @@
                                 <div class="row">
                                     <div class="col-md-4">
                                         <p class="text-muted mb-1">Items: <%= order.item_count %></p>
-                                        <p class="text-muted mb-1">Total: $<%= parseFloat(order.total_amount).toFixed(2) %></p>
+                                        <p class="text-muted mb-1">Total: $<%= parseFloat(order.total_amount).toFixed(4) %></p>
                                         <p class="text-muted mb-0">Date: <%= new Date(order.created_at).toLocaleDateString() %></p>
                                     </div>
                                     <div class="col-md-8">

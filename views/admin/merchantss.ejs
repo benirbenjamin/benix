@@ -41,8 +41,8 @@
                     <tr>
                       <td><%= merchant.username %></td>
                       <td><%= merchant.business_name || 'N/A' %></td>
-                      <td>$<%= parseFloat(merchant.amount_to_pay).toFixed(2) %></td>
-                      <td>$<%= parseFloat(merchant.paid_balance).toFixed(2) %></td>
+                      <td>$<%= parseFloat(merchant.amount_to_pay).toFixed(4) %></td>
+                      <td>$<%= parseFloat(merchant.paid_balance).toFixed(4) %></td>
                       <td>
                         <button 
                           class="btn btn-sm btn-primary" 
@@ -50,7 +50,7 @@
                           data-bs-target="#recordPaymentModal"
                           data-merchant-id="<%= merchant.id %>"
                           data-merchant-name="<%= merchant.username %>"
-                          data-merchant-balance="<%= parseFloat(merchant.amount_to_pay).toFixed(2) %>"
+                          data-merchant-balance="<%= parseFloat(merchant.amount_to_pay).toFixed(4) %>"
                         >
                           Record Payment
                         </button>
@@ -93,7 +93,7 @@
                     <tr>
                       <td><%= new Date(payment.created_at).toLocaleString() %></td>
                       <td><%= payment.username %></td>
-                      <td>$<%= parseFloat(payment.amount).toFixed(2) %></td>
+                      <td>$<%= parseFloat(payment.amount).toFixed(4) %></td>
                       <td><%= payment.details %></td>
                     </tr>
                   <% }) %>

@@ -81,8 +81,8 @@
                           </div>
                         </td>
                         <td><%= merchant.business_name || '-' %></td>
-                        <td>$<%= parseFloat(merchant.amount_to_pay || 0).toFixed(2) %></td>
-                        <td>$<%= parseFloat(merchant.total_paid || 0).toFixed(2) %></td>
+                        <td>$<%= parseFloat(merchant.amount_to_pay || 0).toFixed(4) %></td>
+                        <td>$<%= parseFloat(merchant.total_paid || 0).toFixed(4) %></td>
                         <td><%= merchant.total_links || 0 %></td>
                         <td><%= new Date(merchant.created_at).toLocaleDateString() %></td>
                         <td>
@@ -134,7 +134,7 @@
                       <tr>
                         <td><%= new Date(payment.created_at).toLocaleString() %></td>
                         <td><%= payment.username %></td>
-                        <td>$<%= parseFloat(payment.amount).toFixed(2) %></td>
+                        <td>$<%= parseFloat(payment.amount).toFixed(4) %></td>
                         <td>
                           <span class="badge <%= payment.status === 'completed' ? 'bg-success' : (payment.status === 'pending' ? 'bg-warning' : 'bg-danger') %>">
                             <%= payment.status %>

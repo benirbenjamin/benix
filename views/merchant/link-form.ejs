@@ -82,7 +82,7 @@
                 <label for="click_target" class="form-label">Click Target</label>
                 <div class="input-group">
                   <input type="number" class="form-control" id="click_target" name="click_target" 
-                    value="<%= link ? link.click_target : '100' %>" required min="1" data-cost-per-click="<%= parseFloat(costPerClick).toFixed(2) %>">
+                    value="<%= link ? link.click_target : '100' %>" required min="1" data-cost-per-click="<%= parseFloat(costPerClick).toFixed(4) %>">
                   <span class="input-group-text">clicks</span>
                 </div>
                 <small class="text-muted">
@@ -126,7 +126,7 @@
     const costPerClickValue = parseFloat(document.getElementById('click_target').dataset.costPerClick);
     
     function updateTotalCost() {
-      const totalCost = (clickTarget.value * costPerClickValue).toFixed(2);
+      const totalCost = (clickTarget.value * costPerClickValue).toFixed(4);
       document.getElementById('totalCost').textContent = totalCost;
     }
 

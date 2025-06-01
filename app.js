@@ -721,7 +721,7 @@ function isMerchant(req, res, next) {
 //         userCount: userCount.count || 0,
 //         totalLinks: linkCount.count || 0,
 //         clickCount: clickCount.count || 0,
-//         totalEarnings: parseFloat(earningsSum.total || 0).toFixed(2)
+//         totalEarnings: parseFloat(earningsSum.total || 0).toFixed(4)
 //       };
 
 //     } catch (dbErr) {
@@ -844,7 +844,7 @@ app.get('/', async (req, res) => {
         userCount: userCount.count || 0,
         totalLinks: linkCount.count || 0,
         clickCount: clickCount.count || 0,
-        totalEarnings: parseFloat(earningsSum.total || 0).toFixed(2)
+        totalEarnings: parseFloat(earningsSum.total || 0).toFixed(4)
       };
 
     } catch (dbErr) {
@@ -1526,8 +1526,8 @@ app.post('/register', async (req, res) => {
           // Add referral commission to referrer's wallet and earnings
           await pool.query(`
             UPDATE users 
-            SET wallet = wallet + 0.0200, 
-                earnings = COALESCE(earnings, 0) + 0.0200 
+            SET wallet = wallet + 0.0500, 
+                earnings = COALESCE(earnings, 0) + 0.0500 
             WHERE id = ?
           `, [referrerId]);
           
@@ -1539,7 +1539,7 @@ app.post('/register', async (req, res) => {
           `, [
             referrerId,
             'commission',
-            0.0200,
+            0.0500,
             'completed',
             `Referral commission for new user: ${username}`
           ]);
@@ -1547,10 +1547,10 @@ app.post('/register', async (req, res) => {
           // Add to referrals table
           await pool.query(
             'INSERT INTO referrals (referrer_id, referred_id, commission_paid) VALUES (?, ?, ?)',
-            [referrerId, result.insertId, 0.0200]
+            [referrerId, result.insertId, 0.0500]
           );
           
-          console.log(`Referral commission of $0.0200 added to user ID ${referrerId} for referring ${username}`);
+          console.log(`Referral commission of $0.0500 added to user ID ${referrerId} for referring ${username}`);
         }
       } catch (referralErr) {
         console.error('Error processing referral:', referralErr);
@@ -3585,8 +3585,8 @@ app.get('/logout', (req, res) => {
 //       data.stats = {
 //         linkCount: links.length,
 //         totalClicks: totalClicks[0].count,
-//         amountToPay: parseFloat(user.amount_to_pay || 0).toFixed(2),
-//         paidBalance: parseFloat(user.paid_balance || 0).toFixed(2),
+//         amountToPay: parseFloat(user.amount_to_pay || 0).toFixed(4),
+//         paidBalance: parseFloat(user.paid_balance || 0).toFixed(4),
 //         links: links
 //       };
 //     } 
@@ -3803,8 +3803,8 @@ app.get('/links/:id/share', isAuthenticated, async (req, res) => {
 //       data.stats = {
 //         linkCount: links.length,
 //         totalClicks: totalClicks[0].count,
-//         amountToPay: parseFloat(user.amount_to_pay || 0).toFixed(2),
-//         paidBalance: parseFloat(user.paid_balance || 0).toFixed(2),
+//         amountToPay: parseFloat(user.amount_to_pay || 0).toFixed(4),
+//         paidBalance: parseFloat(user.paid_balance || 0).toFixed(4),
 //         links: links
 //       };
 //     } 
@@ -5638,7 +5638,7 @@ app.get('/admin/orders/export', isAuthenticated, isAdmin, async (req, res) => {
       csv += `"${order.customer_email}",`;
       csv += `"${new Date(order.created_at).toLocaleString()}",`;
       csv += `${order.item_count},`;
-      csv += `$${parseFloat(order.total_amount).toFixed(2)},`;
+      csv += `$${parseFloat(order.total_amount).toFixed(4)},`;
       csv += `"${order.status}",`;
       csv += `"${order.merchant_names || ''}"\n`;
     });

@@ -37,7 +37,7 @@
               <div class="<%= link.image_url ? 'col-md-8' : 'col-12' %>">
                 <p class="text-muted"><%= link.description %></p>
                 <% if (link.type === 'product') { %>
-                  <p class="h4 text-primary mb-3">$<%= parseFloat(link.price).toFixed(2) %></p>
+                  <p class="h4 text-primary mb-3">$<%= parseFloat(link.price).toFixed(4) %></p>
                 <% } %>
                 <div class="d-flex align-items-center mb-3">
                   <span class="badge <%= 

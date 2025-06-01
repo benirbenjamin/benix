@@ -471,7 +471,7 @@ var infolinks_wsid = 0;
                           <% } %>
                         </div>
                         <% if (link.price) { %>
-                          <h5 class="mt-3 mb-0 text-success">$<%= parseFloat(link.price).toFixed(2) %></h5>
+                          <h5 class="mt-3 mb-0 text-success">$<%= parseFloat(link.price).toFixed(4) %></h5>
                         <% } %>
                       </div>
                       <div class="card-footer bg-white border-top-0">
@@ -520,7 +520,7 @@ var infolinks_wsid = 0;
                             <%= product.description || 'No description available.' %>
                           <% } %>
                         </p>
-                        <h5 class="mt-3 mb-0 text-success">$<%= parseFloat(product.price).toFixed(2) %></h5>
+                        <h5 class="mt-3 mb-0 text-success">$<%= parseFloat(product.price).toFixed(4) %></h5>
                       </div>
                       <div class="card-footer bg-white border-top-0">
                         <a href="/products/<%= product.id %>" class="btn btn-primary w-100">
@@ -605,7 +605,7 @@ var infolinks_wsid = 0;
                 <div class="stat-icon mb-3">
                   <i class="fas fa-dollar-sign fa-2x"></i>
                 </div>
-                <div class="stat-number">$<%= typeof stats !== 'undefined' && stats.totalEarnings ? parseFloat(stats.totalEarnings).toFixed(2) : '0.00' %></div>
+                <div class="stat-number">$<%= typeof stats !== 'undefined' && stats.totalEarnings ? parseFloat(stats.totalEarnings).toFixed(4) : '0.00' %></div>
                 <div>Paid to Affiliates</div>
               </div>
             </div>
@@ -829,7 +829,7 @@ var infolinks_wsid = 0;
                       <% } %>
                     </p>
                     <% if (link.price) { %>
-                      <p class="card-text fw-bold">Price: $<%= parseFloat(link.price).toFixed(2) %></p>
+                      <p class="card-text fw-bold">Price: $<%= parseFloat(link.price).toFixed(4) %></p>
                     <% } %>
                   </div>
                   <div class="card-footer">

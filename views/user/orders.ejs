@@ -68,7 +68,7 @@
                     <div class="card-body text-center">
                         <i class="bi bi-cash-coin text-warning" style="font-size: 2rem;"></i>
                         <h5 class="mt-2">Total Spent</h5>
-                        <h2 class="display-5 fw-bold">$<%= parseFloat(stats.totalSpent).toFixed(2) %></h2>
+                        <h2 class="display-5 fw-bold">$<%= parseFloat(stats.totalSpent).toFixed(4) %></h2>
                     </div>
                 </div>
             </div>
@@ -110,7 +110,7 @@
                                                 <p class="mb-1"><strong>Products:</strong> <%= order.product_count %></p>
                                             </div>
                                             <div class="text-end">
-                                                <p class="mb-1"><strong>Amount:</strong> $<%= parseFloat(order.total_amount).toFixed(2) %></p>
+                                                <p class="mb-1"><strong>Amount:</strong> $<%= parseFloat(order.total_amount).toFixed(4) %></p>
                                                 <% if (order.payment_method) { %>
                                                     <p class="mb-1"><strong>Payment:</strong> <%= order.payment_method %></p>
                                                 <% } %>

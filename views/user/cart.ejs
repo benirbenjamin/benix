@@ -22,7 +22,7 @@
                                     </div>
                                     <div class="col-md-4">
                                         <h5><%= item.name %></h5>
-                                        <p class="text-muted">Price: $<%= (Number(item.price)).toFixed(2) %></p>
+                                        <p class="text-muted">Price: $<%= (Number(item.price)).toFixed(4) %></p>
                                     </div>
                                     <div class="col-md-3">
                                         <div class="input-group">
@@ -32,7 +32,7 @@
                                         </div>
                                     </div>
                                     <div class="col-md-2">
-                                        <p class="item-total">$<%= (parseFloat(item.price)) * (Number((item.quantity))).toFixed(2) %></p>
+                                        <p class="item-total">$<%= (parseFloat(item.price)) * (Number((item.quantity))).toFixed(4) %></p>
                                     </div>
                                     <div class="col-md-1 text-center">
                                         <button class="btn btn-sm btn-danger remove-item">
@@ -51,7 +51,7 @@
                             <h5 class="card-title">Order Summary</h5>
                             <div class="d-flex justify-content-between mb-3">
                                 <span>Subtotal:</span>
-                                <span class="cart-subtotal">$<%= parseFloat(subtotal).toFixed(2) %></span>
+                                <span class="cart-subtotal">$<%= parseFloat(subtotal).toFixed(4) %></span>
                             </div>
                             <form id="checkout-form">
                                 <div class="mb-3">

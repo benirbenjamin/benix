@@ -79,7 +79,7 @@
                                             transaction.type === 'withdrawal' ? 'warning' : 
                                             transaction.type === 'commission' ? 'info' : 
                                             'secondary' %>"><%= transaction.type %></span></td>
-                                        <td>$<%= parseFloat(transaction.amount).toFixed(2) %></td>
+                                        <td>$<%= parseFloat(transaction.amount).toFixed(4) %></td>
                                         <td><span class="badge bg-<%= 
                                             transaction.status === 'completed' ? 'success' : 
                                             transaction.status === 'pending' ? 'warning' : 
@@ -103,7 +103,7 @@
                         <div class="card-body">
                             <i class="fas fa-money-bill-wave stat-icon mb-3 text-warning"></i>
                             <h5 class="card-title">Amount to Pay</h5>
-                            <h2>$<%= parseFloat(stats.amountToPay).toFixed(2) %></h2>
+                            <h2>$<%= parseFloat(stats.amountToPay).toFixed(4) %></h2>
                             <small class="text-muted">Amount due for clicks</small>
                         </div>
                     </div>
@@ -113,7 +113,7 @@
                         <div class="card-body">
                             <i class="fas fa-check-circle stat-icon mb-3 text-success"></i>
                             <h5 class="card-title">Total Paid</h5>
-                            <h2>$<%= parseFloat(stats.paidBalance).toFixed(2) %></h2>
+                            <h2>$<%= parseFloat(stats.paidBalance).toFixed(4) %></h2>
                             <small class="text-muted">All-time payments</small>
                         </div>
                     </div>
@@ -156,7 +156,7 @@
                                 <i class="fas <%= parseFloat(stats.amountToPay) > 0 ? 'fa-exclamation-triangle' : 'fa-check-circle' %> me-2"></i>
                                 <strong>Payment Status:</strong> 
                                 <% if (parseFloat(stats.amountToPay) > 0) { %>
-                                    You currently have an outstanding balance of <strong>$<%= parseFloat(stats.amountToPay).toFixed(2) %></strong>.
+                                    You currently have an outstanding balance of <strong>$<%= parseFloat(stats.amountToPay).toFixed(4) %></strong>.
                                     Please make a payment to continue using all features.
                                 <% } else { %>
                                     Your account is in good standing. No payment is currently due.
@@ -216,7 +216,7 @@
                                                         'primary' %>"><%= link.type %></span></td>
                                                     <td><%= link.clicks_count %></td>
                                                     <td>$<%= parseFloat(link.cost_per_click).toFixed(3) %></td>
-                                                    <td>$<%= (parseFloat(link.cost_per_click) * link.clicks_count).toFixed(2) %></td>
+                                                    <td>$<%= (parseFloat(link.cost_per_click) * link.clicks_count).toFixed(4) %></td>
                                                     <td><span class="badge bg-<%= link.is_active ? 'success' : 'secondary' %>">
                                                         <%= link.is_active ? 'Active' : 'Inactive' %>
                                                     </span></td>
@@ -248,7 +248,7 @@
                         <div class="card-body">
                             <i class="fas fa-money-bill-wave stat-icon mb-3"></i>
                             <h5 class="card-title">My Earnings</h5>
-                            <h2>$<%= parseFloat(user.earnings).toFixed(2) %></h2>
+                            <h2>$<%= parseFloat(user.earnings).toFixed(4) %></h2>
                         </div>
                         <div class="card-footer">
                             <a href="/wallet" class="btn btn-sm btn-primary">View Wallet</a>
@@ -305,7 +305,7 @@
                                     <tr>
                                         <td><%= link.title %></td>
                                         <td><%= link.clicks %></td>
-                                        <td>$<%= parseFloat(link.earnings).toFixed(2) %></td>
+                                        <td>$<%= parseFloat(link.earnings).toFixed(4) %></td>
                                         <td>
                                             <div class="input-group">
                                                 <input type="text" class="form-control form-control-sm" 

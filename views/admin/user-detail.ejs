@@ -167,7 +167,7 @@
             <div class="row no-gutters align-items-center">
               <div class="col mr-2">
                 <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Wallet Balance</div>
-                <div class="h5 mb-0 font-weight-bold text-gray-800">$<%= parseFloat(targetUser.wallet || 0).toFixed(2) %></div>
+                <div class="h5 mb-0 font-weight-bold text-gray-800">$<%= parseFloat(targetUser.wallet || 0).toFixed(4) %></div>
               </div>
               <div class="col-auto">
                 <i class="bi bi-wallet2 fa-2x text-gray-300" style="font-size: 2rem;"></i>
@@ -183,7 +183,7 @@
             <div class="row no-gutters align-items-center">
               <div class="col mr-2">
                 <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Total Earnings</div>
-                <div class="h5 mb-0 font-weight-bold text-gray-800">$<%= parseFloat(targetUser.earnings || 0).toFixed(2) %></div>
+                <div class="h5 mb-0 font-weight-bold text-gray-800">$<%= parseFloat(targetUser.earnings || 0).toFixed(4) %></div>
               </div>
               <div class="col-auto">
                 <i class="bi bi-cash-coin fa-2x text-gray-300" style="font-size: 2rem;"></i>
@@ -263,11 +263,11 @@
                 <div class="d-flex justify-content-between mt-3">
                   <div>
                     <h6 class="fw-bold">Amount Due</h6>
-                    <p class="text-danger fw-bold">$<%= parseFloat(targetUser.amount_to_pay || 0).toFixed(2) %></p>
+                    <p class="text-danger fw-bold">$<%= parseFloat(targetUser.amount_to_pay || 0).toFixed(4) %></p>
                   </div>
                   <div>
                     <h6 class="fw-bold">Paid Balance</h6>
-                    <p class="text-success fw-bold">$<%= parseFloat(targetUser.paid_balance || 0).toFixed(2) %></p>
+                    <p class="text-success fw-bold">$<%= parseFloat(targetUser.paid_balance || 0).toFixed(4) %></p>
                   </div>
                   <div>                    <button class="btn btn-success btn-sm" onclick="markPaid('<%= targetUser.id %>')">
                       <i class="bi bi-check-circle me-1"></i> Mark as Paid
@@ -415,7 +415,7 @@
                             <td>#<%= order.id %></td>
                             <td><%= new Date(order.created_at).toLocaleString() %></td>
                             <td><%= order.item_count %></td>
-                            <td>$<%= parseFloat(order.total_amount).toFixed(2) %></td>
+                            <td>$<%= parseFloat(order.total_amount).toFixed(4) %></td>
                             <td>
                               <span class="badge <%= 
                                 order.status === 'completed' ? 'bg-success' : 
@@ -475,7 +475,7 @@
                             <td><%= link.merchant_name %></td>
                             <td><span class="badge bg-info"><%= link.type %></span></td>
                             <td><%= link.clicks %></td>
-                            <td>$<%= parseFloat(link.earnings).toFixed(2) %></td>
+                            <td>$<%= parseFloat(link.earnings).toFixed(4) %></td>
                             <td>
                               <div class="btn-group btn-group-sm">
                                 <a href="/l/<%= link.share_code %>" target="_blank" class="btn btn-outline-primary">Visit</a>
@@ -526,7 +526,7 @@
                               </span>
                             </td>
                             <td class="<%= parseFloat(tx.amount) >= 0 ? 'text-success' : 'text-danger' %>">
-                              $<%= parseFloat(tx.amount).toFixed(2) %>
+                              $<%= parseFloat(tx.amount).toFixed(4) %>
                             </td>
                             <td>
                               <span class="badge <%= 
@@ -574,7 +574,7 @@
                             <td><%= referral.referred_username %></td>
                             <td><%= referral.referred_email %></td>
                             <td><%= new Date(referral.created_at).toLocaleString() %></td>
-                            <td>$<%= parseFloat(referral.commission_paid).toFixed(2) %></td>
+                            <td>$<%= parseFloat(referral.commission_paid).toFixed(4) %></td>
                             <td>
                               <a href="/admin/users/<%= referral.referred_id %>" class="btn btn-sm btn-outline-primary">View User</a>
                             </td>
@@ -640,7 +640,7 @@
               <label for="wallet" class="form-label">Wallet Balance</label>
               <div class="input-group">
                 <span class="input-group-text">$</span>
-                <input type="number" class="form-control" id="wallet" name="wallet" step="0.01" value="<%= parseFloat(targetUser.wallet || 0).toFixed(2) %>">
+                <input type="number" class="form-control" id="wallet" name="wallet" step="0.01" value="<%= parseFloat(targetUser.wallet || 0).toFixed(4) %>">
               </div>
             </div>
             <div class="mb-3 form-check">

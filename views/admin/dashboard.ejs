@@ -109,7 +109,7 @@
                                         <tr>
                                             <td><a href="/admin/products/<%= product.id %>"><%= product.name %></a></td>
                                             <td><%= product.merchant_name %></td>
-                                            <td>$<%= parseFloat(product.price).toFixed(2) %></td>
+                                            <td>$<%= parseFloat(product.price).toFixed(4) %></td>
                                             <td>
                                                 <span class="badge bg-<%= product.is_active ? 'success' : 'danger' %>">
                                                     <%= product.is_active ? 'Active' : 'Inactive' %>
