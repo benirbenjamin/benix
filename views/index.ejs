@@ -328,16 +328,62 @@ var infolinks_wsid = 0;
     .category-pill:hover,    .category-pill.active {
       background: var(--primary-color);
       color: white;
-    }
-
-    /* YouTube Preview Styling */
+    }    /* YouTube Preview Styling */
     .youtube-preview {
       border-radius: 8px 8px 0 0;
       overflow: hidden;
+      position: relative;
+      cursor: pointer;
     }
 
     .youtube-preview iframe {
       border-radius: 8px 8px 0 0;
+    }
+
+    /* Lazy loading placeholder */
+    .youtube-placeholder {
+      position: relative;
+      background: linear-gradient(135deg, #000, #333);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      transition: all 0.3s ease;
+    }
+
+    .youtube-placeholder:hover {
+      background: linear-gradient(135deg, #333, #555);
+    }
+
+    .youtube-play-button {
+      width: 68px;
+      height: 48px;
+      background: rgba(255, 255, 255, 0.9);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      color: #ff0000;
+      transition: all 0.3s ease;
+      cursor: pointer;
+    }
+
+    .youtube-play-button:hover {
+      background: white;
+      transform: scale(1.1);
+    }
+
+    .youtube-title-overlay {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: linear-gradient(transparent, rgba(0,0,0,0.8));
+      color: white;
+      padding: 20px 15px 15px;
+      font-size: 14px;
+      font-weight: 500;
     }
 
     /* Link cards with video preview */
@@ -347,6 +393,23 @@ var infolinks_wsid = 0;
 
     .link-card:hover .youtube-preview {
       transform: scale(1.02);
+    }
+
+    /* Loading spinner */
+    .youtube-loading {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 10;
+    }
+
+    .spinner-border-youtube {
+      width: 3rem;
+      height: 3rem;
+      border-width: 4px;
+      border-color: #ff0000;
+      border-right-color: transparent;
     }
   </style>
 </head>
@@ -424,18 +487,19 @@ var infolinks_wsid = 0;
                           if (match) {
                             videoId = match[1];
                           }
-                        %>
-                        <% if (videoId) { %>
-                          <div class="youtube-preview" style="position: relative; height: 200px; background: #000;">
-                            <iframe 
-                              width="100%" 
-                              height="200" 
-                              src="https://www.youtube.com/embed/<%= videoId %>?rel=0&modestbranding=1" 
-                              title="<%= link.title %>" 
-                              frameborder="0" 
-                              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
-                              allowfullscreen>
-                            </iframe>
+                        %>                        <% if (videoId) { %>
+                          <div class="youtube-preview youtube-lazy" 
+                               style="position: relative; height: 200px; background: #000;"
+                               data-video-id="<%= videoId %>"
+                               data-video-title="<%= link.title %>">
+                            <div class="youtube-placeholder" style="height: 200px;">
+                              <div class="youtube-play-button">
+                                <i class="fab fa-youtube"></i>
+                              </div>
+                              <div class="youtube-title-overlay">
+                                <%= link.title %>
+                              </div>
+                            </div>
                           </div>
                         <% } else { %>
                           <div class="card-img-top bg-dark d-flex align-items-center justify-content-center" style="height: 200px;">
@@ -785,18 +849,19 @@ var infolinks_wsid = 0;
                       if (match) {
                         videoId = match[1];
                       }
-                    %>
-                    <% if (videoId) { %>
-                      <div class="youtube-preview" style="position: relative; height: 200px; background: #000;">
-                        <iframe 
-                          width="100%" 
-                          height="200" 
-                          src="https://www.youtube.com/embed/<%= videoId %>?rel=0&modestbranding=1" 
-                          title="<%= link.title %>" 
-                          frameborder="0" 
-                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
-                          allowfullscreen>
-                        </iframe>
+                    %>                    <% if (videoId) { %>
+                      <div class="youtube-preview youtube-lazy" 
+                           style="position: relative; height: 200px; background: #000;"
+                           data-video-id="<%= videoId %>"
+                           data-video-title="<%= link.title %>">
+                        <div class="youtube-placeholder" style="height: 200px;">
+                          <div class="youtube-play-button">
+                            <i class="fab fa-youtube"></i>
+                          </div>
+                          <div class="youtube-title-overlay">
+                            <%= link.title %>
+                          </div>
+                        </div>
                       </div>
                     <% } else { %>
                       <div class="card-img-top bg-dark d-flex align-items-center justify-content-center" style="height: 200px;">
@@ -859,47 +924,97 @@ var infolinks_wsid = 0;
   
   <!-- YouTube API Script -->
   <script src="https://www.youtube.com/iframe_api"></script>
-  
-  <script>    // YouTube API ready callback
+    <script>
+    // Lazy loading for YouTube videos using Intersection Observer
+    const youtubeLazyElements = document.querySelectorAll('.youtube-lazy');
+    const loadedVideos = new Set();
+    
+    // Intersection Observer for lazy loading
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          const element = entry.target;
+          const videoId = element.dataset.videoId;
+          const videoTitle = element.dataset.videoTitle;
+          
+          // Only load if not already loaded
+          if (!loadedVideos.has(videoId)) {
+            loadYouTubeVideo(element, videoId, videoTitle);
+            loadedVideos.add(videoId);
+            observer.unobserve(element); // Stop observing this element
+          }
+        }
+      });
+    }, {
+      rootMargin: '50px' // Start loading 50px before the element enters viewport
+    });
+    
+    // Observe all YouTube lazy elements
+    youtubeLazyElements.forEach(element => {
+      observer.observe(element);
+    });
+    
+    function loadYouTubeVideo(container, videoId, title) {
+      // Show loading spinner
+      const placeholder = container.querySelector('.youtube-placeholder');
+      if (placeholder) {
+        placeholder.innerHTML = `
+          <div class="youtube-loading">
+            <div class="spinner-border spinner-border-youtube" role="status">
+              <span class="visually-hidden">Loading...</span>
+            </div>
+          </div>
+        `;
+      }
+      
+      // Create iframe
+      const iframe = document.createElement('iframe');
+      iframe.width = '100%';
+      iframe.height = '200';
+      iframe.src = `https://www.youtube.com/embed/${videoId}?rel=0&modestbranding=1&enablejsapi=1`;
+      iframe.title = title;
+      iframe.frameBorder = '0';
+      iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture';
+      iframe.allowFullscreen = true;
+      iframe.loading = 'lazy'; // Native lazy loading
+      
+      // Add unique ID for YouTube API
+      iframe.id = `youtube-player-${videoId}`;
+      
+      // Replace placeholder with iframe after a short delay
+      setTimeout(() => {
+        container.innerHTML = '';
+        container.appendChild(iframe);
+        
+        // Initialize YouTube player for auto-pause functionality
+        if (typeof YT !== 'undefined' && YT.Player) {
+          initializeYouTubePlayer(iframe.id);
+        }
+      }, 100);
+    }
+    
+    // YouTube API ready callback
     let youtubeApiReady = false;
     let youtubePlayers = {};
     
     function onYouTubeIframeAPIReady() {
       youtubeApiReady = true;
-      initializeYouTubePlayers();
     }
     
-    function initializeYouTubePlayers() {
-      // Find all YouTube iframes and add auto-pause functionality
-      document.querySelectorAll('iframe[src*="youtube.com/embed"]').forEach((iframe, index) => {
-        // Add unique ID if not present
-        if (!iframe.id) {
-          iframe.id = `youtube-player-${index}`;
-        }
-        
-        // Update src to include enablejsapi=1
-        const src = iframe.src;
-        if (!src.includes('enablejsapi=1')) {
-          iframe.src = src + (src.includes('?') ? '&' : '?') + 'enablejsapi=1';
-        }
-        
-        const playerId = iframe.id;
-        
-        // Create YT player instance
-        try {
-          youtubePlayers[playerId] = new YT.Player(playerId, {
-            events: {
-              'onStateChange': function(event) {
-                if (event.data == YT.PlayerState.PLAYING) {
-                  pauseOtherVideos(playerId);
-                }
+    function initializeYouTubePlayer(playerId) {
+      try {
+        youtubePlayers[playerId] = new YT.Player(playerId, {
+          events: {
+            'onStateChange': function(event) {
+              if (event.data == YT.PlayerState.PLAYING) {
+                pauseOtherVideos(playerId);
               }
             }
-          });
-        } catch (error) {
-          console.log('Error creating YouTube player:', error);
-        }
-      });
+          }
+        });
+      } catch (error) {
+        console.log('Error creating YouTube player:', error);
+      }
     }
     
     function pauseOtherVideos(currentPlayerId) {
@@ -915,29 +1030,16 @@ var infolinks_wsid = 0;
       });
     }
     
-    // Fallback method for browsers that don't support YouTube API
-    function pauseAllVideos() {
-      document.querySelectorAll('iframe[src*="youtube.com/embed"]').forEach(iframe => {
-        const src = iframe.src;
-        iframe.src = src;
-      });
-    }
-    
-    // Initialize YouTube players when page loads
-    document.addEventListener('DOMContentLoaded', function() {
-      // Delay initialization to ensure YouTube API is loaded
-      setTimeout(() => {
-        if (typeof YT !== 'undefined' && YT.Player) {
-          initializeYouTubePlayers();
-        } else {
-          // Fallback: Use click event listeners
-          document.querySelectorAll('.youtube-preview').forEach(preview => {
-            preview.addEventListener('click', () => {
-              setTimeout(pauseAllVideos, 1000);
-            });
-          });
-        }
-      }, 1000);
+    // Click handler for YouTube placeholders (for immediate loading)
+    document.addEventListener('click', (e) => {
+      const youtubePreview = e.target.closest('.youtube-lazy');
+      if (youtubePreview && !loadedVideos.has(youtubePreview.dataset.videoId)) {
+        const videoId = youtubePreview.dataset.videoId;
+        const videoTitle = youtubePreview.dataset.videoTitle;
+        loadYouTubeVideo(youtubePreview, videoId, videoTitle);
+        loadedVideos.add(videoId);
+        observer.unobserve(youtubePreview);
+      }
     });
 
     // Initialize clipboard.js
