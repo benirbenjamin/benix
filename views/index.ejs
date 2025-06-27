@@ -985,6 +985,7 @@ var infolinks_wsid = 0;
     // Lazy loading for YouTube videos using Intersection Observer
     const youtubeLazyElements = document.querySelectorAll('.youtube-lazy');
     const loadedVideos = new Set();
+    let allYoutubePlayers = new Map(); // Use Map for better tracking
     
     // Intersection Observer for lazy loading
     const observer = new IntersectionObserver((entries) => {
@@ -1024,11 +1025,12 @@ var infolinks_wsid = 0;
         // Check if the element already has an iframe (video loaded)
         const existingIframe = this.querySelector('iframe');
         if (existingIframe) {
-          console.log('Video already loaded, not loading again');
+          console.log('Video already loaded, user can interact with it directly');
+          // Don't auto-play, let the user click the play button in the video
           return;
         }
         
-        // Always load the video when clicked
+        // Load the video when clicked but don't auto-play
         loadYouTubeVideo(this, videoId, videoTitle);
         loadedVideos.add(videoId);
         observer.unobserve(this);
@@ -1043,6 +1045,9 @@ var infolinks_wsid = 0;
         console.log('Video already loaded, skipping');
         return;
       }
+      
+      // Pause all other videos first
+      pauseAllOtherVideos(videoId);
       
       // Show loading spinner
       const placeholder = container.querySelector('.youtube-placeholder');
@@ -1122,7 +1127,6 @@ var infolinks_wsid = 0;
     
     // YouTube API ready callback
     let youtubeApiReady = false;
-    let youtubePlayers = {};
     
     function onYouTubeIframeAPIReady() {
       youtubeApiReady = true;
@@ -1137,14 +1141,18 @@ var infolinks_wsid = 0;
           return;
         }
         
-        youtubePlayers[playerId] = new YT.Player(playerId, {
+        const player = new YT.Player(playerId, {
           events: {
             'onReady': function(event) {
               console.log('YouTube player ready:', playerId);
+              // Store the player in our global map
+              allYoutubePlayers.set(playerId, event.target);
+              // Don't auto-play, let user decide when to play
             },
             'onStateChange': function(event) {
               if (event.data == YT.PlayerState.PLAYING) {
-                pauseOtherVideos(playerId);
+                console.log('Video started playing:', playerId);
+                pauseAllOtherVideos(videoId, playerId);
               }
             },
             'onError': function(event) {
@@ -1187,17 +1195,42 @@ var infolinks_wsid = 0;
       }
     }
     
-    function pauseOtherVideos(currentPlayerId) {
-      // Pause all other YouTube videos
-      Object.keys(youtubePlayers).forEach(playerId => {
-        if (playerId !== currentPlayerId && youtubePlayers[playerId]) {
+    function pauseAllOtherVideos(currentVideoId, currentPlayerId = null) {
+      console.log('Pausing all other videos except:', currentVideoId, currentPlayerId);
+      
+      // Pause all YouTube API players
+      allYoutubePlayers.forEach((player, playerId) => {
+        if (playerId !== currentPlayerId) {
           try {
-            youtubePlayers[playerId].pauseVideo();
+            if (player && typeof player.pauseVideo === 'function') {
+              const playerState = player.getPlayerState();
+              if (playerState === YT.PlayerState.PLAYING) {
+                console.log('Pausing YouTube player:', playerId);
+                player.pauseVideo();
+              }
+            }
           } catch (error) {
-            console.log('Could not pause video:', playerId);
+            console.log('Could not pause YouTube player:', playerId, error);
           }
         }
       });
+      
+      // Also pause any regular iframe videos that might not be managed by YouTube API
+      document.querySelectorAll('iframe[src*="youtube.com/embed"]').forEach(iframe => {
+        if (iframe.id !== currentPlayerId) {
+          try {
+            // Try to pause via postMessage
+            iframe.contentWindow.postMessage('{"event":"command","func":"pauseVideo","args":""}', '*');
+          } catch (error) {
+            console.log('Could not pause iframe via postMessage:', iframe.id);
+          }
+        }
+      });
+    }
+
+    // Legacy function for backward compatibility
+    function pauseOtherVideos(currentPlayerId) {
+      pauseAllOtherVideos('', currentPlayerId);
     }
 
     // Initialize clipboard.js
@@ -1252,6 +1285,16 @@ var infolinks_wsid = 0;
               console.log('User accepted the install prompt');
             } else {
               console.log('User dismissed the install prompt');
+            }
+            deferredPrompt = null;
+            installButton.style.display = 'none';
+          });
+        });
+      }
+    });
+  </script>
+</body>
+</html>
             }
             deferredPrompt = null;
             installButton.style.display = 'none';
