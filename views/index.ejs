@@ -345,6 +345,11 @@ var infolinks_wsid = 0;
       overflow: hidden;
       position: relative;
       cursor: pointer;
+      transition: transform 0.3s ease;
+    }
+
+    .youtube-preview:hover {
+      transform: scale(1.02);
     }
 
     .youtube-preview iframe {
@@ -360,10 +365,12 @@ var infolinks_wsid = 0;
       justify-content: center;
       color: white;
       transition: all 0.3s ease;
+      cursor: pointer;
     }
 
     .youtube-placeholder:hover {
       background: linear-gradient(135deg, #333, #555);
+      transform: scale(1.02);
     }
 
     .youtube-play-button {
@@ -378,11 +385,14 @@ var infolinks_wsid = 0;
       color: #ff0000;
       transition: all 0.3s ease;
       cursor: pointer;
+      z-index: 2;
+      position: relative;
     }
 
     .youtube-play-button:hover {
       background: white;
       transform: scale(1.1);
+      box-shadow: 0 4px 12px rgba(255, 0, 0, 0.3);
     }
 
     .youtube-title-overlay {
@@ -395,6 +405,32 @@ var infolinks_wsid = 0;
       padding: 20px 15px 15px;
       font-size: 14px;
       font-weight: 500;
+    }
+
+    /* Click indicator */
+    .youtube-placeholder::before {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 100px;
+      height: 100px;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      border-radius: 50%;
+      animation: pulse 2s infinite;
+      z-index: 1;
+    }
+
+    @keyframes pulse {
+      0% {
+        transform: translate(-50%, -50%) scale(0.8);
+        opacity: 1;
+      }
+      100% {
+        transform: translate(-50%, -50%) scale(1.2);
+        opacity: 0;
+      }
     }
 
     /* Link cards with video preview */
@@ -500,13 +536,16 @@ var infolinks_wsid = 0;
                           }
                         %>                        <% if (videoId) { %>
                           <div class="youtube-preview youtube-lazy" 
-                               style="position: relative; height: 200px; background: #000;"
+                               style="position: relative; height: 200px; background: linear-gradient(135deg, #000, #333);"
                                data-video-id="<%= videoId %>"
                                data-video-title="<%= link.title %>">
-                            <div class="youtube-placeholder" style="height: 200px;">
-                              <div class="youtube-play-button">
+                            <div class="youtube-placeholder d-flex flex-column align-items-center justify-content-center" style="height: 200px;">
+                              <div class="youtube-play-button mb-2">
                                 <i class="fab fa-youtube"></i>
                               </div>
+                              <small class="text-white text-center px-2">
+                                <i class="fas fa-play me-1"></i>Click to play video
+                              </small>
                               <div class="youtube-title-overlay">
                                 <%= link.title %>
                               </div>
@@ -514,7 +553,10 @@ var infolinks_wsid = 0;
                           </div>
                         <% } else { %>
                           <div class="card-img-top bg-dark d-flex align-items-center justify-content-center" style="height: 200px;">
-                            <i class="fab fa-youtube fa-3x text-danger"></i>
+                            <div class="text-center text-white">
+                              <i class="fab fa-youtube fa-3x text-danger mb-2"></i>
+                              <p class="mb-0 small">Invalid YouTube URL</p>
+                            </div>
                           </div>
                         <% } %>
                       <% } else if (link.image_url) { %>
@@ -862,13 +904,14 @@ var infolinks_wsid = 0;
                       }
                     %>                    <% if (videoId) { %>
                       <div class="youtube-preview youtube-lazy" 
-                           style="position: relative; height: 200px; background: #000;"
+                           style="position: relative; height: 200px; background: linear-gradient(135deg, #000, #333);"
                            data-video-id="<%= videoId %>"
                            data-video-title="<%= link.title %>">
-                        <div class="youtube-placeholder" style="height: 200px;">
-                          <div class="youtube-play-button">
+                        <div class="youtube-placeholder d-flex flex-column align-items-center justify-content-center" style="height: 200px;">
+                          <div class="youtube-play-button mb-2">
                             <i class="fab fa-youtube"></i>
                           </div>
+                          <small class="text-white text-center px-2">Click to watch</small>
                           <div class="youtube-title-overlay">
                             <%= link.title %>
                           </div>
@@ -876,7 +919,10 @@ var infolinks_wsid = 0;
                       </div>
                     <% } else { %>
                       <div class="card-img-top bg-dark d-flex align-items-center justify-content-center" style="height: 200px;">
-                        <i class="fab fa-youtube fa-3x text-danger"></i>
+                        <div class="text-center text-white">
+                          <i class="fab fa-youtube fa-3x text-danger mb-2"></i>
+                          <p class="mb-0 small">Invalid YouTube URL</p>
+                        </div>
                       </div>
                     <% } %>
                   <% } else if (link.image_url) { %>
@@ -935,7 +981,7 @@ var infolinks_wsid = 0;
   
   <!-- YouTube API Script -->
   <script src="https://www.youtube.com/iframe_api"></script>
-    <script>
+  <script>
     // Lazy loading for YouTube videos using Intersection Observer
     const youtubeLazyElements = document.querySelectorAll('.youtube-lazy');
     const loadedVideos = new Set();
@@ -948,8 +994,9 @@ var infolinks_wsid = 0;
           const videoId = element.dataset.videoId;
           const videoTitle = element.dataset.videoTitle;
           
-          // Only load if not already loaded
-          if (!loadedVideos.has(videoId)) {
+          // Only load if not already loaded and doesn't have an iframe
+          if (!loadedVideos.has(videoId) && !element.querySelector('iframe')) {
+            console.log('Loading video via intersection observer:', videoId);
             loadYouTubeVideo(element, videoId, videoTitle);
             loadedVideos.add(videoId);
             observer.unobserve(element); // Stop observing this element
@@ -963,45 +1010,114 @@ var infolinks_wsid = 0;
     // Observe all YouTube lazy elements
     youtubeLazyElements.forEach(element => {
       observer.observe(element);
+      
+      // Add click handler for immediate loading
+      element.addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        const videoId = this.dataset.videoId;
+        const videoTitle = this.dataset.videoTitle;
+        
+        console.log('YouTube video clicked - ID:', videoId, 'Title:', videoTitle);
+        
+        // Check if the element already has an iframe (video loaded)
+        const existingIframe = this.querySelector('iframe');
+        if (existingIframe) {
+          console.log('Video already loaded, not loading again');
+          return;
+        }
+        
+        // Always load the video when clicked
+        loadYouTubeVideo(this, videoId, videoTitle);
+        loadedVideos.add(videoId);
+        observer.unobserve(this);
+      });
     });
     
     function loadYouTubeVideo(container, videoId, title) {
+      console.log('Loading YouTube video:', videoId, title);
+      
+      // Check if video is already loaded
+      if (container.querySelector('iframe')) {
+        console.log('Video already loaded, skipping');
+        return;
+      }
+      
       // Show loading spinner
       const placeholder = container.querySelector('.youtube-placeholder');
       if (placeholder) {
         placeholder.innerHTML = `
-          <div class="youtube-loading">
-            <div class="spinner-border spinner-border-youtube" role="status">
-              <span class="visually-hidden">Loading...</span>
+          <div class="d-flex flex-column align-items-center justify-content-center h-100">
+            <div class="spinner-border text-danger mb-2" role="status">
+              <span class="visually-hidden">Loading video...</span>
             </div>
+            <small class="text-white">Loading ${title}...</small>
           </div>
         `;
+      }
+      
+      // Validate video ID
+      if (!videoId || videoId.length !== 11) {
+        console.error('Invalid YouTube video ID:', videoId);
+        container.innerHTML = `
+          <div class="d-flex flex-column align-items-center justify-content-center bg-dark text-white" style="height: 200px;">
+            <i class="fab fa-youtube fa-3x text-danger mb-2"></i>
+            <p class="mb-0">Invalid video ID</p>
+            <small class="text-muted">${title}</small>
+          </div>
+        `;
+        return;
       }
       
       // Create iframe
       const iframe = document.createElement('iframe');
       iframe.width = '100%';
       iframe.height = '200';
-      iframe.src = `https://www.youtube.com/embed/${videoId}?rel=0&modestbranding=1&enablejsapi=1`;
-      iframe.title = title;
+      iframe.src = `https://www.youtube.com/embed/${videoId}?enablejsapi=1&modestbranding=1&rel=0&showinfo=0&autoplay=0`;
+      iframe.title = title || 'YouTube Video';
       iframe.frameBorder = '0';
-      iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture';
+      iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share';
       iframe.allowFullscreen = true;
-      iframe.loading = 'lazy'; // Native lazy loading
+      iframe.loading = 'lazy';
+      iframe.style.borderRadius = '8px';
       
       // Add unique ID for YouTube API
-      iframe.id = `youtube-player-${videoId}`;
+      iframe.id = `youtube-player-${videoId}-${Date.now()}`;
       
-      // Replace placeholder with iframe after a short delay
-      setTimeout(() => {
-        container.innerHTML = '';
-        container.appendChild(iframe);
-        
-        // Initialize YouTube player for auto-pause functionality
+      // Add error handling
+      iframe.onerror = function() {
+        console.error('Failed to load YouTube iframe for video:', videoId);
+        container.innerHTML = `
+          <div class="d-flex flex-column align-items-center justify-content-center h-100 bg-dark text-white" style="height: 200px;">
+            <i class="fab fa-youtube fa-3x text-danger mb-2"></i>
+            <p class="mb-0">Unable to load video</p>
+            <small class="text-muted">${title}</small>
+            <button class="btn btn-sm btn-outline-light mt-2" onclick="window.open('https://youtube.com/watch?v=${videoId}', '_blank')">
+              <i class="fas fa-external-link-alt me-1"></i>Watch on YouTube
+            </button>
+          </div>
+        `;
+      };
+      
+      // Replace placeholder with iframe
+      container.innerHTML = '';
+      container.appendChild(iframe);
+      
+      // Initialize YouTube player for better control
+      iframe.onload = function() {
+        console.log('YouTube iframe loaded successfully for video:', videoId);
         if (typeof YT !== 'undefined' && YT.Player) {
-          initializeYouTubePlayer(iframe.id);
+          setTimeout(() => {
+            try {
+              initializeYouTubePlayer(iframe.id, videoId, title);
+            } catch (error) {
+              console.warn('YouTube player initialization failed:', error);
+              // Video still works, just without API controls
+            }
+          }, 500);
         }
-      }, 100);
+      };
     }
     
     // YouTube API ready callback
@@ -1010,21 +1126,64 @@ var infolinks_wsid = 0;
     
     function onYouTubeIframeAPIReady() {
       youtubeApiReady = true;
+      console.log('YouTube API is ready');
     }
     
-    function initializeYouTubePlayer(playerId) {
+    function initializeYouTubePlayer(playerId, videoId, title) {
       try {
+        const playerElement = document.getElementById(playerId);
+        if (!playerElement) {
+          console.warn('Player element not found:', playerId);
+          return;
+        }
+        
         youtubePlayers[playerId] = new YT.Player(playerId, {
           events: {
+            'onReady': function(event) {
+              console.log('YouTube player ready:', playerId);
+            },
             'onStateChange': function(event) {
               if (event.data == YT.PlayerState.PLAYING) {
                 pauseOtherVideos(playerId);
               }
+            },
+            'onError': function(event) {
+              console.error('YouTube player error:', event.data, 'for video:', videoId);
+              // Handle different error types
+              const container = playerElement.parentElement;
+              let errorMessage = 'Video unavailable';
+              
+              switch(event.data) {
+                case 2:
+                  errorMessage = 'Invalid video ID';
+                  break;
+                case 5:
+                  errorMessage = 'Video not supported in HTML5';
+                  break;
+                case 100:
+                  errorMessage = 'Video not found';
+                  break;
+                case 101:
+                case 150:
+                  errorMessage = 'Video not allowed to be embedded';
+                  break;
+              }
+              
+              container.innerHTML = `
+                <div class="d-flex flex-column align-items-center justify-content-center bg-dark text-white" style="height: 200px;">
+                  <i class="fab fa-youtube fa-3x text-danger mb-2"></i>
+                  <p class="mb-0">${errorMessage}</p>
+                  <small class="text-muted">${title || 'YouTube Video'}</small>
+                  <button class="btn btn-sm btn-outline-light mt-2" onclick="window.open('https://youtube.com/watch?v=${videoId}', '_blank')">
+                    <i class="fas fa-external-link-alt me-1"></i>Watch on YouTube
+                  </button>
+                </div>
+              `;
             }
           }
         });
       } catch (error) {
-        console.log('Error creating YouTube player:', error);
+        console.error('Error creating YouTube player:', error);
       }
     }
     
@@ -1040,32 +1199,22 @@ var infolinks_wsid = 0;
         }
       });
     }
-    
-    // Click handler for YouTube placeholders (for immediate loading)
-    document.addEventListener('click', (e) => {
-      const youtubePreview = e.target.closest('.youtube-lazy');
-      if (youtubePreview && !loadedVideos.has(youtubePreview.dataset.videoId)) {
-        const videoId = youtubePreview.dataset.videoId;
-        const videoTitle = youtubePreview.dataset.videoTitle;
-        loadYouTubeVideo(youtubePreview, videoId, videoTitle);
-        loadedVideos.add(videoId);
-        observer.unobserve(youtubePreview);
-      }
-    });
 
     // Initialize clipboard.js
-    new ClipboardJS('.copy-btn');
+    if (typeof ClipboardJS !== 'undefined') {
+      new ClipboardJS('.copy-btn');
 
-    // Show success message for clipboard
-    document.querySelectorAll('.copy-btn').forEach(button => {
-      button.addEventListener('click', () => {
-        const originalContent = button.innerHTML;
-        button.innerHTML = '<i class="fas fa-check"></i>';
-        setTimeout(() => {
-          button.innerHTML = originalContent;
-        }, 2000);
+      // Show success message for clipboard
+      document.querySelectorAll('.copy-btn').forEach(button => {
+        button.addEventListener('click', () => {
+          const originalContent = button.innerHTML;
+          button.innerHTML = '<i class="fas fa-check"></i>';
+          setTimeout(() => {
+            button.innerHTML = originalContent;
+          }, 2000);
+        });
       });
-    });
+    }
     
     // PWA Service Worker Registration
     if ('serviceWorker' in navigator) {

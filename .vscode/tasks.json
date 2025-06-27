@@ -1,0 +1,13 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Start BenixSpace App",
+			"type": "shell",
+			"command": "node --max-old-space-size=2048 --max-semi-space-size=512 app.js",
+			"group": "build",
+			"isBackground": true,
+			"problemMatcher": []
+		}
+	]
+}
