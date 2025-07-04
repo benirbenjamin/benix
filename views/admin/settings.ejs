@@ -32,7 +32,7 @@
             <h4 class="mb-0">Platform Settings</h4>
           </div>
           <div class="card-body">
-            <% const essentialSettings = ['commission_rate', 'cost_per_click', 'min_payout', 'lifetime_commission_fee']; %>
+            <% const essentialSettings = ['admin_commission_rate', 'user_commission_percentage', 'commission_rate', 'cost_per_click', 'min_payout', 'lifetime_commission_fee']; %>
             <% configs.filter(config => essentialSettings.includes(config.key_name)).forEach(config => { %>
               <form action="/admin/settings/update" method="POST" class="mb-4">
                 <input type="hidden" name="key_name" value="<%= config.key_name %>">
@@ -44,10 +44,12 @@
                     <div class="input-group">
                       <% if (config.key_name.includes('fee') || config.key_name.includes('cost') || config.key_name.includes('amount')) { %>
                         <span class="input-group-text">$</span>
+                      <% } else if (config.key_name.includes('rate') || config.key_name.includes('percentage')) { %>
+                        <span class="input-group-text">%</span>
                       <% } %>
                       <input type="<%= 
                         config.key_name.includes('password') ? 'password' : 
-                        config.key_name.includes('fee') || config.key_name.includes('cost') || config.key_name.includes('amount') ? 'number' : 
+                        config.key_name.includes('fee') || config.key_name.includes('cost') || config.key_name.includes('amount') || config.key_name.includes('rate') || config.key_name.includes('percentage') ? 'number' : 
                         config.value === 'true' || config.value === 'false' ? 'checkbox' : 
                         'text'
                       %>" 
@@ -56,7 +58,7 @@
                       name="value" 
                       value="<%= config.value %>"
                       <%= config.value === 'true' ? 'checked' : '' %>
-                      <%= config.key_name.includes('fee') || config.key_name.includes('cost') || config.key_name.includes('amount') ? 'step="0.01"' : '' %>>
+                      <%= config.key_name.includes('fee') || config.key_name.includes('cost') || config.key_name.includes('amount') || config.key_name.includes('rate') || config.key_name.includes('percentage') ? 'step="0.01" min="0"' : '' %>>
                     </div>
                     <small class="text-muted"><%= config.description %></small>
                   </div>

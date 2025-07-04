@@ -84,10 +84,14 @@
                   Your Commission
                 </h5>
                 <p class="h3 mb-2">
-                  $<%= (parseFloat(product.price) * parseFloat(product.commission_rate || 5) / 100).toFixed(2) %>
+                  <%
+                    const adminCommission = parseFloat(product.price) * parseFloat(adminCommissionRate) / 100;
+                    const userCommission = adminCommission * parseFloat(userCommissionPercentage) / 100;
+                  %>
+                  $<%= userCommission.toFixed(2) %>
                 </p>
                 <p class="mb-0">
-                  Earn this amount for every sale through your link!
+                  You earn <%= userCommissionPercentage %>% of admin commission ($<%= adminCommission.toFixed(2) %>) for every sale!
                 </p>
               </div>
             </div>
@@ -191,7 +195,11 @@
         const platform = this.dataset.platform;
         const shareUrl = document.getElementById('shareUrl').value;
         const productName = '<%= product.name.replace(/'/g, "\\'") %>';
-        const commission = '<%= (parseFloat(product.price) * parseFloat(product.commission_rate || 5) / 100).toFixed(2) %>';
+        <%
+          const adminCommissionCalc = parseFloat(product.price) * parseFloat(adminCommissionRate) / 100;
+          const userCommissionCalc = adminCommissionCalc * parseFloat(userCommissionPercentage) / 100;
+        %>
+        const commission = '<%= userCommissionCalc.toFixed(2) %>';
         
         let shareMessage = `Check out this amazing product: ${productName}! Get it now and help me earn $${commission} commission.`;
         let finalUrl;

@@ -119,10 +119,14 @@
                   <div class="d-flex justify-content-between align-items-center mb-2">
                     <span class="h5 text-primary mb-0">$<%= parseFloat(product.price).toFixed(2) %></span>
                     <span class="badge bg-success">
-                      <%= parseFloat(product.commission_rate || 5).toFixed(1) %>% Commission
+                      <%
+                        const adminCommission = parseFloat(product.price) * parseFloat(adminCommissionRate) / 100;
+                        const userCommission = adminCommission * parseFloat(userCommissionPercentage) / 100;
+                      %>
+                      $<%= userCommission.toFixed(2) %> per sale
                     </span>
                   </div>
-                  <small class="text-muted">by <%= product.business_name || product.merchant_name %></small>
+                  <small class="text-muted">by <%= product.business_name || product.merchant_name %> | You earn <%= userCommissionPercentage %>% of admin commission</small>
                 </div>
 
                 <!-- Performance Stats -->

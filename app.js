@@ -558,7 +558,9 @@ try {
 
     // Insert default config values
     const configValues = [
-      ['commission_rate', '5', 'Default commission percentage for users'],
+      ['commission_rate', '5', 'Default commission percentage for users (deprecated - use user_commission_percentage)'],
+      ['admin_commission_rate', '10', 'Admin commission percentage from product sales'],
+      ['user_commission_percentage', '30', 'User commission as percentage of admin commission (e.g., 30% of admin commission)'],
       ['cost_per_click', '0.0030', 'Default cost per click for merchants'],
       ['lifetime_commission_fee', '8', 'Fee for lifetime commission upgrade'],
       ['merchant_monthly_fee', '10', 'Monthly subscription fee for merchants'],
@@ -700,6 +702,61 @@ async function updateConfig(key, value) {
   await pool.query('UPDATE config SET value = ? WHERE key_name = ?', [value, key]);
 }
 
+// Function to process admin commissions when order is completed
+async function processAdminCommissions(orderId) {
+  try {
+    // Get all order items for this order
+    const [orderItems] = await pool.query(`
+      SELECT oi.*, p.price, p.name as product_name, o.user_id
+      FROM order_items oi
+      JOIN orders o ON oi.order_id = o.id
+      JOIN products p ON oi.product_id = p.id
+      WHERE oi.order_id = ?
+    `, [orderId]);
+
+    let totalAdminCommission = 0;
+
+    for (const item of orderItems) {
+      // Get admin commission rate from config
+      const adminCommissionRate = await getConfig('admin_commission_rate') || 10; // Default 10%
+      
+      // Calculate admin commission (admin commission rate % of product price * quantity)
+      const adminCommission = parseFloat((parseFloat(item.price) * parseFloat(adminCommissionRate) / 100 * item.quantity).toFixed(4));
+      totalAdminCommission += adminCommission;
+    }
+
+    if (totalAdminCommission > 0) {
+      // Record admin commission in transactions (to admin user if exists, or system)
+      const [adminUsers] = await pool.query('SELECT id FROM users WHERE role = ? LIMIT 1', ['admin']);
+      const adminUserId = adminUsers.length > 0 ? adminUsers[0].id : null;
+
+      if (adminUserId) {
+        // Update admin earnings and wallet
+        await pool.query(`
+          UPDATE users 
+          SET earnings = COALESCE(earnings, 0) + ?, 
+              wallet = COALESCE(wallet, 0) + ? 
+          WHERE id = ?
+        `, [totalAdminCommission, totalAdminCommission, adminUserId]);
+
+        // Record transaction
+        await pool.query(`
+          INSERT INTO transactions (user_id, type, amount, status, details, created_at)
+          VALUES (?, 'admin_commission', ?, 'completed', ?, NOW())
+        `, [
+          adminUserId,
+          totalAdminCommission,
+          `Admin commission for Order #${orderId}`
+        ]);
+
+        console.log(`Processed admin commission of $${totalAdminCommission.toFixed(2)} for Order #${orderId}`);
+      }
+    }
+  } catch (err) {
+    console.error('Error processing admin commissions:', err);
+  }
+}
+
 // Function to process product commissions when order is completed
 async function processProductCommissions(orderId) {
   try {
@@ -725,43 +782,102 @@ async function processProductCommissions(orderId) {
         if (sharedProducts.length > 0) {
           const sharedProduct = sharedProducts[0];
           
-          // Get commission rate from config
-          const commissionRate = await getConfig('commission_rate') || 5; // Default 5%
+          // Get admin commission rate and user commission percentage from config
+          const adminCommissionRate = await getConfig('admin_commission_rate') || 10; // Default 10%
+          const userCommissionPercentage = await getConfig('user_commission_percentage') || 30; // Default 30% of admin commission
           
-          // Calculate commission (commission rate % of product price * quantity)
-          const commission = parseFloat((parseFloat(item.price) * parseFloat(commissionRate) / 100 * item.quantity).toFixed(4));
+          // Calculate admin commission (admin commission rate % of product price * quantity)
+          const adminCommission = parseFloat((parseFloat(item.price) * parseFloat(adminCommissionRate) / 100 * item.quantity).toFixed(4));
           
-          // Update user earnings and wallet
+          // Calculate user commission (user commission percentage % of admin commission)
+          const userCommission = parseFloat((adminCommission * parseFloat(userCommissionPercentage) / 100).toFixed(4));
+          
+          // Update user earnings and wallet with user commission
           await pool.query(`
             UPDATE users 
             SET earnings = COALESCE(earnings, 0) + ?, 
                 wallet = COALESCE(wallet, 0) + ? 
             WHERE id = ?
-          `, [commission, commission, sharedProduct.user_id]);
+          `, [userCommission, userCommission, sharedProduct.user_id]);
           
-          // Update shared product earnings
+          // Update shared product earnings with user commission
           await pool.query(`
             UPDATE shared_products 
             SET earnings = COALESCE(earnings, 0) + ? 
             WHERE id = ?
-          `, [commission, sharedProduct.id]);
+          `, [userCommission, sharedProduct.id]);
           
-          // Record transaction
+          // Record transaction with detailed information
           await pool.query(`
             INSERT INTO transactions (user_id, type, amount, status, details, created_at)
             VALUES (?, 'commission', ?, 'completed', ?, NOW())
           `, [
             sharedProduct.user_id,
-            commission,
-            `Product commission for "${item.product_name}" (Order #${orderId})`
+            userCommission,
+            `Product commission for "${item.product_name}" (Order #${orderId}) - User gets ${userCommissionPercentage}% of admin commission ($${adminCommission.toFixed(2)})`
           ]);
           
-          console.log(`Processed commission of $${commission} for user ${sharedProduct.username} on product "${item.product_name}"`);
+          console.log(`Processed commission: Admin gets $${adminCommission.toFixed(2)} (${adminCommissionRate}%), User ${sharedProduct.username} gets $${userCommission.toFixed(2)} (${userCommissionPercentage}% of admin commission) on product "${item.product_name}"`);
         }
       }
     }
   } catch (err) {
     console.error('Error processing product commissions:', err);
+  }
+}
+
+// Function to process admin commissions when order is completed
+async function processAdminCommissions(orderId) {
+  try {
+    // Get all order items for this order
+    const [orderItems] = await pool.query(`
+      SELECT oi.*, p.price, p.name as product_name, o.user_id
+      FROM order_items oi
+      JOIN orders o ON oi.order_id = o.id
+      JOIN products p ON oi.product_id = p.id
+      WHERE oi.order_id = ?
+    `, [orderId]);
+
+    let totalAdminCommission = 0;
+
+    for (const item of orderItems) {
+      // Get admin commission rate from config
+      const adminCommissionRate = await getConfig('admin_commission_rate') || 10; // Default 10%
+      
+      // Calculate admin commission (admin commission rate % of product price * quantity)
+      const adminCommission = parseFloat((parseFloat(item.price) * parseFloat(adminCommissionRate) / 100 * item.quantity).toFixed(4));
+      totalAdminCommission += adminCommission;
+    }
+
+    if (totalAdminCommission > 0) {
+      // Record admin commission in transactions (to admin user if exists, or system)
+      const [adminUsers] = await pool.query('SELECT id FROM users WHERE role = ? LIMIT 1', ['admin']);
+      const adminUserId = adminUsers.length > 0 ? adminUsers[0].id : null;
+
+      if (adminUserId) {
+        // Update admin earnings and wallet
+        await pool.query(`
+          UPDATE users 
+          SET earnings = COALESCE(earnings, 0) + ?, 
+              wallet = COALESCE(wallet, 0) + ? 
+          WHERE id = ?
+        `, [totalAdminCommission, totalAdminCommission, adminUserId]);
+
+        // Record transaction
+        await pool.query(`
+          INSERT INTO transactions (user_id, type, amount, status, details, created_at)
+          VALUES (?, 'admin_commission', ?, 'completed', ?, NOW())
+        `, [
+          adminUserId,
+          totalAdminCommission,
+          `Admin commission for Order #${orderId}`
+        ]);
+
+        console.log(`Processed admin commission of $${totalAdminCommission.toFixed(2)} for Order #${orderId}`);
+      }
+    }
+  } catch (err) {
+    console.error('Error processing admin commissions:', err);
   }
 }
 
@@ -1184,14 +1300,8 @@ app.post('/login', async (req, res) => {
 // Dashboard route
 app.get('/dashboard', isAuthenticated, async (req, res) => {
   try {
-    // Get user data
-    const [users] = await pool.query('SELECT * FROM users WHERE id = ?', [req.session.userId]);
-    
-    if (users.length === 0) {
-      req.session.destroy();
-      return res.redirect('/login');
-    }
-    
+    const userId = req.session.userId;
+    const [users] = await pool.query('SELECT * FROM users WHERE id = ?', [userId]);
     const user = users[0];
     
     // Initialize stats object based on user role
@@ -1223,19 +1333,19 @@ app.get('/dashboard', isAuthenticated, async (req, res) => {
     } 
     else if (user.role === 'merchant') {
       // Merchant dashboard data
-      const [links] = await pool.query('SELECT * FROM links WHERE merchant_id = ?', [user.id]);
+      const [links] = await pool.query('SELECT * FROM links WHERE merchant_id = ?', [userId]);
       const [totalClicks] = await pool.query(`
         SELECT COUNT(*) as count FROM clicks c
         JOIN shared_links sl ON c.shared_link_id = sl.id
         JOIN links l ON sl.link_id = l.id
         WHERE l.merchant_id = ?
-      `, [user.id]);
+      `, [userId]);
       
       stats = {
         linkCount: links.length,
         totalClicks: totalClicks[0].count,
-        amountToPay: parseFloat(user.amount_to_pay || 0),
-        paidBalance: parseFloat(user.paid_balance || 0),
+        amountToPay: parseFloat(user.amount_to_pay || 0).toFixed(4),
+        paidBalance: parseFloat(user.paid_balance || 0).toFixed(4),
         links: links
       };
     } 
@@ -1246,20 +1356,32 @@ app.get('/dashboard', isAuthenticated, async (req, res) => {
         FROM shared_links sl
         JOIN links l ON sl.link_id = l.id
         WHERE sl.user_id = ?
-      `, [user.id]);
+      `, [userId]);
       
       const [totalClicks] = await pool.query(`
         SELECT COUNT(*) as count FROM clicks c
         JOIN shared_links sl ON c.shared_link_id = sl.id
         WHERE sl.user_id = ?
-      `, [user.id]);
+      `, [userId]);
       
       stats = {
         sharedLinkCount: sharedLinks.length,
         totalClicks: totalClicks[0].count,
-        totalEarnings: parseFloat(user.earnings || 0),
+        totalEarnings: user.earnings,
         sharedLinks: sharedLinks
       };
+      
+      // Fetch available links to share
+      const [availableLinks] = await pool.query(`
+        SELECT l.*, u.username as merchant_name, u.business_name
+        FROM links l
+        JOIN users u ON l.merchant_id = u.id
+        WHERE l.is_active = true
+        ORDER BY l.created_at DESC
+        LIMIT 20
+      `);
+      
+      stats.availableLinks = availableLinks;
     }
     
     // Get cart count for the cart badge in navbar
@@ -1865,68 +1987,7 @@ app.get('/api/countries', (req, res) => {
     { name: "Guadeloupe", code: "GP", dial_code: "+590" },
     { name: "Guam", code: "GU", dial_code: "+1671" },
     { name: "Guatemala", code: "GT", dial_code: "+502" },
-    { name: "Guernsey", code: "GG", dial_code: "+44" },
-    { name: "Guinea", code: "GN", dial_code: "+224" },
-    { name: "Guinea-Bissau", code: "GW", dial_code: "+245" },
-    { name: "Guyana", code: "GY", dial_code: "+592" },
-    { name: "Haiti", code: "HT", dial_code: "+509" },
-    { name: "Holy See (Vatican City State)", code: "VA", dial_code: "+379" },
-    { name: "Honduras", code: "HN", dial_code: "+504" },
-    { name: "Hong Kong", code: "HK", dial_code: "+852" },
-    { name: "Hungary", code: "HU", dial_code: "+36" },
-    { name: "Iceland", code: "IS", dial_code: "+354" },
-    { name: "India", code: "IN", dial_code: "+91" },
-    { name: "Indonesia", code: "ID", dial_code: "+62" },
-    { name: "Iran, Islamic Republic of", code: "IR", dial_code: "+98" },
-    { name: "Iraq", code: "IQ", dial_code: "+964" },
-    { name: "Ireland", code: "IE", dial_code: "+353" },
-    { name: "Isle of Man", code: "IM", dial_code: "+44" },
-    { name: "Israel", code: "IL", dial_code: "+972" },
-    { name: "Italy", code: "IT", dial_code: "+39" },
-    { name: "Jamaica", code: "JM", dial_code: "+1876" },
-    { name: "Japan", code: "JP", dial_code: "+81" },
-    { name: "Jersey", code: "JE", dial_code: "+44" },
-    { name: "Jordan", code: "JO", dial_code: "+962" },
-    { name: "Kazakhstan", code: "KZ", dial_code: "+7" },
-    { name: "Kenya", code: "KE", dial_code: "+254" },
-    { name: "Kiribati", code: "KI", dial_code: "+686" },
-    { name: "Korea, Democratic People's Republic of", code: "KP", dial_code: "+850" },
-    { name: "Korea, Republic of", code: "KR", dial_code: "+82" },
-    { name: "Kuwait", code: "KW", dial_code: "+965" },
-    { name: "Kyrgyzstan", code: "KG", dial_code: "+996" },
-    { name: "Lao People's Democratic Republic", code: "LA", dial_code: "+856" },
-    { name: "Latvia", code: "LV", dial_code: "+371" },
-    { name: "Lebanon", code: "LB", dial_code: "+961" },
-    { name: "Lesotho", code: "LS", dial_code: "+266" },
-    { name: "Liberia", code: "LR", dial_code: "+231" },
-    { name: "Libyan Arab Jamahiriya", code: "LY", dial_code: "+218" },
-    { name: "Liechtenstein", code: "LI", dial_code: "+423" },
-    { name: "Lithuania", code: "LT", dial_code: "+370" },
-    { name: "Luxembourg", code: "LU", dial_code: "+352" },
-    { name: "Macao", code: "MO", dial_code: "+853" },
-    { name: "Macedonia", code: "MK", dial_code: "+389" },
-    { name: "Madagascar", code: "MG", dial_code: "+261" },
-    { name: "Malawi", code: "MW", dial_code: "+265" },
-    { name: "Malaysia", code: "MY", dial_code: "+60" },
-    { name: "Maldives", code: "MV", dial_code: "+960" },
-    { name: "Mali", code: "ML", dial_code: "+223" },
-    { name: "Malta", code: "MT", dial_code: "+356" },
-    { name: "Marshall Islands", code: "MH", dial_code: "+692" },
-    { name: "Martinique", code: "MQ", dial_code: "+596" },
-    { name: "Mauritania", code: "MR", dial_code: "+222" },
-    { name: "Mauritius", code: "MU", dial_code: "+230" },
-    { name: "Mayotte", code: "YT", dial_code: "+262" },
-    { name: "Mexico", code: "MX", dial_code: "+52" },
-    { name: "Micronesia, Federated States of", code: "FM", dial_code: "+691" },
-    { name: "Moldova, Republic of", code: "MD", dial_code: "+373" },
-    { name: "Monaco", code: "MC", dial_code: "+377" },
-    { name: "Mongolia", code: "MN", dial_code: "+976" },
-    { name: "Montenegro", code: "ME", dial_code: "+382" },
-    { name: "Montserrat", code: "MS", dial_code: "+1664" },
-    { name: "Morocco", code: "MA", dial_code: "+212" },
-    { name: "Mozambique", code: "MZ", dial_code: "+258" },
-    { name: "Myanmar", code: "MM", dial_code: "+95" },
-    { name: "Namibia", code: "NA", dial_code: "+264" },
+   
     { name: "Nauru", code: "NR", dial_code: "+674" },
     { name: "Nepal", code: "NP", dial_code: "+977" },
     { name: "Netherlands", code: "NL", dial_code: "+31" },
@@ -3275,8 +3336,9 @@ app.post('/merchant/orders/:id/update-status', isAuthenticated, isMerchant, asyn
       WHERE id = ?
     `, [status, orderId]);
     
-    // If order is marked as delivered, process commissions for shared products
+    // If order is marked as delivered, process commissions for shared products and admin
     if (status === 'delivered') {
+      await processAdminCommissions(orderId);
       await processProductCommissions(orderId);
     }
     
@@ -3741,7 +3803,9 @@ app.get('/products/:id/share', isAuthenticated, async (req, res) => {
       },
       product: product,
       shareCode: shareCode,
-      shareUrl: `${req.protocol}://${req.get('host')}/p/${shareCode}`
+      shareUrl: `${req.protocol}://${req.get('host')}/p/${shareCode}`,
+      adminCommissionRate: await getConfig('admin_commission_rate') || 10,
+      userCommissionPercentage: await getConfig('user_commission_percentage') || 30
     });
   } catch (err) {
     console.error('Product sharing error:', err);
@@ -3838,6 +3902,8 @@ app.get('/user/shared-products', isAuthenticated, async (req, res) => {
       sharedProducts: sharedProducts,
       stats: userStats,
       baseUrl: baseUrl,
+      adminCommissionRate: await getConfig('admin_commission_rate') || 10,
+      userCommissionPercentage: await getConfig('user_commission_percentage') || 30,
       success: req.query.success,
       error: req.query.error
     });
@@ -5831,8 +5897,9 @@ app.post('/admin/orders/:id/update-status', isAuthenticated, isAdmin, async (req
     // Update order status
     await pool.query('UPDATE orders SET status = ? WHERE id = ?', [status, orderId]);
     
-    // If order is marked as delivered, process commissions for shared products
+    // If order is marked as delivered, process commissions for shared products and admin
     if (status === 'delivered') {
+      await processAdminCommissions(orderId);
       await processProductCommissions(orderId);
     }
     
