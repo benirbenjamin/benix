@@ -1,0 +1,156 @@
+<!-- filepath: c:\Users\RW 0354\Desktop\app\benix\views\admin\link-detail.ejs -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <%- include('../partials/navbar', { user: user }) %>
+    <title>Admin - Link Details - BenixSpace</title>
+    <link rel="icon" href="/static/img/favicon.png" type="image/png" />
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body class="bg-light">
+    <div class="container mt-4">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2>Link Details</h2>
+            <div>
+                <a href="/admin/links/<%= link.id %>/edit" class="btn btn-primary me-2">Edit Link</a>
+                <a href="/admin/links" class="btn btn-outline-secondary">Back to Links</a>
+            </div>
+        </div>
+
+        <!-- Link Details Card -->
+        <div class="card mb-4">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4 mb-4">
+                        <% if (link.type === 'product' && link.product_image) { %>
+                            <img src="<%= link.product_image %>" class="img-fluid rounded" alt="<%= link.title %>">
+                        <% } else { %>
+                            <div class="bg-light d-flex justify-content-center align-items-center rounded" style="height: 300px;">
+                                <div class="text-center">
+                                    <i class="fas fa-link fa-3x mb-3 text-muted"></i>
+                                    <p class="text-muted">URL Link</p>
+                                </div>
+                            </div>
+                        <% } %>
+                    </div>
+                    <div class="col-md-8">
+                        <h3 class="mb-3"><%= link.title %></h3>
+                        
+                        <div class="mb-3">
+                            <span class="badge bg-<%= link.is_active ? 'success' : 'danger' %> mb-2">
+                                <%= link.is_active ? 'Active' : 'Inactive' %>
+                            </span>
+                            <button class="btn btn-sm btn-<%= link.is_active ? 'danger' : 'success' %> toggle-status ms-2" 
+                                   data-id="<%= link.id %>" data-status="<%= link.is_active %>">
+                                <%= link.is_active ? 'Deactivate' : 'Activate' %>
+                            </button>
+                            <span class="badge bg-<%= link.type === 'url' ? 'info' : 'primary' %> ms-2"><%= link.type %></span>
+                        </div>
+                        
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <p><strong>Merchant:</strong> <%= link.merchant_name %></p>
+                                <p>
+                                    <strong>URL:</strong> 
+                                    <% if (link.type === 'url') { %>
+                                        <a href="<%= link.url %>" target="_blank"><%= link.url %></a>
+                                    <% } else if (link.type === 'product') { %>
+                                        <a href="/product/<%= link.product_id %>" target="_blank">Product Link</a>
+                                    <% } %>
+                                </p>
+                                <p><strong>Cost Per Click:</strong> $<%= parseFloat(link.cost_per_click || 0).toFixed(4) %></p>
+                            </div>
+                            <div class="col-md-6">
+                                <p><strong>Total Clicks:</strong> <%= link.clicks_count || 0 %></p>
+                                <p><strong>Created:</strong> <%= new Date(link.created_at).toLocaleString() %></p>
+                                <% if (link.type === 'product') { %>
+                                    <p><strong>Product:</strong> <%= link.product_name %></p>
+                                <% } %>
+                            </div>
+                        </div>
+                        
+                        <h5>Description</h5>
+                        <p class="mb-0"><%= link.description %></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Shared Links -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Shared Links</h5>
+            </div>
+            <div class="card-body">
+                <% if (sharedLinks && sharedLinks.length > 0) { %>
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Share Code</th>
+                                    <th>Shared By</th>
+                                    <th>Clicks</th>
+                                    <th>Earnings</th>
+                                    <th>Created</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <% sharedLinks.forEach(sl => { %>
+                                    <tr>
+                                        <td><%= sl.share_code %></td>
+                                        <td><%= sl.shared_by %></td>
+                                        <td><%= sl.clicks %></td>
+                                        <td>$<%= parseFloat(sl.earnings || 0).toFixed(4) %></td>
+                                        <td><%= new Date(sl.created_at).toLocaleString() %></td>
+                                        <td>
+                                            <a href="/l/<%= sl.share_code %>" target="_blank" class="btn btn-sm btn-info">Visit</a>
+                                        </td>
+                                    </tr>
+                                <% }) %>
+                            </tbody>
+                        </table>
+                    </div>
+                <% } else { %>
+                    <p class="text-muted mb-0">No shared links found.</p>
+                <% } %>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Toggle link status
+            document.querySelector('.toggle-status').addEventListener('click', async function() {
+                const linkId = this.dataset.id;
+                const currentStatus = this.dataset.status === 'true';
+                const newStatus = !currentStatus;
+
+                if (confirm(`Are you sure you want to ${currentStatus ? 'deactivate' : 'activate'} this link?`)) {
+                    try {
+                        const response = await fetch(`/admin/api/links/${linkId}/toggle-status`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({ is_active: newStatus })
+                        });
+
+                        if (!response.ok) {
+                            throw new Error('Failed to update link status');
+                        }
+
+                        window.location.reload();
+                    } catch (error) {
+                        alert('Error updating link status: ' + error.message);
+                    }
+                }
+            });
+        });
+    </script>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
+    <%- include('../partials/footer') %>
+</body>
+</html>
