@@ -1195,17 +1195,66 @@ app.get('/shop', (req, res) => {
 // Products route
 app.get('/user/products', async (req, res) => {
   try {
-    // Get all active products with merchant info
-    const [products] = await pool.query(`
+    // Extract and sanitize query parameters
+    const category = req.query.category || null;
+    const search = req.query.search || null;
+    const sort = req.query.sort || 'newest';
+    const min_price = req.query.min_price ? parseFloat(req.query.min_price) : null;
+    const max_price = req.query.max_price ? parseFloat(req.query.max_price) : null;
+    
+    // Build query with filters
+    let query = `
       SELECT p.*, u.username as merchant_name 
       FROM products p
       JOIN users u ON p.merchant_id = u.id
       WHERE p.is_active = true
-      ORDER BY p.created_at DESC
-    `);
+    `;
+    let queryParams = [];
+    
+    // Add category filter
+    if (category && category !== 'all' && category.trim() !== '') {
+      query += ` AND p.category = ?`;
+      queryParams.push(category);
+    }
+    
+    // Add search filter
+    if (search && search.trim() !== '') {
+      query += ` AND (p.name LIKE ? OR p.description LIKE ?)`;
+      queryParams.push(`%${search}%`, `%${search}%`);
+    }
+    
+    // Add price range filter
+    if (min_price !== null && !isNaN(min_price) && min_price >= 0) {
+      query += ` AND p.price >= ?`;
+      queryParams.push(min_price);
+    }
+    
+    if (max_price !== null && !isNaN(max_price) && max_price >= 0) {
+      query += ` AND p.price <= ?`;
+      queryParams.push(max_price);
+    }
+    
+    // Add sorting
+    switch (sort) {
+      case 'price_low':
+        query += ` ORDER BY p.price ASC`;
+        break;
+      case 'price_high':
+        query += ` ORDER BY p.price DESC`;
+        break;
+      case 'name':
+        query += ` ORDER BY p.name ASC`;
+        break;
+      case 'newest':
+      default:
+        query += ` ORDER BY p.created_at DESC`;
+        break;
+    }
+    
+    const [products] = await pool.query(query, queryParams);
 
     // Get all unique categories
-    const [categories] = await pool.query('SELECT DISTINCT category FROM products WHERE category IS NOT NULL');
+    const [categories] = await pool.query('SELECT DISTINCT category FROM products WHERE category IS NOT NULL AND category != ""');
     const categoryList = categories.map(c => c.category);
 
     // Get cart count if user is logged in
@@ -1215,10 +1264,20 @@ app.get('/user/products', async (req, res) => {
       cartCount = cartItems[0].count;
     }
 
+    // Ensure filters object is always defined
+    const filters = {
+      category: category || '',
+      search: search || '',
+      sort: sort || 'newest',
+      min_price: min_price || '',
+      max_price: max_price || ''
+    };
+
     res.render('user/products', { 
       products,
       categories: categoryList,
       cartCount,
+      filters,
       user: req.session.userId ? {
         id: req.session.userId,
         username: req.session.username,
@@ -1228,7 +1287,50 @@ app.get('/user/products', async (req, res) => {
     });
   } catch (err) {
     console.error('Products page error:', err);
-    res.status(500).render('error', { message: 'Server error. Please try again later.' });
+    
+    // Fallback: render with empty filters to prevent crashes
+    try {
+      // Get basic data for fallback
+      const [products] = await pool.query(`
+        SELECT p.*, u.username as merchant_name 
+        FROM products p
+        JOIN users u ON p.merchant_id = u.id
+        WHERE p.is_active = true
+        ORDER BY p.created_at DESC
+      `);
+
+      const [categories] = await pool.query('SELECT DISTINCT category FROM products WHERE category IS NOT NULL AND category != ""');
+      const categoryList = categories.map(c => c.category);
+
+      let cartCount = 0;
+      if (req.session.userId) {
+        const [cartItems] = await pool.query('SELECT COUNT(*) as count FROM cart_items WHERE user_id = ?', [req.session.userId]);
+        cartCount = cartItems[0].count;
+      }
+
+      res.render('user/products', { 
+        products,
+        categories: categoryList,
+        cartCount,
+        filters: {
+          category: '',
+          search: '',
+          sort: 'newest',
+          min_price: '',
+          max_price: ''
+        }, // Properly defined empty filters object
+        user: req.session.userId ? {
+          id: req.session.userId,
+          username: req.session.username,
+          role: req.session.role
+        } : null,
+        page: 'shop',
+        error: 'Some filters may not be working properly.'
+      });
+    } catch (fallbackErr) {
+      console.error('Products fallback error:', fallbackErr);
+      res.status(500).render('error', { message: 'Server error. Please try again later.' });
+    }
   }
 });
 // Auth routes
@@ -1829,8 +1931,8 @@ app.post('/register', async (req, res) => {
           // Add referral commission to referrer's wallet and earnings
           await pool.query(`
             UPDATE users 
-            SET wallet = wallet + 0.0500, 
-                earnings = COALESCE(earnings, 0) + 0.0500 
+            SET wallet = wallet + 0.100, 
+                earnings = COALESCE(earnings, 0) + 0.100 
             WHERE id = ?
           `, [referrerId]);
           
@@ -1842,7 +1944,7 @@ app.post('/register', async (req, res) => {
           `, [
             referrerId,
             'commission',
-            0.0500,
+            0.100,
             'completed',
             `Referral commission for new user: ${username}`
           ]);
@@ -1850,10 +1952,10 @@ app.post('/register', async (req, res) => {
           // Add to referrals table
           await pool.query(
             'INSERT INTO referrals (referrer_id, referred_id, commission_paid) VALUES (?, ?, ?)',
-            [referrerId, result.insertId, 0.0500]
+            [referrerId, result.insertId, 0.100]
           );
           
-          console.log(`Referral commission of $0.0500 added to user ID ${referrerId} for referring ${username}`);
+          console.log(`Referral commission of $0.100 added to user ID ${referrerId} for referring ${username}`);
         }
       } catch (referralErr) {
         console.error('Error processing referral:', referralErr);
@@ -3134,6 +3236,29 @@ app.post('/api/orders/create', isAuthenticated, async (req, res) => {
   }
 });
 
+// API to get cart count
+app.get('/api/cart/count', isAuthenticated, async (req, res) => {
+  try {
+    const userId = req.session.userId;
+    
+    const [result] = await pool.query(
+      'SELECT COUNT(*) as count FROM cart_items WHERE user_id = ?',
+      [userId]
+    );
+    
+    res.json({
+      success: true,
+      count: result[0].count
+    });
+  } catch (err) {
+    console.error('Get cart count error:', err);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+});
+
 // API to remove item from cart
 app.post('/api/cart/remove', isAuthenticated, async (req, res) => {
   try {
@@ -3795,6 +3920,17 @@ app.get('/products/:id/share', isAuthenticated, async (req, res) => {
       );
     }
     
+    // Get commission rates with fallbacks
+    const adminCommissionRate = await getConfig('admin_commission_rate') || 10;
+    const userCommissionPercentage = await getConfig('user_commission_percentage') || 30;
+    
+    console.log('Share product rendering with:', {
+      adminCommissionRate,
+      userCommissionPercentage,
+      productId,
+      userId
+    });
+    
     res.render('user/share-product', {
       user: {
         id: req.session.userId,
@@ -3804,8 +3940,8 @@ app.get('/products/:id/share', isAuthenticated, async (req, res) => {
       product: product,
       shareCode: shareCode,
       shareUrl: `${req.protocol}://${req.get('host')}/p/${shareCode}`,
-      adminCommissionRate: await getConfig('admin_commission_rate') || 10,
-      userCommissionPercentage: await getConfig('user_commission_percentage') || 30
+      adminCommissionRate: adminCommissionRate,
+      userCommissionPercentage: userCommissionPercentage
     });
   } catch (err) {
     console.error('Product sharing error:', err);

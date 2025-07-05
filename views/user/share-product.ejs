@@ -85,13 +85,15 @@
                 </h5>
                 <p class="h3 mb-2">
                   <%
-                    const adminCommission = parseFloat(product.price) * parseFloat(adminCommissionRate) / 100;
-                    const userCommission = adminCommission * parseFloat(userCommissionPercentage) / 100;
+                    const adminCommissionRateValue = typeof adminCommissionRate !== 'undefined' ? adminCommissionRate : 10;
+                    const userCommissionPercentageValue = typeof userCommissionPercentage !== 'undefined' ? userCommissionPercentage : 30;
+                    const adminCommission = parseFloat(product.price) * parseFloat(adminCommissionRateValue) / 100;
+                    const userCommission = adminCommission * parseFloat(userCommissionPercentageValue) / 100;
                   %>
                   $<%= userCommission.toFixed(2) %>
                 </p>
                 <p class="mb-0">
-                  You earn <%= userCommissionPercentage %>% of admin commission ($<%= adminCommission.toFixed(2) %>) for every sale!
+                  You earn <%= userCommissionPercentageValue %>% of admin commission ($<%= adminCommission.toFixed(2) %>) for every sale!
                 </p>
               </div>
             </div>
@@ -196,10 +198,12 @@
         const shareUrl = document.getElementById('shareUrl').value;
         const productName = '<%= product.name.replace(/'/g, "\\'") %>';
         <%
-          const adminCommissionCalc = parseFloat(product.price) * parseFloat(adminCommissionRate) / 100;
-          const userCommissionCalc = adminCommissionCalc * parseFloat(userCommissionPercentage) / 100;
+          const adminRateForJS = typeof adminCommissionRate !== 'undefined' ? adminCommissionRate : 10;
+          const userPercentForJS = typeof userCommissionPercentage !== 'undefined' ? userCommissionPercentage : 30;
+          const adminCommissionForJS = parseFloat(product.price) * parseFloat(adminRateForJS) / 100;
+          const userCommissionForJS = adminCommissionForJS * parseFloat(userPercentForJS) / 100;
         %>
-        const commission = '<%= userCommissionCalc.toFixed(2) %>';
+        const commission = '<%= userCommissionForJS.toFixed(2) %>';
         
         let shareMessage = `Check out this amazing product: ${productName}! Get it now and help me earn $${commission} commission.`;
         let finalUrl;
