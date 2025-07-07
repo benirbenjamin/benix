@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <%- include('../partials/navbar') %>
+    <title>Shop Products - BenixSpace</title>
+    <link rel="icon" href="/static/img/favicon.png" type="image/png" />
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>        .product-description {
+            max-height: 4.5rem;
+            overflow: hidden;
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            line-clamp: 3; 
+            -webkit-box-orient: vertical;
+            text-overflow: ellipsis;
+            word-break: break-word;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            hyphens: auto;
+        }
+        
+        .card {
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .card-body {
+            flex: 1 0 auto;
+        }
+        
+        @media (max-width: 768px) {
+            .card-img-top {
+                height: 150px !important;
+            }
+            .product-description {
+                -webkit-line-clamp: 2;
+                line-clamp: 2;
+                max-height: 3rem;
+            }
+            .card-title {
+                font-size: 1.15rem;
+            }
+            .container {
+                max-width: 100%;
+                padding: 0 10px;
+            }
+            .col-md-4 {
+                padding: 0 5px;
+            }
+        }
+    </style>
+</head>
+<body class="bg-light">
+    <div class="container mt-4">
+        <!-- Filter Controls -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">
+                            <i class="fas fa-filter me-2"></i>Filter Products
+                            <button class="btn btn-sm btn-outline-secondary ms-2" type="button" data-bs-toggle="collapse" data-bs-target="#filterCollapse">
+                                <i class="fas fa-chevron-down"></i>
+                            </button>
+                        </h5>
+                        
+                        <div class="collapse show" id="filterCollapse">
+                            <form id="filterForm" method="GET" action="/user/products">
+                                <div class="row g-3">
+                                    <!-- Search -->
+                                    <div class="col-md-3">
+                                        <label class="form-label">Search</label>
+                                        <input type="text" class="form-control" name="search" id="searchInput" 
+                                               placeholder="Search products..." 
+                                               value="<%= (typeof filters !== 'undefined' && filters.search) ? filters.search : '' %>">
+                                    </div>
+                                    
+                                    <!-- Category -->
+                                    <div class="col-md-3">
+                                        <label class="form-label">Category</label>
+                                        <select class="form-select" name="category" id="categorySelect">
+                                            <option value="all" <%= (typeof filters === 'undefined' || !filters.category || filters.category === 'all') ? 'selected' : '' %>>All Categories</option>
+                                            <% categories.forEach(category => { %>
+                                                <option value="<%= category %>" <%= (typeof filters !== 'undefined' && filters.category === category) ? 'selected' : '' %>><%= category %></option>
+                                            <% }) %>
+                                        </select>
+                                    </div>
+                                    
+                                    <!-- Price Range -->
+                                    <div class="col-md-2">
+                                        <label class="form-label">Min Price</label>
+                                        <input type="number" class="form-control" name="min_price" 
+                                               placeholder="$0" step="0.01" min="0"
+                                               value="<%= (typeof filters !== 'undefined' && filters.min_price) ? filters.min_price : '' %>">
+                                    </div>
+                                    
+                                    <div class="col-md-2">
+                                        <label class="form-label">Max Price</label>
+                                        <input type="number" class="form-control" name="max_price" 
+                                               placeholder="$999" step="0.01" min="0"
+                                               value="<%= (typeof filters !== 'undefined' && filters.max_price) ? filters.max_price : '' %>">
+                                    </div>
+                                    
+                                    <!-- Sort -->
+                                    <div class="col-md-2">
+                                        <label class="form-label">Sort By</label>
+                                        <select class="form-select" name="sort" id="sortSelect">
+                                            <option value="newest" <%= (typeof filters === 'undefined' || filters.sort === 'newest') ? 'selected' : '' %>>Newest</option>
+                                            <option value="price_low" <%= (typeof filters !== 'undefined' && filters.sort === 'price_low') ? 'selected' : '' %>>Price: Low to High</option>
+                                            <option value="price_high" <%= (typeof filters !== 'undefined' && filters.sort === 'price_high') ? 'selected' : '' %>>Price: High to Low</option>
+                                            <option value="name" <%= (typeof filters !== 'undefined' && filters.sort === 'name') ? 'selected' : '' %>>Name A-Z</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                
+                                <div class="row mt-3">
+                                    <div class="col-12">
+                                        <button type="submit" class="btn btn-primary">
+                                            <i class="fas fa-search me-1"></i>Apply Filters
+                                        </button>
+                                        <a href="/user/products" class="btn btn-outline-secondary ms-2">
+                                            <i class="fas fa-times me-1"></i>Clear All
+                                        </a>
+                                        <span class="ms-3 text-muted">
+                                            <i class="fas fa-box me-1"></i>
+                                            <span id="productCount"><%= products.length %></span> products found
+                                        </span>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Products Header -->
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2>Shop Products</h2>
+            <div class="d-flex gap-3 align-items-center">
+                <a href="/cart" class="btn btn-primary position-relative">
+                    <i class="fas fa-shopping-cart me-1"></i>Cart
+                    <% if (cartCount > 0) { %>
+                        <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+                            <%= cartCount %>
+                        </span>
+                    <% } %>
+                </a>
+            </div>
+        </div>
+
+        <div class="row">
+            <% products.forEach(product => { %>                <div class="col-md-4 mb-4">
+                    <div class="card h-100">
+                        <a href="/product/<%= product.id %>" class="text-decoration-none text-dark">
+                            <% if (product.image_url) { %>
+                                <img src="<%= product.image_url %>" class="card-img-top" alt="<%= product.name %>" style="height: 200px; object-fit: cover;">
+                            <% } %>                        <div class="card-body">
+                                <h5 class="card-title"><%= product.name %></h5>
+                                <p class="card-text product-description"><%= product.description %></p>
+                            </a>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h6 class="mb-0">$<%= parseFloat(product.price).toFixed(4) %></h6>
+                                <span class="badge bg-<%= product.stock > 0 ? 'success' : 'danger' %>">
+                                    <%= product.stock > 0 ? 'In Stock' : 'Out of Stock' %>
+                                </span>
+                            </div>
+                            <div class="text-muted mt-2">
+                                <small>Sold by: <%= product.merchant_name %></small>
+                            </div>
+                            <% if (product.referrer_username) { %>
+                                <div class="text-muted">
+                                    <small>Shared by: <%= product.referrer_username %></small>
+                                </div>
+                            <% } %>
+                        </div>
+                        <div class="card-footer bg-transparent">
+                            <% if (product.stock > 0) { %>
+                                <button onclick="addToCart(<%= product.id %>)" class="btn btn-primary w-100">
+                                   Add to Cart
+                                </button>
+                            <% } else { %>
+                                <button class="btn btn-secondary w-100" disabled>Out of Stock</button>
+                            <% } %>
+                        </div>
+                    </div>
+                </div>
+            <% }) %>
+        </div>
+    </div>
+
+    <script>
+        // User authentication status
+        const isLoggedIn = <%= user ? 'true' : 'false' %>;
+
+        // Real-time filtering (client-side for better UX)
+        document.addEventListener('DOMContentLoaded', function() {
+            const searchInput = document.getElementById('searchInput');
+            const categorySelect = document.getElementById('categorySelect');
+            const sortSelect = document.getElementById('sortSelect');
+            const filterForm = document.getElementById('filterForm');
+            let debounceTimer;
+
+            // Debounced search
+            searchInput.addEventListener('input', function() {
+                clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(() => {
+                    filterForm.submit();
+                }, 500);
+            });
+
+            // Instant filter on dropdown changes
+            categorySelect.addEventListener('change', function() {
+                filterForm.submit();
+            });
+
+            sortSelect.addEventListener('change', function() {
+                filterForm.submit();
+            });
+
+            // Price range validation
+            const minPriceInput = document.querySelector('input[name="min_price"]');
+            const maxPriceInput = document.querySelector('input[name="max_price"]');
+
+            function validatePriceRange() {
+                const minPrice = parseFloat(minPriceInput.value) || 0;
+                const maxPrice = parseFloat(maxPriceInput.value) || Infinity;
+
+                if (minPrice > maxPrice && maxPriceInput.value) {
+                    maxPriceInput.setCustomValidity('Max price must be greater than min price');
+                } else {
+                    maxPriceInput.setCustomValidity('');
+                }
+            }
+
+            minPriceInput.addEventListener('input', validatePriceRange);
+            maxPriceInput.addEventListener('input', validatePriceRange);
+
+            // Show loading indicator during filter
+            filterForm.addEventListener('submit', function() {
+                const submitBtn = filterForm.querySelector('button[type="submit"]');
+                const originalText = submitBtn.innerHTML;
+                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Filtering...';
+                submitBtn.disabled = true;
+
+                // Re-enable after a short delay in case of errors
+                setTimeout(() => {
+                    submitBtn.innerHTML = originalText;
+                    submitBtn.disabled = false;
+                }, 3000);
+            });
+
+            // Quick filter buttons (optional enhancement)
+            createQuickFilters();
+        });
+
+        function createQuickFilters() {
+            const quickFiltersContainer = document.createElement('div');
+            quickFiltersContainer.className = 'mb-3';
+            quickFiltersContainer.innerHTML = `
+                <div class="d-flex flex-wrap gap-2">
+                    <small class="text-muted align-self-center me-2">Quick filters:</small>
+                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="quickFilter('price_range', '0-10')">Under $10</button>
+                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="quickFilter('price_range', '10-50')">$10 - $50</button>
+                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="quickFilter('price_range', '50-100')">$50 - $100</button>
+                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="quickFilter('price_range', '100+')">$100+</button>
+                </div>
+            `;
+            
+            const filtersCard = document.querySelector('.card-body');
+            const form = document.getElementById('filterForm');
+            filtersCard.insertBefore(quickFiltersContainer, form);
+        }
+
+        function quickFilter(type, value) {
+            const form = document.getElementById('filterForm');
+            
+            if (type === 'price_range') {
+                const minPriceInput = form.querySelector('input[name="min_price"]');
+                const maxPriceInput = form.querySelector('input[name="max_price"]');
+                
+                switch(value) {
+                    case '0-10':
+                        minPriceInput.value = '0';
+                        maxPriceInput.value = '10';
+                        break;
+                    case '10-50':
+                        minPriceInput.value = '10';
+                        maxPriceInput.value = '50';
+                        break;
+                    case '50-100':
+                        minPriceInput.value = '50';
+                        maxPriceInput.value = '100';
+                        break;
+                    case '100+':
+                        minPriceInput.value = '100';
+                        maxPriceInput.value = '';
+                        break;
+                }
+                
+                form.submit();
+            }
+        }
+
+        async function addToCart(productId) {
+            // Check if user is logged in
+            if (!isLoggedIn) {
+                // User not logged in, redirect to login with current page as return URL
+                const currentUrl = encodeURIComponent(window.location.pathname + window.location.search);
+                window.location.href = `/login?redirect=${currentUrl}`;
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/cart/add', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ productId, quantity: 1 })
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    // Show success message with better UX
+                    showToast('Product added to cart!', 'success');
+                    // Update cart count in navbar
+                    updateCartCount();
+                } else if (response.status === 401 || response.status === 403) {
+                    // User not authenticated, redirect to login
+                    const currentUrl = encodeURIComponent(window.location.pathname + window.location.search);
+                    window.location.href = `/login?redirect=${currentUrl}`;
+                } else {
+                    showToast(result.message || 'Failed to add product to cart', 'error');
+                }
+            } catch (err) {
+                console.error('Error adding to cart:', err);
+                showToast('Failed to add product to cart', 'error');
+            }
+        }
+
+        function showToast(message, type = 'info') {
+            // Create toast notification
+            const toast = document.createElement('div');
+            toast.className = `alert alert-${type === 'success' ? 'success' : type === 'error' ? 'danger' : 'info'} alert-dismissible fade show position-fixed`;
+            toast.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+            toast.innerHTML = `
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            
+            document.body.appendChild(toast);
+            
+            // Auto remove after 3 seconds
+            setTimeout(() => {
+                if (toast.parentNode) {
+                    toast.remove();
+                }
+            }, 3000);
+        }
+
+        async function updateCartCount() {
+            try {
+                const response = await fetch('/api/cart/count');
+                if (response.ok) {
+                    const data = await response.json();
+                    // Update cart count in navbar if element exists
+                    const cartBadge = document.querySelector('.badge.rounded-pill.bg-danger');
+                    if (cartBadge) {
+                        cartBadge.textContent = data.count;
+                        cartBadge.style.display = data.count > 0 ? 'inline' : 'none';
+                    }
+                }
+            } catch (err) {
+                console.error('Error updating cart count:', err);
+            }
+        }
+    </script>
+</body>
+</html>
