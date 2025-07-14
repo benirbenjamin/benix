@@ -90,26 +90,155 @@ var infolinks_wsid = 0;
      crossorigin="anonymous"></script>
   <style>    /* Hero Section */
     .hero-section {
-      background: linear-gradient(135deg, rgba(13, 110, 253, 0.9), rgba(45, 153, 255, 0.9)),
+      background: linear-gradient(135deg, rgba(13, 110, 253, 0.85), rgba(45, 153, 255, 0.85)),
                   url('https://images.unsplash.com/photo-1557804506-669a67965ba0?auto=format&fit=crop&w=2000&q=80');
       background-size: cover;
       background-position: center;
-      padding: 150px 0;
+      background-attachment: fixed;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
       color: white;
-      margin-bottom: 80px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero-section::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: radial-gradient(circle at center, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0.6) 100%);
+      z-index: 1;
+    }
+
+    .hero-content {
+      position: relative;
+      z-index: 2;
+      text-align: center;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 2rem;
+    }
+
+    .hero-badge {
+      display: inline-block;
+      background: rgba(255, 255, 255, 0.15);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      padding: 8px 20px;
+      border-radius: 50px;
+      margin-bottom: 2rem;
+      font-size: 0.9rem;
+      font-weight: 500;
+      letter-spacing: 0.5px;
+      animation: fadeInUp 1s ease-out 0.2s both;
     }
 
     .hero-title {
-      font-size: 4rem;
+      font-size: clamp(2.5rem, 5vw, 4.5rem);
       font-weight: 800;
-      margin-bottom: 20px;
-      text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+      margin-bottom: 1.5rem;
+      line-height: 1.2;
+      text-shadow: 2px 4px 8px rgba(0,0,0,0.3);
+      animation: fadeInUp 1s ease-out 0.4s both;
+    }
+
+    .hero-title .highlight {
+      background: linear-gradient(45deg, #ffffff, #f0f8ff);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
     }
 
     .hero-subtitle {
+      font-size: clamp(1.1rem, 2.5vw, 1.4rem);
+      opacity: 0.95;
+      margin-bottom: 3rem;
+      font-weight: 400;
+      line-height: 1.6;
+      max-width: 600px;
+      margin-left: auto;
+      margin-right: auto;
+      animation: fadeInUp 1s ease-out 0.6s both;
+    }
+
+    .hero-buttons {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      align-items: center;
+      animation: fadeInUp 1s ease-out 0.8s both;
+    }
+
+    @media (min-width: 576px) {
+      .hero-buttons {
+        flex-direction: row;
+        justify-content: center;
+        gap: 1.5rem;
+      }
+    }
+
+    .hero-stats {
+      display: flex;
+      justify-content: center;
+      gap: 2rem;
+      margin-top: 4rem;
+      flex-wrap: wrap;
+      animation: fadeInUp 1s ease-out 1s both;
+    }
+
+    .hero-stat {
+      text-align: center;
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      padding: 1rem 1.5rem;
+      border-radius: 15px;
+      min-width: 120px;
+    }
+
+    .hero-stat-number {
       font-size: 1.8rem;
+      font-weight: 700;
+      color: #ffffff;
+      display: block;
+    }
+
+    .hero-stat-label {
+      font-size: 0.85rem;
       opacity: 0.9;
-      margin-bottom: 40px;
+      margin-top: 0.25rem;
+    }
+
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(30px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* Floating animation for decorative elements */
+    @keyframes float {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-10px); }
+    }
+
+    .hero-section::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 100px;
+      background: linear-gradient(to top, rgba(255,255,255,0.1), transparent);
+      z-index: 1;
     }
 
     /* Features Section */
@@ -200,18 +329,50 @@ var infolinks_wsid = 0;
     }
 
     .btn-hero {
-      padding: 15px 40px;
-      font-size: 1.2rem;
+      padding: 15px 30px;
+      font-size: 1.1rem;
       border-radius: 50px;
-      text-transform: uppercase;
-      letter-spacing: 1px;
+      text-transform: none;
+      letter-spacing: 0.5px;
       transition: all 0.3s ease;
       font-weight: 600;
+      border-width: 2px;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 180px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.2);
     }
 
     .btn-hero:hover {
-      transform: scale(1.05);
-      box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+    }
+
+    .btn-light.btn-hero {
+      background: linear-gradient(45deg, #ffffff, #f8f9fa);
+      color: #0d6efd;
+      border-color: rgba(255,255,255,0.8);
+    }
+
+    .btn-light.btn-hero:hover {
+      background: linear-gradient(45deg, #f8f9fa, #ffffff);
+      color: #0d6efd;
+      border-color: #ffffff;
+    }
+
+    .btn-outline-light.btn-hero {
+      background: rgba(255,255,255,0.1);
+      color: #ffffff;
+      border-color: rgba(255,255,255,0.8);
+      backdrop-filter: blur(10px);
+    }
+
+    .btn-outline-light.btn-hero:hover {
+      background: rgba(255,255,255,0.2);
+      color: #ffffff;
+      border-color: #ffffff;
     }
 
     /* Add more testimonials */
@@ -458,6 +619,61 @@ var infolinks_wsid = 0;
       border-color: #ff0000;
       border-right-color: transparent;
     }
+
+    /* Product Filter Buttons - Mobile Responsive */
+    @media (max-width: 768px) {
+      .product-filter-buttons, .link-filter-buttons {
+        flex-direction: column;
+        gap: 10px;
+      }
+      
+      .product-filter-buttons .btn, .link-filter-buttons .btn {
+        width: 100%;
+        padding: 12px 16px;
+        font-size: 16px;
+        min-height: 48px;
+      }
+      
+      .product-filter-row .col-md-2:last-child,
+      .link-filter-row .col-md-3:last-child {
+        margin-top: 15px;
+      }
+      
+      .product-filter-row .col-md-2:last-child .d-flex,
+      .link-filter-row .col-md-3:last-child .d-flex {
+        flex-direction: column;
+        gap: 10px;
+      }
+    }
+
+    /* Enhanced button styling for better touch targets */
+    .btn-apply-filters {
+      min-height: 38px;
+      font-weight: 500;
+      border-radius: 6px;
+      transition: all 0.2s ease;
+    }
+
+    .btn-apply-filters:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+
+    /* Search form styling */
+    .search-form-responsive {
+      background: white;
+      border-radius: 10px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      margin-bottom: 20px;
+    }
+
+    @media (max-width: 576px) {
+      .search-form-responsive .form-control,
+      .search-form-responsive .form-select {
+        font-size: 16px; /* Prevents zoom on iOS */
+        padding: 12px 16px;
+      }
+    }
   </style>
 </head>
 <body>
@@ -467,29 +683,50 @@ var infolinks_wsid = 0;
   <div class="container-fluid p-0">
     <% if (typeof user === 'undefined' || !user) { %>
       <!-- Hero Section -->      <section class="hero-section">
-        <div class="container text-center">
-          <h1 class="hero-title">Welcome to BenixSpace</h1>
-          <p class="hero-subtitle">Transform Your Social Media Presence into Profit</p>
-          <div class="d-flex justify-content-center gap-3">
-            <a href="/register" class="btn btn-light btn-hero">Get Started</a>
-            <a href="/login" class="btn btn-outline-light btn-hero">Login</a>
+        <div class="hero-content">
+          <div class="hero-badge">
+            <i class="fas fa-rocket me-2"></i>
+            Join 10,000+ Successful Affiliates
           </div>
+          
+          <h1 class="hero-title">
+            Transform Your <span class="highlight">Social Media</span> Into Profit
+          </h1>
+          
+          <p class="hero-subtitle">
+            Turn your followers into customers and start earning real money with BenixSpace's powerful affiliate platform. Share, earn, and grow your income effortlessly.
+          </p>
+          
+          <div class="hero-buttons">
+            <a href="/register" class="btn btn-light btn-hero px-4 py-3">
+              <i class="fas fa-user-plus me-2"></i>
+              Start Earning Today
+            </a>
+            <a href="/login" class="btn btn-outline-light btn-hero px-4 py-3">
+              <i class="fas fa-sign-in-alt me-2"></i>
+              Sign In
+            </a>
+          </div>
+          
+          <% if (typeof stats !== 'undefined') { %>
+          <div class="hero-stats">
+            <div class="hero-stat">
+              <span class="hero-stat-number"><%= stats.userCount || 0 %></span>
+              <span class="hero-stat-label">Active Users</span>
+            </div>
+            <div class="hero-stat">
+              <span class="hero-stat-number">$<%= typeof stats.totalEarnings !== 'undefined' ? parseFloat(stats.totalEarnings).toFixed(0) : '0' %>+</span>
+              <span class="hero-stat-label">Paid Out</span>
+            </div>
+            <div class="hero-stat">
+              <span class="hero-stat-number"><%= stats.totalLinks || 0 %></span>
+              <span class="hero-stat-label">Active Links</span>
+            </div>
+          </div>
+          <% } %>
         </div>
       </section>
       
-      <!-- AdSense Display Ad -->
-      <div class="container my-4 text-center">
-        <ins class="adsbygoogle"
-             style="display:block"
-             data-ad-client="ca-pub-YOUR_PUBLISHER_ID"
-             data-ad-slot="YOUR_AD_SLOT_ID"
-             data-ad-format="auto"
-             data-full-width-responsive="true"></ins>
-        <script>
-             (adsbygoogle = window.adsbygoogle || []).push({});
-        </script>
-      </div>
-
       <!-- Products and Links Section -->
       <section class="container">
         <div class="text-center mb-5">
@@ -511,7 +748,43 @@ var infolinks_wsid = 0;
 
         <div class="tab-content" id="contentTabContent">
           <!-- Links Tab -->          <div class="tab-pane fade show active" id="links-tab-pane" role="tabpanel" aria-labelledby="links-tab" tabindex="0">
-            <div class="row">              <% if (links && links.length > 0) { %>
+            <!-- Links Search -->
+            <div class="row mb-4">
+              <div class="col-12">
+                <div class="card search-form-responsive">
+                  <div class="card-body py-3">
+                    <div class="row g-3 align-items-end link-filter-row">
+                      <div class="col-md-6">
+                        <label class="form-label">Search Links & Videos</label>
+                        <input type="text" class="form-control" id="linkSearch" placeholder="Search by title, description, or merchant...">
+                      </div>
+                      <div class="col-md-3">
+                        <label class="form-label">Type</label>
+                        <select class="form-select" id="linkTypeFilter">
+                          <option value="all">All Types</option>
+                          <option value="youtube">YouTube Videos</option>
+                          <option value="product">Products</option>
+                          <option value="link">Other Links</option>
+                        </select>
+                      </div>
+                      <div class="col-md-3">
+                        <label class="form-label d-none d-md-block">&nbsp;</label>
+                        <div class="d-flex gap-2 link-filter-buttons">
+                          <button type="button" class="btn btn-primary btn-apply-filters" id="linkSearchBtn">
+                            <i class="fas fa-search me-1"></i><span class="d-none d-md-inline">Search Links</span><span class="d-md-none">Search</span>
+                          </button>
+                          <button type="button" class="btn btn-outline-secondary" id="linkClearBtn">
+                            <i class="fas fa-times"></i><span class="d-none d-md-inline ms-1">Clear</span>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div class="row" id="linksContainer">              <% if (links && links.length > 0) { %>
                 <% links.forEach((link, index) => { %>
                   <div class="col-md-4 mb-4">
                     <div class="card link-card h-100">
@@ -615,7 +888,7 @@ var infolinks_wsid = 0;
               <div class="col-12">
                 <div class="card">
                   <div class="card-body py-3">
-                    <div class="row g-3 align-items-end">
+                    <div class="row g-3 align-items-end product-filter-row">
                       <div class="col-md-4">
                         <label class="form-label">Search Products</label>
                         <input type="text" class="form-control" id="productSearch" placeholder="Search products...">
@@ -634,10 +907,16 @@ var infolinks_wsid = 0;
                         <label class="form-label">Max Price</label>
                         <input type="number" class="form-control" id="maxPrice" placeholder="$999" min="0" step="0.01">
                       </div>
-                      <div class="col-md-1">
-                        <button type="button" class="btn btn-outline-secondary" onclick="clearProductFilters()">
-                          <i class="fas fa-times"></i>
-                        </button>
+                      <div class="col-md-2">
+                        <label class="form-label d-none d-md-block">&nbsp;</label>
+                        <div class="d-flex gap-2 product-filter-buttons">
+                          <button type="button" class="btn btn-primary btn-apply-filters" id="productSearchBtn">
+                            <i class="fas fa-search me-1"></i><span class="d-none d-md-inline">Apply Filters</span><span class="d-md-none">Filter</span>
+                          </button>
+                          <button type="button" class="btn btn-outline-secondary" id="productClearBtn">
+                            <i class="fas fa-times"></i><span class="d-none d-md-inline ms-1">Clear</span>
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -914,7 +1193,43 @@ var infolinks_wsid = 0;
           </div>
         </div>
         
-        <div class="row">
+        <!-- Links Search for Logged In Users -->
+        <div class="row mb-4">
+          <div class="col-12">
+            <div class="card search-form-responsive">
+              <div class="card-body py-3">
+                <div class="row g-3 align-items-end link-filter-row">
+                  <div class="col-md-6">
+                    <label class="form-label">Search Links & Videos</label>
+                    <input type="text" class="form-control" id="linkSearchLoggedIn" placeholder="Search by title, description, or merchant...">
+                  </div>
+                  <div class="col-md-3">
+                    <label class="form-label">Type</label>
+                    <select class="form-select" id="linkTypeFilterLoggedIn">
+                      <option value="all">All Types</option>
+                      <option value="youtube">YouTube Videos</option>
+                      <option value="product">Products</option>
+                      <option value="link">Other Links</option>
+                    </select>
+                  </div>
+                  <div class="col-md-3">
+                    <label class="form-label d-none d-md-block">&nbsp;</label>
+                    <div class="d-flex gap-2 link-filter-buttons">
+                      <button type="button" class="btn btn-primary btn-apply-filters" id="linkSearchLoggedInBtn">
+                        <i class="fas fa-search me-1"></i><span class="d-none d-md-inline">Search Links</span><span class="d-md-none">Search</span>
+                      </button>
+                      <button type="button" class="btn btn-outline-secondary" id="linkClearLoggedInBtn">
+                        <i class="fas fa-times"></i><span class="d-none d-md-inline ms-1">Clear</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="row" id="linksContainerLoggedIn">
           <% if (links && links.length > 0) { %>
             <% links.forEach((link, index) => { %>
               <div class="col-md-4 mb-4">
@@ -1010,7 +1325,11 @@ var infolinks_wsid = 0;
   </div>
 
   <%- include('partials/footer') %>
-
+<script>
+  function alerting() {
+    alert('This feature is not implemented yet.');
+  }
+</script>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.8/clipboard.min.js"></script>
   
@@ -1026,19 +1345,38 @@ var infolinks_wsid = 0;
     document.addEventListener('DOMContentLoaded', function() {
       // Store original data
       <% if (products && products.length > 0) { %>
-        originalProducts = [
-          <% products.forEach((product, index) => { %>
-            {
-              id: <%= product.id %>,
-              name: "<%= product.name.replace(/"/g, '\\"') %>",
-              description: "<%= (product.description || '').replace(/"/g, '\\"') %>",
-              price: <%= parseFloat(product.price) %>,
-              merchant_name: "<%= product.merchant_name.replace(/"/g, '\\"') %>",
-              image_url: "<%= product.image_url || '' %>",
-              category: "<%= product.category || '' %>"
-            }<%= index < products.length - 1 ? ',' : '' %>
-          <% }); %>
-        ];
+        originalProducts = <%-
+          JSON.stringify(products.map(product => ({
+            id: product.id,
+            name: product.name || '',
+            description: product.description || '',
+            price: parseFloat(product.price) || 0,
+            merchant_name: product.merchant_name || '',
+            image_url: product.image_url || '',
+            category: product.category || ''
+          })))
+        %>;
+      <% } else { %>
+        originalProducts = [];
+      <% } %>
+
+      <% if (links && links.length > 0) { %>
+        originalLinks = <%-
+          JSON.stringify(links.map(link => ({
+            id: link.id,
+            title: link.title || '',
+            description: link.description || '',
+            type: link.type || 'link',
+            merchant_name: link.business_name || link.merchant_name || '',
+            image_url: link.image_url || '',
+            url: link.url || '',
+            price: link.price || '',
+            clicks_count: link.clicks_count || 0,
+            click_target: link.click_target || ''
+          })))
+        %>;
+      <% } else { %>
+        originalLinks = [];
       <% } %>
 
       // Extract categories and populate filter
@@ -1060,32 +1398,182 @@ var infolinks_wsid = 0;
 
       // Initially display all products
       displayProducts(originalProducts);
+      
+      // Initially display all links
+      displayLinks(originalLinks);
+      
+      // Initially display all links for logged in users too
+      displayLinksLoggedIn(originalLinks);
+      
+      console.log('Initialization complete. Products:', originalProducts.length, 'Links:', originalLinks.length);
+      
+      // Add debounced search functionality
+      setupSearchListeners();
+    });
 
-      // Add event listeners for real-time filtering
-      const productSearch = document.getElementById('productSearch');
-      const categoryFilter = document.getElementById('productCategoryFilter');
-      const minPrice = document.getElementById('minPrice');
-      const maxPrice = document.getElementById('maxPrice');
+    // Debounce function to prevent excessive API calls
+    function debounce(func, wait) {
+      let timeout;
+      return function executedFunction(...args) {
+        const later = () => {
+          clearTimeout(timeout);
+          func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+      };
+    }
 
-      if (productSearch) {
-        let searchTimeout;
-        productSearch.addEventListener('input', function() {
-          clearTimeout(searchTimeout);
-          searchTimeout = setTimeout(filterProducts, 300);
+    // Setup search event listeners - only manual search via buttons
+    function setupSearchListeners() {
+      // Add click handlers for search buttons only
+      const productSearchBtn = document.getElementById('productSearchBtn');
+      const productClearBtn = document.getElementById('productClearBtn');
+      const linkSearchBtn = document.getElementById('linkSearchBtn');
+      const linkClearBtn = document.getElementById('linkClearBtn');
+      const linkSearchLoggedInBtn = document.getElementById('linkSearchLoggedInBtn');
+      const linkClearLoggedInBtn = document.getElementById('linkClearLoggedInBtn');
+
+      if (productSearchBtn) {
+        productSearchBtn.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          filterProducts();
         });
       }
 
-      if (categoryFilter) {
-        categoryFilter.addEventListener('change', filterProducts);
+      if (productClearBtn) {
+        productClearBtn.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          clearProductFilters();
+        });
       }
 
-      if (minPrice) {
-        minPrice.addEventListener('input', debounce(filterProducts, 500));
+      if (linkSearchBtn) {
+        linkSearchBtn.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          filterLinks();
+        });
       }
 
-      if (maxPrice) {
-        maxPrice.addEventListener('input', debounce(filterProducts, 500));
+      if (linkClearBtn) {
+        linkClearBtn.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          clearLinkFilters();
+        });
       }
+
+      if (linkSearchLoggedInBtn) {
+        linkSearchLoggedInBtn.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          filterLinksLoggedIn();
+        });
+      }
+
+      if (linkClearLoggedInBtn) {
+        linkClearLoggedInBtn.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          clearLinkFiltersLoggedIn();
+        });
+      }
+
+      // Add Enter key support for search inputs to trigger search button
+      const productSearchInput = document.getElementById('productSearch');
+      const linkSearchInput = document.getElementById('linkSearch');
+      const linkSearchLoggedIn = document.getElementById('linkSearchLoggedIn');
+
+      if (productSearchInput) {
+        productSearchInput.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            e.stopPropagation();
+            if (productSearchBtn) productSearchBtn.click();
+          }
+        });
+      }
+
+      if (linkSearchInput) {
+        linkSearchInput.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            e.stopPropagation();
+            if (linkSearchBtn) linkSearchBtn.click();
+          }
+        });
+      }
+
+      if (linkSearchLoggedIn) {
+        linkSearchLoggedIn.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            e.stopPropagation();
+            if (linkSearchLoggedInBtn) linkSearchLoggedInBtn.click();
+          }
+        });
+      }
+
+      // IMPORTANT: Prevent any automatic filtering on input/change events
+      // Remove any existing event listeners that might cause auto-search
+      [productSearchInput, linkSearchInput, linkSearchLoggedIn].forEach(input => {
+        if (input) {
+          // Remove all input event listeners to prevent auto-search
+          input.addEventListener('input', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            // Do nothing - no auto search
+          });
+          
+          // Prevent any change events from triggering search
+          input.addEventListener('change', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            // Do nothing - no auto search
+          });
+        }
+      });
+
+      // Also prevent auto-search on dropdowns/selects
+      const categoryFilter = document.getElementById('productCategoryFilter');
+      const linkTypeFilter = document.getElementById('linkTypeFilter');
+      const linkTypeFilterLoggedIn = document.getElementById('linkTypeFilterLoggedIn');
+
+      [categoryFilter, linkTypeFilter, linkTypeFilterLoggedIn].forEach(select => {
+        if (select) {
+          select.addEventListener('change', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            // Do nothing - no auto search
+          });
+        }
+      });
+    }
+
+    // Prevent any accidental form submissions that might cause page reloads
+    document.addEventListener('DOMContentLoaded', function() {
+      // Prevent form submissions on the entire page
+      document.addEventListener('submit', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        console.log('Form submission prevented to maintain search state');
+        return false;
+      });
+      
+      // Prevent Enter key from causing any unwanted submissions
+      document.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' && e.target.matches('input[type="text"], input[type="number"], input[type="search"]')) {
+          const targetId = e.target.id;
+          if (targetId && (targetId.includes('Search') || targetId.includes('Price'))) {
+            e.preventDefault();
+            e.stopPropagation();
+            // Let the specific event handlers deal with filtering
+          }
+        }
+      });
     });
 
     function filterProducts() {
@@ -1164,16 +1652,279 @@ var infolinks_wsid = 0;
       displayProducts(originalProducts);
     }
 
-    function debounce(func, wait) {
-      let timeout;
-      return function executedFunction(...args) {
-        const later = () => {
-          clearTimeout(timeout);
-          func(...args);
-        };
-        clearTimeout(timeout);
-        timeout = setTimeout(later, wait);
-      };
+    // Link filtering functions
+    function filterLinks() {
+      const searchTerm = document.getElementById('linkSearch')?.value.toLowerCase() || '';
+      const selectedType = document.getElementById('linkTypeFilter')?.value || 'all';
+
+      const filteredLinks = originalLinks.filter(link => {
+        const matchesSearch = !searchTerm || 
+          link.title.toLowerCase().includes(searchTerm) ||
+          link.description.toLowerCase().includes(searchTerm) ||
+          link.merchant_name.toLowerCase().includes(searchTerm);
+
+        const matchesType = selectedType === 'all' || link.type === selectedType;
+
+        return matchesSearch && matchesType;
+      });
+
+      displayLinks(filteredLinks);
+    }
+
+    function displayLinks(links) {
+      const container = document.getElementById('linksContainer');
+      if (!container) return;
+
+      if (links.length === 0) {
+        container.innerHTML = `
+          <div class="col-12">
+            <div class="alert alert-info">
+              <i class="fas fa-info-circle me-2"></i> No links match your search criteria. Try adjusting your filters.
+            </div>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = links.map((link, index) => {
+        // Extract YouTube video ID from URL if it's a YouTube link
+        let videoId = '';
+        if (link.type === 'youtube' && link.url) {
+          const regex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
+          const match = link.url.match(regex);
+          if (match) {
+            videoId = match[1];
+          }
+        }
+
+        let mediaContent = '';
+        if (link.type === 'youtube' && videoId) {
+          mediaContent = `
+            <div class="youtube-preview youtube-lazy" 
+                 style="position: relative; height: 200px; background: linear-gradient(135deg, #000, #333);"
+                 data-video-id="${videoId}"
+                 data-video-title="${link.title}">
+              <div class="youtube-placeholder d-flex flex-column align-items-center justify-content-center" style="height: 200px;">
+                <div class="youtube-play-button mb-2">
+                  <i class="fab fa-youtube"></i>
+                </div>
+                <small class="text-white text-center px-2">
+                  <i class="fas fa-play me-1"></i>Click to play video
+                </small>
+                <div class="youtube-title-overlay">
+                  ${link.title}
+                </div>
+              </div>
+            </div>
+          `;
+        } else if (link.image_url) {
+          mediaContent = `<img src="${link.image_url}" class="card-img-top" alt="${link.title}">`;
+        } else {
+          const iconClass = link.type === 'product' ? 'fas fa-shopping-bag' : 
+                           link.type === 'youtube' ? 'fab fa-youtube' : 'fas fa-link';
+          mediaContent = `
+            <div class="card-img-top bg-light d-flex align-items-center justify-content-center" style="height: 200px;">
+              <i class="${iconClass} fa-3x text-muted"></i>
+            </div>
+          `;
+        }
+
+        const badgeClass = link.type === 'product' ? 'bg-primary' : 
+                          link.type === 'youtube' ? 'bg-danger' : 'bg-info';
+
+        const popularTag = index < 3 ? '<div class="popular-tag">Popular</div>' : '';
+
+        return `
+          <div class="col-md-4 mb-4">
+            <div class="card link-card h-100">
+              ${popularTag}
+              <span class="link-type-badge badge ${badgeClass}">
+                ${link.type}
+              </span>
+              ${mediaContent}
+              <div class="card-body">
+                <h5 class="card-title">${link.title}</h5>
+                <p class="card-text text-muted">
+                  <small><i class="fas fa-user-tie me-1"></i> ${link.merchant_name}</small>
+                </p>
+                <p class="card-text">
+                  ${link.description.length > 80 ? 
+                    link.description.substring(0, 80) + '...' : 
+                    link.description || 'No description provided.'}
+                </p>
+                <div class="engagement-stats mb-3">
+                  <span><i class="fas fa-mouse-pointer"></i> ${link.clicks_count} clicks</span>
+                  ${link.click_target ? `<span><i class="fas fa-chart-line"></i> ${link.click_target} target</span>` : ''}
+                </div>
+                ${link.price ? `<h5 class="mt-3 mb-0 text-success">$${parseFloat(link.price).toFixed(4)}</h5>` : ''}
+              </div>
+              <div class="card-footer bg-white border-top-0">
+                <a href="/login?redirect=links/${link.id}/share" class="btn btn-primary w-100">
+                  <i class="fas fa-sign-in-alt me-1"></i> Login to Share & Earn
+                </a>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      // Re-initialize YouTube lazy loading for new content
+      initializeYouTubeLazyLoading();
+    }
+
+    function clearLinkFilters() {
+      document.getElementById('linkSearch').value = '';
+      document.getElementById('linkTypeFilter').value = 'all';
+      displayLinks(originalLinks);
+    }
+
+    // Link filtering functions for logged-in users
+    function filterLinksLoggedIn() {
+      const searchTerm = document.getElementById('linkSearchLoggedIn')?.value.toLowerCase() || '';
+      const selectedType = document.getElementById('linkTypeFilterLoggedIn')?.value || 'all';
+
+      const filteredLinks = originalLinks.filter(link => {
+        const matchesSearch = !searchTerm || 
+          link.title.toLowerCase().includes(searchTerm) ||
+          link.description.toLowerCase().includes(searchTerm) ||
+          link.merchant_name.toLowerCase().includes(searchTerm);
+
+        const matchesType = selectedType === 'all' || link.type === selectedType;
+
+        return matchesSearch && matchesType;
+      });
+
+      displayLinksLoggedIn(filteredLinks);
+    }
+
+    function displayLinksLoggedIn(links) {
+      const container = document.getElementById('linksContainerLoggedIn');
+      if (!container) return;
+
+      if (links.length === 0) {
+        container.innerHTML = `
+          <div class="col-12">
+            <div class="alert alert-info">
+              <i class="fas fa-info-circle me-2"></i> No links match your search criteria. Try adjusting your filters.
+            </div>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = links.map((link, index) => {
+        // Extract YouTube video ID from URL if it's a YouTube link
+        let videoId = '';
+        if (link.type === 'youtube' && link.url) {
+          const regex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
+          const match = link.url.match(regex);
+          if (match) {
+            videoId = match[1];
+          }
+        }
+
+        let mediaContent = '';
+        if (link.type === 'youtube' && videoId) {
+          mediaContent = `
+            <div class="youtube-preview youtube-lazy" 
+                 style="position: relative; height: 200px; background: linear-gradient(135deg, #000, #333);"
+                 data-video-id="${videoId}"
+                 data-video-title="${link.title}">
+              <div class="youtube-placeholder d-flex flex-column align-items-center justify-content-center" style="height: 200px;">
+                <div class="youtube-play-button mb-2">
+                  <i class="fab fa-youtube"></i>
+                </div>
+                <small class="text-white text-center px-2">Click to watch</small>
+                <div class="youtube-title-overlay">
+                  ${link.title}
+                </div>
+              </div>
+            </div>
+          `;
+        } else if (link.image_url) {
+          mediaContent = `<img src="${link.image_url}" class="card-img-top" alt="${link.title}">`;
+        } else {
+          const iconClass = link.type === 'product' ? 'fas fa-shopping-bag' : 
+                           link.type === 'youtube' ? 'fab fa-youtube' : 'fas fa-link';
+          mediaContent = `
+            <div class="card-img-top bg-light d-flex align-items-center justify-content-center" style="height: 200px;">
+              <i class="${iconClass} fa-3x text-muted"></i>
+            </div>
+          `;
+        }
+
+        const badgeClass = link.type === 'product' ? 'bg-primary' : 
+                          link.type === 'youtube' ? 'bg-danger' : 'bg-info';
+
+        const popularTag = index < 3 ? '<div class="popular-tag">Popular</div>' : '';
+
+        return `
+          <div class="col-md-4 mb-4">
+            <div class="card link-card h-100">
+              ${popularTag}
+              <span class="link-type-badge badge ${badgeClass}">
+                ${link.type}
+              </span>
+              ${mediaContent}
+              <div class="card-body">
+                <h5 class="card-title">${link.title}</h5>
+                <p class="card-text text-muted">
+                  <small><i class="fas fa-user-tie me-1"></i> ${link.merchant_name}</small>
+                  ${link.click_target ? `<small class="ms-2"><i class="fas fa-chart-line me-1"></i> ${link.clicks_count || 0}/${link.click_target} clicks</small>` : ''}
+                </p>
+                <p class="card-text">
+                  ${link.description.length > 80 ? 
+                    link.description.substring(0, 80) + '...' : 
+                    link.description || 'No description provided. Share this link to earn commission on every click.'}
+                </p>
+                ${link.price ? `<p class="card-text fw-bold">Price: $${parseFloat(link.price).toFixed(4)}</p>` : ''}
+              </div>
+              <div class="card-footer">
+                <a href="/links/${link.id}/share" class="btn btn-primary w-100">
+                  <i class="fas fa-share-alt me-1"></i> Share & Earn
+                </a>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      // Re-initialize YouTube lazy loading for new content
+      initializeYouTubeLazyLoading();
+    }
+
+    function clearLinkFiltersLoggedIn() {
+      document.getElementById('linkSearchLoggedIn').value = '';
+      document.getElementById('linkTypeFilterLoggedIn').value = 'all';
+      displayLinksLoggedIn(originalLinks);
+    }
+
+    function initializeYouTubeLazyLoading() {
+      // Re-observe new YouTube elements
+      const newYoutubeElements = document.querySelectorAll('.youtube-lazy:not([data-observed])');
+      newYoutubeElements.forEach(element => {
+        element.setAttribute('data-observed', 'true');
+        observer.observe(element);
+        
+        // Add click handler for immediate loading
+        element.addEventListener('click', function(e) {
+          e.preventDefault();
+          e.stopPropagation();
+          
+          const videoId = this.dataset.videoId;
+          const videoTitle = this.dataset.videoTitle;
+          
+          // Check if already loaded
+          const existingIframe = this.querySelector('iframe');
+          if (existingIframe) {
+            return;
+          }
+          
+          loadYouTubeVideo(this, videoId, videoTitle);
+          loadedVideos.add(videoId);
+          observer.unobserve(this);
+        });
+      });
     }
 
     // Lazy loading for YouTube videos using Intersection Observer
@@ -1479,16 +2230,6 @@ var infolinks_wsid = 0;
               console.log('User accepted the install prompt');
             } else {
               console.log('User dismissed the install prompt');
-            }
-            deferredPrompt = null;
-            installButton.style.display = 'none';
-          });
-        });
-      }
-    });
-  </script>
-</body>
-</html>
             }
             deferredPrompt = null;
             installButton.style.display = 'none';

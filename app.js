@@ -196,14 +196,16 @@ async function sendEmail(to, subject, html) {
 async function sendWithdrawalNotification(user, transaction, status) {
   const statusText = {
     completed: 'processed and sent',
-    failed: 'cancelled'
+    failed: 'cancelled',
+    rejected: 'rejected'
   }[status];
 
   const emailHtml = `
     <h2>Withdrawal Update</h2>
     <p>Hello ${user.username},</p>
     <p>Your withdrawal request for $${transaction.amount} has been ${statusText}.</p>
-    ${status === 'failed' ? '<p>The amount has been returned to your wallet.</p>' : ''}
+    ${(status === 'failed' || status === 'rejected') ? '<p>The amount has been returned to your wallet.</p>' : ''}
+    ${transaction.notes ? `<p>Notes: ${transaction.notes}</p>` : ''}
     ${transaction.details ? `<p>Details: ${transaction.details}</p>` : ''}
     <p>If you have any questions, please contact support.</p>
     <br>
@@ -395,7 +397,7 @@ try {
         user_id INT NOT NULL,
         type ENUM('deposit', 'withdrawal', 'commission', 'payment', 'upgrade') NOT NULL,
         amount DECIMAL(10,2) NOT NULL,
-        status ENUM('pending', 'completed', 'failed') DEFAULT 'pending',
+        status ENUM('pending', 'completed', 'failed', 'rejected') DEFAULT 'pending',
         reference VARCHAR(150),
         details TEXT,
         notes TEXT,
@@ -413,6 +415,17 @@ try {
   `);
 } catch (err) {
   console.error('Error updating transactions decimal precision:', err);
+}
+
+// Update transactions table to include 'rejected' status if not already present
+try {
+  await connection.query(`
+    ALTER TABLE transactions 
+    MODIFY status ENUM('pending', 'completed', 'failed', 'rejected') DEFAULT 'pending'
+  `);
+  console.log('Updated transactions status enum to include rejected');
+} catch (err) {
+  console.error('Error updating transactions status enum:', err);
 }
 
 try {
@@ -1037,6 +1050,10 @@ function isMerchant(req, res, next) {
 // Update the home route to fetch links correctly
 app.get('/', async (req, res) => {
   try {
+    // Get search parameter
+    const search = req.query.search || '';
+    const searchTerm = search.trim();
+    
     // Initialize all required variables
     let links = [];
     let products = [];
@@ -1050,8 +1067,8 @@ app.get('/', async (req, res) => {
     };
     
     try {
-      // Fetch active links with smart engagement-based ranking
-      const [activeLinks] = await pool.query(`
+      // Build the links query with optional search
+      let linksQuery = `
         SELECT l.*, 
                u.username as merchant_name,
                u.business_name,
@@ -1072,6 +1089,24 @@ app.get('/', async (req, res) => {
         JOIN users u ON l.merchant_id = u.id  
         LEFT JOIN shared_links sl ON l.id = sl.link_id
         WHERE l.is_active = true
+      `;
+      
+      let queryParams = [];
+      
+      // Add search filter if search term exists
+      if (searchTerm) {
+        linksQuery += ` AND (
+          l.title LIKE ? OR 
+          l.description LIKE ? OR 
+          l.category LIKE ? OR 
+          u.username LIKE ? OR 
+          u.business_name LIKE ?
+        )`;
+        const searchPattern = `%${searchTerm}%`;
+        queryParams.push(searchPattern, searchPattern, searchPattern, searchPattern, searchPattern);
+      }
+      
+      linksQuery += `
         GROUP BY l.id, u.username, u.business_name
         ORDER BY 
           engagement_score DESC,
@@ -1084,7 +1119,10 @@ app.get('/', async (req, res) => {
           total_clicks DESC,
           l.created_at DESC
        LIMIT 100
-      `);
+      `;
+      
+      // Fetch active links with search
+      const [activeLinks] = await pool.query(linksQuery, queryParams);
       links = activeLinks;
 
       // Fetch products with popularity ranking
@@ -1137,7 +1175,8 @@ app.get('/', async (req, res) => {
       testimonials: testimonials,
       error: null,
       success: null,
-      page: 'home'
+      page: 'home',
+      searchTerm: searchTerm
     });
 
   } catch (err) {
@@ -1156,7 +1195,8 @@ app.get('/', async (req, res) => {
       testimonials: [],
       error: 'An error occurred',
       success: null,
-      page: 'home'
+      page: 'home',
+      searchTerm: ''
     });
   }
 });
@@ -5525,12 +5565,32 @@ app.post('/admin/transactions/:id/process', isAuthenticated, isAdmin, async (req
       [status, notes || transaction.notes, transactionId]
     );
     
-    // If this is a withdrawal and it's completed, update the user's wallet balance
-    if (transaction.type === 'withdrawal' && status === 'completed') {
-      await pool.query(
-        'UPDATE users SET wallet = wallet - ? WHERE id = ?',
-        [transaction.amount, transaction.user_id]
-      );
+    // Handle wallet balance for withdrawal transactions
+    if (transaction.type === 'withdrawal') {
+      if (status === 'rejected' || status === 'failed') {
+        // Only refund if the transaction was previously in 'pending' status
+        // This prevents double refunds if admin changes status multiple times
+        if (transaction.status === 'pending') {
+          // If withdrawal is rejected/failed, add the amount back to user's wallet
+          await pool.query(
+            'UPDATE users SET wallet = wallet + ? WHERE id = ?',
+            [transaction.amount, transaction.user_id]
+          );
+        }
+      }
+      // Note: We don't deduct again for 'completed' status because 
+      // the amount was already deducted when the withdrawal was requested
+      
+      // Send notification to user about withdrawal status change
+      try {
+        const [users] = await pool.query('SELECT * FROM users WHERE id = ?', [transaction.user_id]);
+        if (users.length > 0) {
+          await sendWithdrawalNotification(users[0], transaction, status);
+        }
+      } catch (emailError) {
+        console.error('Failed to send withdrawal notification:', emailError);
+        // Don't fail the transaction if email fails
+      }
     }
     
     return res.json({
