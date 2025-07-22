@@ -1,0 +1,829 @@
+<!-- Currency Switcher Partial -->
+<!-- This partial should be included in every page to enable global currency conversion -->
+
+<style>
+/* Currency Switcher Styles */
+.currency-switcher {
+  position: relative;
+  display: inline-block;
+}
+
+.currency-dropdown {
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  padding: 5px 10px;
+  font-size: 14px;
+  cursor: pointer;
+  min-width: 80px;
+  transition: all 0.3s ease;
+}
+
+.currency-dropdown:hover {
+  border-color: #007bff;
+  box-shadow: 0 2px 4px rgba(0,123,255,0.1);
+}
+
+.currency-dropdown:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 0 0.2rem rgba(0,123,255,0.25);
+}
+
+/* Mobile responsive adjustments */
+@media (max-width: 768px) {
+  .currency-switcher {
+    margin: 5px 0;
+  }
+  
+  .currency-dropdown {
+    width: 100%;
+    max-width: 120px;
+  }
+}
+
+/* Price conversion loading indicator */
+.price-converting {
+  opacity: 0.6;
+  transition: opacity 0.3s ease;
+}
+
+/* Currency symbol styling */
+.currency-amount {
+  font-weight: 500;
+}
+
+/* Error state for conversion */
+.conversion-error {
+  color: #dc3545;
+  font-size: 0.8em;
+  margin-top: 2px;
+}
+</style>
+
+<!-- Currency Switcher HTML -->
+<div class="currency-switcher">
+  <select id="currencySwitcher" class="currency-dropdown" title="Select Currency">
+    <option value="USD" data-symbol="$">USD ($)</option>
+    <option value="RWF" data-symbol="₣">RWF (₣)</option>
+    <option value="KES" data-symbol="KSh">KES (KSh)</option>
+    <option value="UGX" data-symbol="USh">UGX (USh)</option>
+  </select>
+  <small class="currency-status text-muted d-block mt-1" style="font-size: 0.7rem;"></small>
+</div>
+
+<script>
+/**
+ * Global Currency Conversion Module
+ * Handles currency switching and real-time price conversion across the entire application
+ */
+(function() {
+  'use strict';
+
+  // Configuration
+  const CONFIG = {
+    API_URL: 'https://api.exchangerate-api.com/v4/latest/USD', // Free API, no key required
+    FALLBACK_API: 'https://api.fxratesapi.com/latest?base=USD', // Backup API
+    CACHE_DURATION: 5 * 60 * 1000, // 5 minutes cache
+    DEFAULT_CURRENCY: 'USD',
+    UPDATE_INTERVAL: 300000, // 5 minutes auto-update
+    RETRY_ATTEMPTS: 3,
+    RETRY_DELAY: 1000
+  };
+
+  // Global state
+  let currentCurrency = CONFIG.DEFAULT_CURRENCY;
+  let exchangeRates = {};
+  let cacheTimestamp = null;
+  let conversionEnabled = true;
+  let observer = null;
+  let updateIntervalId = null;
+  let isConverting = false;
+
+  // Currency symbols mapping
+  const CURRENCY_SYMBOLS = {
+    USD: '$',
+    RWF: 'RW₣',
+    KES: 'KSh',
+    UGX: 'USh'
+  };
+
+  // Initialize the currency switcher
+  function init() {
+    console.log('🔄 Initializing currency switcher...');
+    
+    // Load saved currency and update dropdown
+    loadSavedCurrency();
+    
+    // Set up event listeners
+    setupEventListeners();
+    
+    // Set fallback rates immediately to ensure conversion can happen
+    useFallbackRates();
+    
+    // Try to fetch live rates (will override fallback rates when successful)
+    fetchExchangeRates();
+    
+    setupMutationObserver();
+    setupAutoUpdate();
+    
+    // Force initial conversion with multiple attempts
+    forceInitialConversion();
+    
+    console.log('✅ Currency switcher initialized with currency:', currentCurrency);
+  }
+
+  /**
+   * Force initial conversion with multiple retries
+   */
+  function forceInitialConversion() {
+    let attempts = 0;
+    const maxAttempts = 5;
+    
+    function attemptConversion() {
+      attempts++;
+      console.log(`Currency conversion attempt ${attempts}/${maxAttempts}`);
+      
+      if (currentCurrency !== 'USD') {
+        convertAllPrices();
+      }
+      
+      // Check if conversion was successful by looking for converted elements
+      const convertedElements = document.querySelectorAll('.currency-converted');
+      const priceElements = document.querySelectorAll('*:not(script):not(style)');
+      let foundPrices = 0;
+      
+      // Count elements with $ symbols
+      priceElements.forEach(element => {
+        if (element.children.length === 0 && element.textContent && /\$/.test(element.textContent)) {
+          foundPrices++;
+        }
+      });
+      
+      console.log(`Found ${foundPrices} price elements, ${convertedElements.length} converted`);
+      
+      // Retry if we found prices but no conversions, and we haven't exceeded max attempts
+      if (foundPrices > 0 && convertedElements.length === 0 && attempts < maxAttempts) {
+        setTimeout(attemptConversion, 500 * attempts); // Increasing delay
+      } else if (foundPrices > 0 && convertedElements.length > 0) {
+        console.log('✅ Currency conversion successful!');
+      }
+    }
+    
+    // Start conversion attempts
+    setTimeout(attemptConversion, 100);
+    setTimeout(attemptConversion, 500);
+    setTimeout(attemptConversion, 1000);
+  }
+
+  /**
+   * Load saved currency preference from localStorage
+   */
+  function loadSavedCurrency() {
+    const saved = localStorage.getItem('selectedCurrency');
+    console.log('Loading saved currency:', saved);
+    
+    if (saved && ['USD', 'RWF', 'KES', 'UGX'].includes(saved)) {
+      currentCurrency = saved;
+    } else {
+      // Default to USD if no saved preference
+      currentCurrency = 'USD';
+      localStorage.setItem('selectedCurrency', currentCurrency);
+    }
+    
+    // Update the dropdown to reflect the current currency
+    updateDropdownValue();
+    updateCurrencyStatus();
+    
+    console.log('Current currency set to:', currentCurrency);
+  }
+
+  /**
+   * Update dropdown value to match current currency
+   */
+  function updateDropdownValue() {
+    const switcher = document.getElementById('currencySwitcher');
+    if (switcher) {
+      switcher.value = currentCurrency;
+      console.log('Dropdown updated to:', currentCurrency);
+    } else {
+      console.warn('Currency switcher dropdown not found');
+    }
+  }
+
+  /**
+   * Update currency status display
+   */
+  function updateCurrencyStatus() {
+    const statusElement = document.querySelector('.currency-status');
+    if (statusElement) {
+      const rate = exchangeRates[currentCurrency];
+      if (currentCurrency === 'USD') {
+        statusElement.textContent = 'Base currency';
+      } else if (rate) {
+        statusElement.textContent = `1 USD = ${rate} ${currentCurrency}`;
+      } else {
+        statusElement.textContent = 'Loading rates...';
+      }
+    }
+  }
+
+  /**
+   * Set up event listeners
+   */
+  function setupEventListeners() {
+    const switcher = document.getElementById('currencySwitcher');
+    if (switcher) {
+      // Remove any existing listeners
+      switcher.removeEventListener('change', handleCurrencyChange);
+      
+      // Add new listener
+      switcher.addEventListener('change', handleCurrencyChange);
+      
+      console.log('✅ Currency switcher event listeners set up');
+    } else {
+      console.warn('⚠️ Currency switcher dropdown not found during setup');
+      
+      // Retry finding the dropdown after a short delay
+      setTimeout(() => {
+        const retryswitcher = document.getElementById('currencySwitcher');
+        if (retryswitcher) {
+          retryswitcher.addEventListener('change', handleCurrencyChange);
+          updateDropdownValue(); // Ensure it reflects current currency
+          console.log('✅ Currency switcher found on retry');
+        }
+      }, 100);
+    }
+
+    // Handle page visibility changes
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden && shouldRefreshRates()) {
+        fetchExchangeRates();
+      }
+    });
+
+    // Handle online/offline status
+    window.addEventListener('online', () => {
+      if (shouldRefreshRates()) {
+        fetchExchangeRates();
+      }
+    });
+  }
+
+  /**
+   * Handle currency change event
+   */
+  function handleCurrencyChange(event) {
+    const newCurrency = event.target.value;
+    console.log('🔄 Currency change detected:', currentCurrency, '→', newCurrency);
+    
+    if (newCurrency !== currentCurrency) {
+      const oldCurrency = currentCurrency;
+      currentCurrency = newCurrency;
+      localStorage.setItem('selectedCurrency', currentCurrency);
+      
+      // Update status display
+      updateCurrencyStatus();
+      
+      console.log(`💱 Currency switched from ${oldCurrency} to ${currentCurrency}`);
+      
+      if (currentCurrency === 'USD') {
+        // Reset to original USD values
+        console.log('🔄 Resetting to USD prices...');
+        resetToOriginalPrices();
+      } else {
+        // Convert to new currency
+        console.log(`🔄 Converting prices to ${currentCurrency}...`);
+        convertAllPrices();
+        
+        // Double-check conversion after a short delay
+        setTimeout(() => {
+          const convertedElements = document.querySelectorAll('.currency-converted');
+          console.log(`✅ Conversion completed: ${convertedElements.length} elements converted`);
+          
+          if (convertedElements.length === 0) {
+            console.log('🔧 No conversions detected, trying aggressive mode...');
+            aggressiveConvertPrices();
+          }
+        }, 200);
+      }
+    }
+  }
+
+  /**
+   * Fetch exchange rates from API with retry logic
+   */
+  async function fetchExchangeRates(attempt = 1) {
+    try {
+      showLoadingState(true);
+      
+      let response;
+      try {
+        console.log('Fetching live exchange rates from API...');
+        response = await fetch(CONFIG.API_URL);
+      } catch (error) {
+        console.warn('Primary API failed, trying fallback API...', error);
+        response = await fetch(CONFIG.FALLBACK_API);
+      }
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      if (data.rates) {
+        // Use actual API rates when available
+        exchangeRates = {
+          USD: 1,
+          RWF: data.rates.RWF, // Use exact API rate
+          KES: data.rates.KES,
+          UGX: data.rates.UGX
+        };
+        cacheTimestamp = Date.now();
+        
+        console.log('✅ Live exchange rates loaded successfully:', exchangeRates);
+        
+        // Update status display with new rates
+        updateCurrencyStatus();
+        
+        // Convert prices if not USD
+        if (currentCurrency !== 'USD') {
+          convertAllPrices();
+        }
+      } else {
+        throw new Error('Invalid API response format');
+      }
+      
+    } catch (error) {
+      console.error(`Attempt ${attempt} - Failed to fetch live exchange rates:`, error);
+      
+      if (attempt < CONFIG.RETRY_ATTEMPTS) {
+        setTimeout(() => {
+          fetchExchangeRates(attempt + 1);
+        }, CONFIG.RETRY_DELAY * attempt);
+      } else {
+        // Only use fallback rates when all API attempts fail
+        console.warn('All API attempts failed, using fallback rates');
+        useFallbackRates();
+        showConversionError();
+      }
+    } finally {
+      showLoadingState(false);
+    }
+  }
+
+  /**
+   * Use fallback exchange rates when API fails
+   */
+  function useFallbackRates() {
+    exchangeRates = {
+      USD: 1,
+      RWF: 1450, // Fallback rate only used when API is unavailable
+      KES: 130,   // Fallback rate only used when API is unavailable
+      UGX: 3800   // Fallback rate only used when API is unavailable
+    };
+    cacheTimestamp = Date.now();
+    console.warn('🔄 Using FALLBACK exchange rates (API unavailable):', exchangeRates);
+    
+    // Convert prices if not USD and if we have a selected currency
+    if (currentCurrency !== 'USD') {
+      convertAllPrices();
+    }
+  }
+
+  /**
+   * Check if rates should be refreshed
+   */
+  function shouldRefreshRates() {
+    return !cacheTimestamp || (Date.now() - cacheTimestamp) > CONFIG.CACHE_DURATION;
+  }
+
+  /**
+   * Convert all prices on the page
+   */
+  function convertAllPrices() {
+    if (currentCurrency === 'USD') {
+      resetToOriginalPrices();
+      return;
+    }
+    
+    if (isConverting) {
+      console.log('Conversion already in progress, skipping...');
+      return;
+    }
+    
+    isConverting = true;
+    console.log(`🔄 Starting currency conversion to ${currentCurrency}...`);
+    
+    try {
+      // Ensure we have exchange rates
+      if (!exchangeRates[currentCurrency]) {
+        console.warn(`No exchange rate for ${currentCurrency}, using fallback rates`);
+        useFallbackRates();
+      }
+      
+      let convertedCount = 0;
+      
+      // Find all elements that might contain prices
+      const allElements = document.querySelectorAll('*:not(script):not(style):not(noscript)');
+      
+      allElements.forEach(element => {
+        // Skip if element is not visible or has child elements
+        if (!element.offsetParent && element.offsetHeight === 0) return;
+        if (element.children.length > 0) return;
+        if (['SCRIPT', 'STYLE', 'NOSCRIPT'].includes(element.tagName)) return;
+        
+        const converted = convertElementPrices(element);
+        if (converted) convertedCount++;
+      });
+      
+      console.log(`✅ Converted ${convertedCount} price elements to ${currentCurrency}`);
+      
+      // If no conversions happened but we expected some, try again with a more aggressive approach
+      if (convertedCount === 0) {
+        console.log('🔍 No conversions detected, trying aggressive mode...');
+        aggressiveConvertPrices();
+      }
+      
+    } catch (error) {
+      console.error('❌ Error during currency conversion:', error);
+    } finally {
+      isConverting = false;
+    }
+  }
+
+  /**
+   * More aggressive price conversion when normal method fails
+   */
+  function aggressiveConvertPrices() {
+    const priceRegex = /\$\s*(\d{1,3}(?:,\d{3})*(?:\.\d{2,4})?)/g;
+    
+    // Get all text nodes
+    const walker = document.createTreeWalker(
+      document.body,
+      NodeFilter.SHOW_TEXT,
+      {
+        acceptNode: function(node) {
+          // Skip script/style nodes
+          const parent = node.parentNode;
+          if (!parent || ['SCRIPT', 'STYLE', 'NOSCRIPT'].includes(parent.tagName)) {
+            return NodeFilter.FILTER_REJECT;
+          }
+          
+          // Only process nodes with $ symbols
+          if (priceRegex.test(node.textContent)) {
+            return NodeFilter.FILTER_ACCEPT;
+          }
+          
+          return NodeFilter.FILTER_REJECT;
+        }
+      }
+    );
+
+    const textNodes = [];
+    let node;
+    while (node = walker.nextNode()) {
+      textNodes.push(node);
+    }
+
+    let convertedCount = 0;
+    textNodes.forEach(textNode => {
+      const originalText = textNode.textContent;
+      if (priceRegex.test(originalText)) {
+        // Store original content on parent element
+        const parent = textNode.parentNode;
+        if (!parent.hasAttribute('data-original-content')) {
+          parent.setAttribute('data-original-content', originalText);
+        }
+        
+        const convertedText = originalText.replace(priceRegex, (match, amount) => {
+          const usdAmount = parseFloat(amount.replace(/,/g, ''));
+          const convertedAmount = convertPrice(usdAmount, currentCurrency);
+          const symbol = CURRENCY_SYMBOLS[currentCurrency];
+          
+          let formattedAmount;
+          if (['RWF', 'UGX'].includes(currentCurrency)) {
+            formattedAmount = Math.round(convertedAmount).toLocaleString('en-US');
+          } else {
+            formattedAmount = convertedAmount.toLocaleString('en-US', { 
+              minimumFractionDigits: 2, 
+              maximumFractionDigits: 2 
+            });
+          }
+          
+          return `${symbol}${formattedAmount}`;
+        });
+        
+        if (convertedText !== originalText) {
+          textNode.textContent = convertedText;
+          parent.classList.add('currency-converted');
+          convertedCount++;
+        }
+      }
+    });
+    
+    console.log(`🔧 Aggressive conversion: ${convertedCount} elements converted`);
+  }
+
+  /**
+   * Convert prices in a specific element
+   */
+  function convertElementPrices(element) {
+    // Skip if element has children (we'll process children individually)
+    if (element.children.length > 0) return false;
+    
+    const textContent = element.textContent || '';
+    
+    // Improved regex to find USD prices: $123.45 or $123 or $ 123.45
+    const priceRegex = /\$\s*(\d{1,3}(?:,\d{3})*(?:\.\d{2,4})?)/g;
+    
+    if (priceRegex.test(textContent)) {
+      // Store original content if not already stored
+      if (!element.hasAttribute('data-original-content')) {
+        element.setAttribute('data-original-content', textContent);
+      }
+      
+      const originalContent = element.getAttribute('data-original-content');
+      const convertedContent = originalContent.replace(priceRegex, (match, amount) => {
+        const usdAmount = parseFloat(amount.replace(/,/g, ''));
+        
+        // Skip conversion if it's already in the target currency format
+        if (currentCurrency === 'USD') {
+          return match; // Return original match for USD
+        }
+        
+        const convertedAmount = convertPrice(usdAmount, currentCurrency);
+        const symbol = CURRENCY_SYMBOLS[currentCurrency];
+        
+        // Debug logging for troubleshooting
+        console.log('Currency conversion:', {
+          original: match,
+          usdAmount: usdAmount,
+          targetCurrency: currentCurrency,
+          rate: exchangeRates[currentCurrency],
+          convertedAmount: convertedAmount,
+          symbol: symbol
+        });
+        
+        // Format the converted amount based on currency
+        let formattedAmount;
+        if (currentCurrency === 'USD') {
+          formattedAmount = usdAmount.toLocaleString('en-US', { 
+            minimumFractionDigits: 2, 
+            maximumFractionDigits: 2 
+          });
+        } else if (['RWF', 'UGX'].includes(currentCurrency)) {
+          // No decimals for RWF and UGX - whole numbers only
+          formattedAmount = Math.round(convertedAmount).toLocaleString('en-US', { 
+            minimumFractionDigits: 0, 
+            maximumFractionDigits: 0 
+          });
+        } else if (currentCurrency === 'KES') {
+          // KES with 2 decimal places
+          formattedAmount = convertedAmount.toLocaleString('en-US', { 
+            minimumFractionDigits: 2, 
+            maximumFractionDigits: 2 
+          });
+        } else {
+          // Default formatting
+          formattedAmount = convertedAmount.toLocaleString('en-US', { 
+            minimumFractionDigits: 2, 
+            maximumFractionDigits: 2 
+          });
+        }
+        
+        return `${symbol}${formattedAmount}`;
+      });
+      
+      if (convertedContent !== originalContent) {
+        element.textContent = convertedContent;
+        element.classList.add('currency-converted');
+        return true; // Conversion happened
+      }
+    }
+    
+    return false; // No conversion
+  }
+
+  /**
+   * Reset all prices to original USD values
+   */
+  function resetToOriginalPrices() {
+    const convertedElements = document.querySelectorAll('[data-original-content]');
+    
+    convertedElements.forEach(element => {
+      const originalContent = element.getAttribute('data-original-content');
+      if (originalContent) {
+        element.textContent = originalContent;
+        element.classList.remove('currency-converted');
+      }
+    });
+  }
+
+  /**
+   * Convert a USD price to target currency
+   */
+  function convertPrice(usdAmount, targetCurrency) {
+    if (targetCurrency === 'USD') return usdAmount;
+    
+    const rate = exchangeRates[targetCurrency];
+    
+    // Debug logging for conversion issues
+    console.log('convertPrice called:', {
+      usdAmount: usdAmount,
+      targetCurrency: targetCurrency,
+      rate: rate,
+      allRates: exchangeRates,
+      result: rate ? usdAmount * rate : usdAmount
+    });
+    
+    if (!rate) {
+      console.warn(`No exchange rate found for ${targetCurrency}, returning USD amount`);
+      return usdAmount;
+    }
+    
+    return usdAmount * rate;
+  }
+
+  /**
+   * Setup MutationObserver to handle dynamic content
+   */
+  function setupMutationObserver() {
+    if (observer) {
+      observer.disconnect();
+    }
+
+    observer = new MutationObserver((mutations) => {
+      let shouldConvert = false;
+      
+      mutations.forEach((mutation) => {
+        // Check for added nodes
+        if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
+          mutation.addedNodes.forEach((node) => {
+            if (node.nodeType === Node.ELEMENT_NODE || node.nodeType === Node.TEXT_NODE) {
+              // Check if the new content contains prices
+              const content = node.textContent || '';
+              if (content.includes('$')) {
+                shouldConvert = true;
+                console.log('🔍 New content with prices detected, triggering conversion');
+              }
+            }
+          });
+        }
+        
+        // Check for text changes
+        if (mutation.type === 'characterData') {
+          const content = mutation.target.textContent || '';
+          if (content.includes('$')) {
+            shouldConvert = true;
+            console.log('🔍 Text content with prices changed, triggering conversion');
+          }
+        }
+      });
+      
+      if (shouldConvert && currentCurrency !== 'USD') {
+        // Debounce conversion calls but make them more aggressive
+        clearTimeout(window.currencyConversionTimeout);
+        window.currencyConversionTimeout = setTimeout(() => {
+          console.log('🔄 MutationObserver triggered conversion');
+          convertAllPrices();
+          
+          // Double-check conversion success after a brief delay
+          setTimeout(() => {
+            const convertedElements = document.querySelectorAll('.currency-converted');
+            if (convertedElements.length === 0) {
+              console.log('🔧 MutationObserver: No conversions detected, retrying...');
+              aggressiveConvertPrices();
+            }
+          }, 100);
+        }, 100); // Reduced delay for faster response
+      }
+    });
+
+    // Start observing with comprehensive options
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true,
+      characterData: true,
+      attributes: false // Don't watch attributes to avoid infinite loops
+    });
+    
+    console.log('🔍 MutationObserver setup complete');
+  }
+
+  /**
+   * Setup automatic rate updates and conversion checks
+   */
+  function setupAutoUpdate() {
+    if (updateIntervalId) {
+      clearInterval(updateIntervalId);
+    }
+    
+    updateIntervalId = setInterval(() => {
+      // Update exchange rates if needed
+      if (shouldRefreshRates() && !document.hidden) {
+        fetchExchangeRates();
+      }
+      
+      // Periodic conversion check - ensure all prices are converted
+      if (currentCurrency !== 'USD' && !document.hidden) {
+        const priceElements = document.querySelectorAll('*:not(script):not(style)');
+        let foundUSDPrices = 0;
+        
+        priceElements.forEach(element => {
+          if (element.children.length === 0 && element.textContent) {
+            // Check for unconverted USD prices
+            if (/\$\s*\d/.test(element.textContent) && !element.classList.contains('currency-converted')) {
+              foundUSDPrices++;
+            }
+          }
+        });
+        
+        if (foundUSDPrices > 0) {
+          console.log(`🔄 Found ${foundUSDPrices} unconverted USD prices, triggering conversion`);
+          convertAllPrices();
+        }
+      }
+    }, 10000); // Check every 10 seconds
+  }
+
+  /**
+   * Show loading state
+   */
+  function showLoadingState(show) {
+    const switcher = document.getElementById('currencySwitcher');
+    if (switcher) {
+      switcher.disabled = show;
+      if (show) {
+        switcher.style.opacity = '0.6';
+      } else {
+        switcher.style.opacity = '1';
+      }
+    }
+  }
+
+  /**
+   * Show conversion error
+   */
+  function showConversionError() {
+    // Remove any existing error messages
+    const existingError = document.querySelector('.conversion-error');
+    if (existingError) {
+      existingError.remove();
+    }
+    
+    // Add error message near currency switcher
+    const switcher = document.getElementById('currencySwitcher');
+    if (switcher && currentCurrency !== 'USD') {
+      const errorDiv = document.createElement('div');
+      errorDiv.className = 'conversion-error';
+      errorDiv.textContent = 'Using offline rates (API unavailable)';
+      switcher.parentNode.appendChild(errorDiv);
+      
+      // Remove error message after 10 seconds
+      setTimeout(() => {
+        if (errorDiv.parentNode) {
+          errorDiv.remove();
+        }
+      }, 10000);
+    }
+  }
+
+  /**
+   * Cleanup function
+   */
+  function cleanup() {
+    if (observer) {
+      observer.disconnect();
+    }
+    if (updateIntervalId) {
+      clearInterval(updateIntervalId);
+    }
+    if (window.currencyConversionTimeout) {
+      clearTimeout(window.currencyConversionTimeout);
+    }
+  }
+
+  // Expose public API
+  window.CurrencyConverter = {
+    getCurrentCurrency: () => currentCurrency,
+    getExchangeRates: () => ({ ...exchangeRates }),
+    refreshRates: () => fetchExchangeRates(),
+    convertPrice: convertPrice,
+    convertAllPrices: convertAllPrices,
+    resetPrices: resetToOriginalPrices
+  };
+
+  // Initialize when DOM is ready
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+
+  // Cleanup on page unload
+  window.addEventListener('beforeunload', cleanup);
+
+})();
+</script>

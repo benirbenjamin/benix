@@ -58,7 +58,13 @@
           <% } %>
         <% } %>
       </ul>
-      <ul class="navbar-nav ms-auto">
+
+        <ul class="navbar-nav ms-auto">
+        <!-- Currency Switcher -->
+        <li class="nav-item d-flex align-items-center me-3">
+          <%- include('currency-switcher') %>
+        </li>
+    
         <!-- Install App Button (Hidden by default, shown by JS when installable) -->
         <li class="nav-item">
           <button id="install-app" class="btn btn-success btn-sm my-1 mx-2" style="display: none;">

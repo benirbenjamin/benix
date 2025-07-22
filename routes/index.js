@@ -77,4 +77,12 @@ router.get('/', async (req, res) => {
   }
 });
 
+// Currency converter test page
+router.get('/currency-test', (req, res) => {
+  res.render('currency-test', {
+    user: req.user,
+    cartCount: req.session.cartCount || 0
+  });
+});
+
 module.exports = router;

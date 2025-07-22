@@ -1238,7 +1238,7 @@ app.get('/user/products', async (req, res) => {
     // Extract and sanitize query parameters
     const category = req.query.category || null;
     const search = req.query.search || null;
-    const sort = req.query.sort || 'newest';
+    const sort = req.query.sort || 'newest'; // Default to newest products first
     const min_price = req.query.min_price ? parseFloat(req.query.min_price) : null;
     const max_price = req.query.max_price ? parseFloat(req.query.max_price) : null;
     
@@ -1276,6 +1276,10 @@ app.get('/user/products', async (req, res) => {
     
     // Add sorting
     switch (sort) {
+      case 'newest':
+      default:
+        query += ` ORDER BY p.created_at DESC`; // Default: Newest products first
+        break;
       case 'price_low':
         query += ` ORDER BY p.price ASC`;
         break;
@@ -1284,10 +1288,6 @@ app.get('/user/products', async (req, res) => {
         break;
       case 'name':
         query += ` ORDER BY p.name ASC`;
-        break;
-      case 'newest':
-      default:
-        query += ` ORDER BY p.created_at DESC`;
         break;
     }
     
@@ -1308,7 +1308,7 @@ app.get('/user/products', async (req, res) => {
     const filters = {
       category: category || '',
       search: search || '',
-      sort: sort || 'newest',
+      sort: sort || 'newest', // Default to newest
       min_price: min_price || '',
       max_price: max_price || ''
     };
@@ -1355,7 +1355,7 @@ app.get('/user/products', async (req, res) => {
         filters: {
           category: '',
           search: '',
-          sort: 'newest',
+          sort: 'newest', // Reverted to newest default
           min_price: '',
           max_price: ''
         }, // Properly defined empty filters object
