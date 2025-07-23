@@ -1,0 +1,26 @@
+User-agent: *
+Allow: /
+Allow: /user/products
+Allow: /user/share
+Allow: /sitemap.html
+Allow: /static/img/
+Disallow: /admin/
+Disallow: /merchant/
+Disallow: /user/wallet
+Disallow: /user/profile
+Disallow: /user/cart
+
+# Block specific file types
+Disallow: /*.json$
+Disallow: /*.js$
+Disallow: /*.css$
+
+# Allow API for search engines that respect robots.txt
+Allow: /api/products
+Allow: /api/categories
+
+# Crawl delay to prevent server overload
+Crawl-delay: 10
+
+# Sitemaps
+Sitemap: https://benix.space/sitemap-index.xml

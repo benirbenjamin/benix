@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <%- include('../partials/navbar', { user: user }) %>
+    <title>Admin - Edit Link - BenixSpace</title>
+    <link rel="icon" href="/static/img/favicon.png" type="image/png" />
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body class="bg-light">
+    <div class="container mt-4">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2>Edit Link</h2>
+            <div>
+                <a href="/admin/links/<%= link.id %>" class="btn btn-outline-secondary">Cancel</a>
+            </div>
+        </div>
+
+        <!-- Messages -->
+        <% if (typeof error !== 'undefined' && error) { %>
+            <div class="alert alert-danger">
+                <%= error %>
+            </div>
+        <% } else if (typeof req !== 'undefined' && req.query && req.query.error) { %>
+            <div class="alert alert-danger">
+                <%= req.query.error %>
+            </div>
+        <% } %>
+        <% if (typeof success !== 'undefined' && success) { %>
+            <div class="alert alert-success">
+                <%= success %>
+            </div>
+        <% } else if (typeof req !== 'undefined' && req.query && req.query.success) { %>
+            <div class="alert alert-success">
+                <%= req.query.success %>
+            </div>
+        <% } %>
+
+        <!-- Link Edit Form -->
+        <div class="card">
+            <div class="card-body">
+                <form action="/admin/links/<%= link.id %>/edit" method="POST">
+                    <div class="row">
+                        <div class="col-md-8">
+                            <div class="mb-3">
+                                <label for="title" class="form-label">Title</label>
+                                <input type="text" class="form-control" id="title" name="title" value="<%= link.title %>" required>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="description" class="form-label">Description</label>
+                                <textarea class="form-control" id="description" name="description" rows="3"><%= link.description %></textarea>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="type" class="form-label">Type</label>
+                                <select class="form-select" id="type" name="type" required>
+                                    <option value="link" <%= link.type === 'link' ? 'selected' : '' %>>Regular Link</option>
+                                    <option value="product" <%= link.type === 'product' ? 'selected' : '' %>>Product</option>
+                                    <option value="youtube" <%= link.type === 'youtube' ? 'selected' : '' %>>YouTube</option>
+                                </select>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="url" class="form-label">URL</label>
+                                <input type="url" class="form-control" id="url" name="url" value="<%= link.url %>" required>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="category" class="form-label">Category</label>
+                                <input type="text" class="form-control" id="category" name="category" value="<%= link.category %>">
+                            </div>
+                            
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="merchant_id" class="form-label">Merchant</label>
+                                        <select class="form-select" id="merchant_id" name="merchant_id" required>
+                                            <% merchants.forEach(merchant => { %>
+                                                <option value="<%= merchant.id %>" <%= link.merchant_id === merchant.id ? 'selected' : '' %>><%= merchant.username %></option>
+                                            <% }) %>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="click_target" class="form-label">Click Target</label>
+                                        <input type="number" class="form-control" id="click_target" name="click_target" min="1" value="<%= link.click_target %>" required>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="cost_per_click" class="form-label">Cost Per Click</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text">$</span>
+                                            <input type="number" class="form-control" id="cost_per_click" name="cost_per_click" step="0.001" min="0.001" value="<%= link.cost_per_click %>" required>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3 form-check mt-4">
+                                        <input type="checkbox" class="form-check-input" id="is_active" name="is_active" value="1" <%= link.is_active ? 'checked' : '' %>>
+                                        <label class="form-check-label" for="is_active">Active (visible to users)</label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-4">
+                            <div class="card mb-3">
+                                <div class="card-header">Link Stats</div>
+                                <div class="card-body">
+                                    <ul class="list-group list-group-flush">
+                                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                                            Current Clicks
+                                            <span class="badge bg-primary rounded-pill"><%= link.clicks_count || 0 %></span>
+                                        </li>
+                                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                                            Target Clicks
+                                            <span class="badge bg-secondary rounded-pill"><%= link.click_target %></span>
+                                        </li>
+                                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                                            Completion
+                                            <% 
+                                                const percentage = link.clicks_count ? 
+                                                Math.min(100, Math.round((link.clicks_count / link.click_target) * 100)) : 0; 
+                                            %>
+                                            <span class="badge <%= percentage >= 100 ? 'bg-success' : 'bg-info' %> rounded-pill"><%= percentage %>%</span>
+                                        </li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <hr class="my-4">
+                    
+                    <div class="d-flex justify-content-between">
+                        <button type="submit" class="btn btn-primary">Update Link</button>
+                        <a href="/admin/links/<%= link.id %>" class="btn btn-outline-secondary">Cancel</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
+    <%- include('../partials/footer') %>
+</body>
+</html>

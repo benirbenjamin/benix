@@ -1,0 +1,164 @@
+<nav class="navbar navbar-expand-lg navbar-light bg-white shadow-sm">
+  <div class="container">
+    <a class="navbar-brand" href="/"><img src="/static/img/logo.png" alt="Benix Space Logo" width="100px" height="90px"></a>
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+    <div class="collapse navbar-collapse" id="navbarNav">
+      <ul class="navbar-nav me-auto">
+        <li class="nav-item">
+          <a class="nav-link" href="/">Home</a>
+        </li>
+        <% if (typeof user !== 'undefined' && user) { %>
+          <li class="nav-item">
+            <a class="nav-link" href="/dashboard">Dashboard</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="/user/products">Shop</a>
+          </li>
+          <% if (user.role === 'merchant' || user.role === 'admin') { %>
+            <li class="nav-item dropdown">
+              <a class="nav-link dropdown-toggle" href="#" id="merchantDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                Merchant
+              </a>
+              <ul class="dropdown-menu" aria-labelledby="merchantDropdown">
+                <li><a class="dropdown-item" href="/merchant/links">My Links</a></li>
+                <li><a class="dropdown-item" href="/merchant/links/create">Create Link</a></li>
+                <li><hr class="dropdown-divider"></li>
+                <li><a class="dropdown-item" href="/merchant/products">My Products</a></li>
+                <li><a class="dropdown-item" href="/merchant/products/create">Add Product</a></li>
+                <li><hr class="dropdown-divider"></li>
+                <li><a class="dropdown-item" href="/merchant/orders">Manage Orders</a></li>
+              </ul>
+            </li>
+          <% } %>
+          <% if (user.role === 'admin') { %>
+            <li class="nav-item dropdown">
+              <a class="nav-link dropdown-toggle" href="#" id="adminDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                Admin
+              </a>
+              <ul class="dropdown-menu" aria-labelledby="adminDropdown">
+                <li><a class="dropdown-item" href="/admin/dashboard"><i class="fas fa-tachometer-alt me-2"></i>Dashboard</a></li>
+                <li><hr class="dropdown-divider"></li>
+                <li><a class="dropdown-item" href="/admin/products"><i class="fas fa-box me-2"></i>Manage Products</a></li>
+                <li><a class="dropdown-item" href="/admin/links"><i class="fas fa-link me-2"></i>Manage Links</a></li>
+                <li><a class="dropdown-item" href="/admin/users"><i class="fas fa-users me-2"></i>Manage Users</a></li>
+                <li><a class="dropdown-item" href="/admin/orders"><i class="fas fa-shopping-bag me-2"></i>Manage Orders</a></li>
+                <li><hr class="dropdown-divider"></li>
+                <li><a class="dropdown-item" href="/admin/merchants"><i class="fas fa-store me-2"></i>Manage Merchants</a></li>
+                <li><a class="dropdown-item" href="/admin/transactions"><i class="fas fa-money-bill me-2"></i>Transactions</a></li>
+                <li><a class="dropdown-item" href="/admin/commissions"><i class="fas fa-percentage me-2"></i>Commissions</a></li>
+                <li><a class="dropdown-item" href="/admin/activation-payments"><i class="fas fa-credit-card me-2"></i>Activation Payments</a></li>
+                <li><hr class="dropdown-divider"></li>
+                <li><a class="dropdown-item" href="/admin/settings"><i class="fas fa-cog me-2"></i>System Settings</a></li>
+              </ul>
+            </li>
+          <% } %>
+          <% if (user.role === 'user') { %>
+            <li class="nav-item">
+              <a class="nav-link" href="/upgrade-commission">Upgrade</a>
+            </li>
+          <% } %>
+        <% } %>
+      </ul>
+
+        <ul class="navbar-nav ms-auto">
+        <!-- Currency Switcher -->
+        <li class="nav-item d-flex align-items-center me-3">
+          <%- include('currency-switcher') %>
+        </li>
+    
+        <!-- Install App Button (Hidden by default, shown by JS when installable) -->
+        <li class="nav-item">
+          <button id="install-app" class="btn btn-success btn-sm my-1 mx-2" style="display: none;">
+            <i class="fas fa-download me-1"></i> Install App
+          </button>
+        </li>
+        <% if (typeof user !== 'undefined' && user) { %>
+          <li class="nav-item">
+            <a class="nav-link position-relative" href="/cart">
+              <i class="fas fa-shopping-cart"></i>
+              <% if (typeof cartCount !== 'undefined' && cartCount > 0) { %>
+                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+                  <%= cartCount %>
+                  <span class="visually-hidden">items in cart</span>
+                </span>
+              <% } %>
+            </a>
+          </li>
+          <!-- User dropdown menu for logged in users -->
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+              <%= user.username %>
+            </a>            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
+              <li><a class="dropdown-item" href="/dashboard">Dashboard</a></li>
+              <li><a class="dropdown-item" href="/profile">My Profile</a></li>
+              <li><a class="dropdown-item" href="/orders"><i class="bi bi-box me-2"></i>My Orders</a></li>
+              <li><a class="dropdown-item" href="/wallet">My Wallet</a></li>
+              <li> <a class="dropdwon-item" href="/referrals">My Referrals</a></li>
+              <% if (user.role === 'merchant') { %>
+                <li><a class="dropdown-item" href="/merchant/links">My Links</a></li>
+                <li><a class="dropdown-item" href="/merchant/products">My Products</a></li>
+              <% } %>
+              <li><hr class="dropdown-divider"></li>
+              <li><a class="dropdown-item" href="/logout">Logout</a></li>
+            </ul>
+          </li>
+        <% } else { %>
+          <li class="nav-item">
+            <a class="nav-link" href="/login"><i class="fas fa-sign-in-alt me-1"></i> Login</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="/register"><i class="fas fa-user-plus me-1"></i> Register</a>
+          </li>
+        <% } %>
+      </ul>
+    </div>
+  </div>
+</nav>
+
+<style>
+/* Add these styles to ensure dropdown menus work correctly */
+.dropdown:hover .dropdown-menu {
+  display: block;
+  margin-top: 0;
+}
+@media (max-width: 992px) {
+  .dropdown:hover .dropdown-menu {
+    display: none;
+  }
+  .dropdown.show .dropdown-menu {
+    display: block;
+  }
+}
+</style>
+
+<script>
+// Ensure dropdowns work on all devices
+document.addEventListener('DOMContentLoaded', function() {
+  // For touch devices - make sure dropdowns work with a click
+  var dropdownToggleList = [].slice.call(document.querySelectorAll('.dropdown-toggle'));
+  dropdownToggleList.forEach(function(dropdownToggle) {
+    dropdownToggle.addEventListener('click', function(e) {
+      // Prevent default link behavior
+      e.preventDefault();
+      // Toggle the dropdown
+      this.parentNode.classList.toggle('show');
+      this.setAttribute('aria-expanded', this.getAttribute('aria-expanded') === 'true' ? 'false' : 'true');
+      this.nextElementSibling.classList.toggle('show');
+    });
+  });
+
+  // Close dropdowns when clicking outside
+  document.addEventListener('click', function(e) {
+    if (!e.target.closest('.dropdown')) {
+      var dropdowns = document.querySelectorAll('.dropdown.show');
+      dropdowns.forEach(function(dropdown) {
+        dropdown.classList.remove('show');
+        dropdown.querySelector('.dropdown-toggle').setAttribute('aria-expanded', 'false');
+        dropdown.querySelector('.dropdown-menu').classList.remove('show');
+      });
+    }
+  });
+});
+</script>
