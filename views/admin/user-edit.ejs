@@ -163,11 +163,12 @@
                       <div class="mb-3">
                         <label for="status" class="form-label">Status</label>
                         <select class="form-select" id="status" name="status">
+                          <option value="pending" <%= targetUser.status === 'pending' ? 'selected' : '' %>>Pending</option>
                           <option value="active" <%= (targetUser.status === 'active' || !targetUser.status) ? 'selected' : '' %>>Active</option>
                           <option value="suspended" <%= targetUser.status === 'suspended' ? 'selected' : '' %>>Suspended</option>
                           <option value="banned" <%= targetUser.status === 'banned' ? 'selected' : '' %>>Banned</option>
                         </select>
-                        <div class="form-text">Note: Status field may not be supported by your database schema.</div>
+                        <div class="form-text">Change user account status to control access and functionality.</div>
                       </div>
                     </div>
                   </div>

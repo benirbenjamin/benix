@@ -337,6 +337,88 @@
                 </div>
             </div>
         <% } %>
+        
+        <!-- Leaderboard Section (visible to all users) -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5 class="mb-0">🏆 Top Performers Leaderboard</h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>Rank</th>
+                                <th>User</th>
+                                <th>Referrals</th>
+                                <th>Links Shared</th>
+                                <th>Orders</th>
+                                <th>Wallet</th>
+                                <th>Earnings</th>
+                                <th>Score</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <% if (topPerformers && topPerformers.length > 0) { %>
+                                <% topPerformers.forEach((performer, index) => { %>
+                                    <tr class="<%= performer.id === user.id ? 'table-primary' : '' %>">
+                                        <td>
+                                            <% if (index === 0) { %>
+                                                <span class="badge bg-warning text-dark">🥇 #1</span>
+                                            <% } else if (index === 1) { %>
+                                                <span class="badge bg-secondary">🥈 #2</span>
+                                            <% } else if (index === 2) { %>
+                                                <span class="badge bg-dark">🥉 #3</span>
+                                            <% } else { %>
+                                                <span class="badge bg-light text-dark">#<%= index + 1 %></span>
+                                            <% } %>
+                                        </td>
+                                        <td>
+                                            <%= performer.username %>
+                                            <% if (performer.id === user.id) { %>
+                                                <small class="text-primary">(You)</small>
+                                            <% } %>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-info">
+                                                <%= performer.referral_count %>
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-success">
+                                                <%= performer.total_shared_links %>
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-primary">
+                                                <%= performer.total_orders %>
+                                            </span>
+                                        </td>
+                                        <td>$<%= parseFloat(performer.wallet || 0).toFixed(4) %></td>
+                                        <td>$<%= parseFloat(performer.earnings || 0).toFixed(4) %></td>
+                                        <td>
+                                            <span class="badge bg-dark">
+                                                <%= Math.round(performer.performance_score) %>
+                                            </span>
+                                        </td>
+                                    </tr>
+                                <% }) %>
+                            <% } else { %>
+                                <tr>
+                                    <td colspan="8" class="text-center py-3">No performance data available</td>
+                                </tr>
+                            <% } %>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="card-footer text-muted">
+                <small>
+                    <i class="fas fa-info-circle"></i>
+                    Performance score is calculated based on wallet balance, earnings, referrals, and links shared.
+                </small>
+            </div>
+        </div>
     </div>
 
     <%- include('partials/footer') %>

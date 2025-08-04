@@ -162,6 +162,86 @@
                 </div>
             </div>
         </div>
+        
+        <!-- Leaderboard Section -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">🏆 Top Performers Leaderboard</h5>
+                        <a href="/admin/users" class="btn btn-sm btn-outline-primary">View All Users</a>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Rank</th>
+                                        <th>User</th>
+                                        <th>Referrals</th>
+                                        <th>Links Shared</th>
+                                        <th>Orders</th>
+                                        <th>Wallet</th>
+                                        <th>Earnings</th>
+                                        <th>Performance Score</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <% if (topPerformers && topPerformers.length > 0) { %>
+                                        <% topPerformers.forEach((performer, index) => { %>
+                                            <tr>
+                                                <td>
+                                                    <% if (index === 0) { %>
+                                                        <span class="badge bg-warning text-dark">🥇 #1</span>
+                                                    <% } else if (index === 1) { %>
+                                                        <span class="badge bg-secondary">🥈 #2</span>
+                                                    <% } else if (index === 2) { %>
+                                                        <span class="badge bg-dark">🥉 #3</span>
+                                                    <% } else { %>
+                                                        <span class="badge bg-light text-dark">#<%= index + 1 %></span>
+                                                    <% } %>
+                                                </td>
+                                                <td>
+                                                    <a href="/admin/users/<%= performer.id %>" class="text-decoration-none">
+                                                        <%= performer.username %>
+                                                    </a>
+                                                </td>
+                                                <td>
+                                                    <span class="badge bg-info">
+                                                        <%= performer.referral_count %>
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    <span class="badge bg-success">
+                                                        <%= performer.total_shared_links %>
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    <span class="badge bg-primary">
+                                                        <%= performer.total_orders %>
+                                                    </span>
+                                                </td>
+                                                <td>$<%= parseFloat(performer.wallet || 0).toFixed(4) %></td>
+                                                <td>$<%= parseFloat(performer.earnings || 0).toFixed(4) %></td>
+                                                <td>
+                                                    <span class="badge bg-dark">
+                                                        <%= Math.round(performer.performance_score) %>
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                        <% }) %>
+                                    <% } else { %>
+                                        <tr>
+                                            <td colspan="8" class="text-center py-3">No performance data available</td>
+                                        </tr>
+                                    <% } %>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>

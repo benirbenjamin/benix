@@ -59,7 +59,7 @@
                     <h5 class="card-title"><%= product.name %></h5>
                     <p class="card-text text-muted"><%= product.description || 'No description available' %></p>
                     <div class="d-flex justify-content-between align-items-center">
-                      <span class="h4 text-primary mb-0">$<%= parseFloat(product.price).toFixed(2) %></span>
+                      <span class="h4 text-primary mb-0">$<%= parseFloat(product.price).toFixed(4) %></span>
                       <div>
                         <span class="badge bg-success me-2">
                           <i class="fas fa-percentage me-1"></i>
@@ -90,10 +90,10 @@
                     const adminCommission = parseFloat(product.price) * parseFloat(adminCommissionRateValue) / 100;
                     const userCommission = adminCommission * parseFloat(userCommissionPercentageValue) / 100;
                   %>
-                  $<%= userCommission.toFixed(2) %>
+                  $<%= userCommission.toFixed(4) %>
                 </p>
                 <p class="mb-0">
-                  You earn <%= userCommissionPercentageValue %>% of admin commission ($<%= adminCommission.toFixed(2) %>) for every sale!
+                  You earn <%= userCommissionPercentageValue %>% of admin commission ($<%= adminCommission.toFixed(4) %>) for every sale!
                 </p>
               </div>
             </div>
@@ -203,7 +203,7 @@
           const adminCommissionForJS = parseFloat(product.price) * parseFloat(adminRateForJS) / 100;
           const userCommissionForJS = adminCommissionForJS * parseFloat(userPercentForJS) / 100;
         %>
-        const commission = '<%= userCommissionForJS.toFixed(2) %>';
+        const commission = '<%= userCommissionForJS.toFixed(4) %>';
         
         let shareMessage = `Check out this amazing product: ${productName}! Get it now and help me earn $${commission} commission.`;
         let finalUrl;

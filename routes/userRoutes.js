@@ -2,6 +2,24 @@ const express = require('express');
 const router = express.Router();
 const mysql = require('mysql2/promise');
 const bcrypt = require('bcrypt');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
+
+// Configure multer for file uploads
+const upload = multer({
+  dest: path.join(__dirname, '../public/uploads/'),
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5MB limit
+  },
+  fileFilter: function (req, file, cb) {
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'application/pdf'];
+    if (!allowedTypes.includes(file.mimetype)) {
+      return cb(new Error('Only JPG, PNG, GIF, and PDF files are allowed'));
+    }
+    cb(null, true);
+  }
+});
 
 // Create MySQL connection pool
 const pool = mysql.createPool({
@@ -45,6 +63,52 @@ const isAuthenticated = async (req, res, next) => {
   }
 };
 
+// Auth middleware to check if user is logged in AND activated
+const isActivated = async (req, res, next) => {
+  if (!req.session.userId) {
+    return res.redirect('/login?redirect=' + encodeURIComponent(req.originalUrl));
+  }
+
+  try {
+    const [users] = await pool.query(
+      'SELECT * FROM users WHERE id = ?',
+      [req.session.userId]
+    );
+
+    if (users.length === 0) {
+      return res.status(403).render('error', {
+        message: 'User not found',
+        error: { status: 403, stack: '' }
+      });
+    }
+
+    const user = users[0];
+    req.user = user;
+
+    // Check if user is activated (except for activation page itself)
+    if (user.status !== 'active' || !user.activation_paid) {
+      // Allow access to activation-related pages
+      const allowedPaths = [
+        '/user/activate',
+        '/user/activate/payment',
+        '/user/activate/callback'
+      ];
+      
+      if (!allowedPaths.includes(req.path)) {
+        return res.redirect('/user/activate?error=Please activate your account to access this page');
+      }
+    }
+
+    next();
+  } catch (err) {
+    console.error('Auth middleware error:', err);
+    res.status(500).render('error', {
+      message: 'Server error',
+      error: { status: 500, stack: process.env.NODE_ENV === 'development' ? err.stack : '' }
+    });
+  }
+};
+
 // Helper function to get config values from the database
 async function getConfig(key) {
   const [rows] = await pool.query('SELECT value FROM config WHERE key_name = ?', [key]);
@@ -52,7 +116,7 @@ async function getConfig(key) {
 }
 
 // User profile page
-router.get('/profile', isAuthenticated, async (req, res) => {
+router.get('/profile', isActivated, async (req, res) => {
   try {
     const userId = req.session.userId;
     
@@ -222,7 +286,7 @@ router.get('/profile', isAuthenticated, async (req, res) => {
 });
 
 // Profile update route
-router.post('/profile/update', isAuthenticated, async (req, res) => {
+router.post('/profile/update', isActivated, async (req, res) => {
   try {
     const userId = req.session.userId;
     const {
@@ -370,8 +434,67 @@ router.post('/profile/update', isAuthenticated, async (req, res) => {
   }
 });
 
+// Update payment details route (for the withdrawal flow)
+router.post('/profile/update-payment-details', isActivated, async (req, res) => {
+  try {
+    const userId = req.session.userId;
+    const { account_name, account_number, bank_code } = req.body;
+
+    console.log('Payment details update request:', {
+      userId,
+      body: req.body,
+      account_name,
+      account_number,
+      bank_code
+    });
+
+    // Validate required fields (check for empty strings and null/undefined)
+    if (!account_name || account_name.trim() === '' || 
+        !account_number || account_number.trim() === '' || 
+        !bank_code || bank_code.trim() === '') {
+      console.log('Validation failed - missing fields:', {
+        account_name: account_name || 'missing',
+        account_number: account_number || 'missing',
+        bank_code: bank_code || 'missing'
+      });
+      return res.status(400).json({
+        success: false,
+        message: 'All payment details are required'
+      });
+    }
+
+    // Update payment details
+    await pool.query(`
+      UPDATE users 
+      SET account_name = ?, 
+          account_number = ?,
+          bank_code = ?
+      WHERE id = ?
+    `, [
+      account_name.trim(),
+      account_number.trim(),
+      bank_code.trim(),
+      userId
+    ]);
+
+    console.log('Payment details updated successfully for user:', userId);
+
+    return res.json({
+      success: true,
+      message: 'Payment details updated successfully'
+    });
+    
+  } catch (err) {
+    console.error('Payment details update error:', err);
+    return res.status(500).json({
+      success: false,
+      message: 'Server error. Please try again later.'
+    });
+  }
+});
+
 // View all shared links for a user
-router.get('/shared-links', isAuthenticated, async (req, res) => {
+router.get('/shared-links', isActivated, async (req, res) => {
   try {
     const userId = req.session.userId;
     
@@ -426,7 +549,7 @@ router.get('/shared-links', isAuthenticated, async (req, res) => {
 });
 
 // View all orders for a user
-router.get('/orders', isAuthenticated, async (req, res) => {
+router.get('/orders', isActivated, async (req, res) => {
   try {
     const userId = req.session.userId;
     
@@ -473,7 +596,7 @@ router.get('/orders', isAuthenticated, async (req, res) => {
 });
 
 // View single order details
-router.get('/orders/:id', isAuthenticated, async (req, res) => {
+router.get('/orders/:id', isActivated, async (req, res) => {
   try {
     const orderId = req.params.id;
     const userId = req.session.userId;
@@ -523,6 +646,509 @@ router.get('/orders/:id', isAuthenticated, async (req, res) => {
   } catch (err) {
     console.error('Order details error:', err);
     res.status(500).render('error', { message: 'Server error. Please try again later.' });
+  }
+});
+
+// User Activation Payment Routes
+router.get('/user/activate', isAuthenticated, async (req, res) => {
+  try {
+    // Check if user is already activated
+    if (req.user.status === 'active' && req.user.activation_paid) {
+      return res.redirect('/dashboard?success=Your account is already activated');
+    }
+
+    // Get activation fee from settings
+    const [settings] = await pool.query(`
+      SELECT setting_key, setting_value, setting_type 
+      FROM system_settings 
+      WHERE setting_key IN ('activation_fee_rwf', 'supported_currencies')
+    `);
+
+    // Get manual payment settings from config
+    const [configSettings] = await pool.query(`
+      SELECT key_name, value 
+      FROM config 
+      WHERE key_name IN (
+        'manual_payment_instructions', 
+        'manual_payment_bank_name', 
+        'manual_payment_account_name', 
+        'manual_payment_account_number', 
+        'manual_payment_swift_code',
+        'manual_payment_enabled',
+        'manual_payment_screenshot'
+      )
+    `);
+
+    const settingsMap = {};
+    settings.forEach(setting => {
+      let value = setting.setting_value;
+      if (setting.setting_type === 'json') {
+        try {
+          value = JSON.parse(value);
+        } catch (e) {
+          value = setting.setting_value;
+        }
+      } else if (setting.setting_type === 'number') {
+        value = parseFloat(value);
+      }
+      settingsMap[setting.setting_key] = value;
+    });
+
+    // Add config settings to settingsMap
+    const configMap = {};
+    configSettings.forEach(config => {
+      configMap[config.key_name] = config.value;
+    });
+
+    const activationFeeRwf = settingsMap.activation_fee_rwf || 3000;
+    const supportedCurrencies = settingsMap.supported_currencies || ['RWF', 'USD', 'UGX', 'KES'];
+
+    // Get currency conversion rates
+    const currencyService = req.app.locals.currencyService;
+    const exchangeRates = await currencyService.getExchangeRates();
+
+    // Calculate fees in different currencies
+    const fees = {};
+    for (const currency of supportedCurrencies) {
+      if (currency === 'RWF') {
+        fees[currency] = activationFeeRwf;
+      } else {
+        fees[currency] = await currencyService.convertCurrency(activationFeeRwf, 'RWF', currency);
+      }
+    }
+
+    res.render('user/activate', {
+      user: req.user,
+      activationFeeRwf: activationFeeRwf,
+      fees: fees,
+      supportedCurrencies: supportedCurrencies,
+      exchangeRates: exchangeRates,
+      successMessage: req.query.success,
+      errorMessage: req.query.error,
+      protocol: req.protocol,
+      host: req.get('host'),
+      // Manual payment settings
+      manualPaymentInstructions: configMap.manual_payment_instructions || 'Please transfer the amount to our account and upload a screenshot/receipt as proof of payment.',
+      manualPaymentBankName: configMap.manual_payment_bank_name || '',
+      manualPaymentAccountName: configMap.manual_payment_account_name || '',
+      manualPaymentAccountNumber: configMap.manual_payment_account_number || '',
+      manualPaymentSwiftCode: configMap.manual_payment_swift_code || '',
+      manualPaymentEnabled: configMap.manual_payment_enabled === 'true',
+      manualPaymentScreenshot: configMap.manual_payment_screenshot || null
+    });
+  } catch (err) {
+    console.error('Activation page error:', err);
+    res.redirect('/dashboard?error=Failed to load activation page');
+  }
+});
+
+router.post('/user/activate/payment', isAuthenticated, async (req, res) => {
+  try {
+    console.log('Received request body:', req.body);
+    console.log('Request headers:', req.headers['content-type']);
+    
+    const { currency, amount, payment_type } = req.body;
+    
+    console.log('Extracted values - Currency:', currency, 'Amount:', amount, 'Payment Type:', payment_type);
+
+    // Validate input parameters
+    if (!currency || !amount) {
+      console.log('Validation failed - missing currency or amount');
+      return res.json({ success: false, error: 'Currency and amount are required' });
+    }
+
+    // Only handle automatic payments in this route
+    if (payment_type !== 'automatic') {
+      return res.json({ success: false, error: 'This route only handles automatic payments' });
+    }
+
+    // Convert amount to number and validate
+    const numericAmount = parseFloat(amount);
+    console.log('Numeric amount:', numericAmount);
+    
+    if (isNaN(numericAmount) || numericAmount <= 0) {
+      console.log('Invalid numeric amount:', numericAmount);
+      return res.json({ success: false, error: 'Invalid amount provided' });
+    }
+
+    // Check if user is already activated
+    if (req.user.status === 'active' && req.user.activation_paid) {
+      return res.json({ success: false, error: 'Your account is already activated' });
+    }
+
+    // Validate user email
+    console.log('User object:', JSON.stringify(req.user, null, 2));
+    if (!req.user.email || req.user.email.trim() === '') {
+      return res.json({ success: false, error: 'User email is required for payment processing' });
+    }
+    console.log('User email validation passed:', req.user.email);
+
+    // Get services
+    const flutterwaveService = req.app.locals.flutterwaveService;
+    const currencyService = req.app.locals.currencyService;
+
+    // Convert amount to USD for database storage
+    let amountUsd;
+    try {
+      amountUsd = await currencyService.convertCurrency(numericAmount, currency, 'USD');
+      console.log('Converted amount to USD:', amountUsd);
+      
+      // Validate conversion result
+      if (isNaN(amountUsd) || amountUsd <= 0) {
+        return res.json({ success: false, error: 'Currency conversion failed' });
+      }
+    } catch (conversionError) {
+      console.error('Currency conversion error:', conversionError);
+      return res.json({ success: false, error: 'Currency conversion failed' });
+    }
+
+    // Create payment with Flutterwave
+    const paymentData = {
+      tx_ref: `ACTIVATE_${req.user.id}_${Date.now()}`,
+      amount: numericAmount,
+      currency: currency.toUpperCase(),
+      email: req.user.email.trim(),
+      phone_number: req.user.phone_number || '',
+      name: req.user.username || 'BenixSpace User',
+      redirect_url: `${req.protocol}://${req.get('host')}/user/activate/callback`,
+      meta: {
+        user_id: req.user.id,
+        purpose: 'activation'
+      }
+    };
+
+    console.log('Payment data for Flutterwave:', JSON.stringify(paymentData, null, 2));
+
+    const paymentResult = await flutterwaveService.createPaymentLink(paymentData);
+    console.log('Payment result:', paymentResult);
+
+    if (!paymentResult.success) {
+      return res.json({ success: false, error: paymentResult.error || 'Failed to create payment link' });
+    }
+
+    const paymentLink = paymentResult.payment_link;
+    console.log('Payment link created:', paymentLink);
+
+    // Store payment record
+    await pool.query(`
+      INSERT INTO activation_payments (
+        user_id, amount_usd, amount_original, currency, 
+        payment_method, payment_type, flutterwave_tx_ref, payment_status
+      ) VALUES (?, ?, ?, ?, 'flutterwave', 'automatic', ?, 'pending')
+    `, [req.user.id, amountUsd, numericAmount, currency.toUpperCase(), paymentData.tx_ref]);
+
+    console.log('Payment record stored in database');
+
+    res.json({ success: true, payment_link: paymentLink });
+  } catch (err) {
+    console.error('Activation payment error:', err);
+    res.json({ success: false, error: 'Failed to create payment. Please try again.' });
+  }
+});
+
+// Manual payment submission route
+router.post('/user/activate/manual-payment', isAuthenticated, upload.single('paymentScreenshot'), async (req, res) => {
+  try {
+    const { currency, amount, accountName, paymentPhone, paymentAccountNumber } = req.body;
+    
+    // Validate required fields
+    if (!currency || !amount || !accountName) {
+      return res.json({ success: false, error: 'Currency, amount, and account name are required' });
+    }
+
+    // Check if user is already activated
+    if (req.user.status === 'active' && req.user.activation_paid) {
+      return res.json({ success: false, error: 'Your account is already activated' });
+    }
+
+    // Handle file upload - temporary storage for WhatsApp sending
+    let paymentScreenshotUrl = null;
+    if (!req.file) {
+      return res.json({ success: false, error: 'Payment screenshot is required' });
+    }
+    
+    // Rename uploaded file with better naming
+    const fileExtension = path.extname(req.file.originalname);
+    const newFileName = `payment_${req.user.id}_${Date.now()}${fileExtension}`;
+    const oldPath = req.file.path;
+    const newPath = path.join(path.dirname(oldPath), newFileName);
+    
+    fs.renameSync(oldPath, newPath);
+    paymentScreenshotUrl = `/uploads/${newFileName}`;
+    
+    // Get full URL for WhatsApp sharing
+    const fullScreenshotUrl = `${req.protocol}://${req.get('host')}${paymentScreenshotUrl}`;
+
+    // Convert amount to USD for database storage
+    const currencyService = req.app.locals.currencyService;
+    let amountUsd;
+    try {
+      const numericAmount = parseFloat(amount);
+      amountUsd = await currencyService.convertCurrency(numericAmount, currency, 'USD');
+    } catch (conversionError) {
+      console.error('Currency conversion error:', conversionError);
+      return res.json({ success: false, error: 'Currency conversion failed' });
+    }
+
+    // Insert manual payment record - store minimal data, screenshot URL for WhatsApp access
+    const [result] = await pool.query(`
+      INSERT INTO manual_activation_payments (
+        user_id, amount_original, currency, account_name, 
+        phone_number, account_number, status, payment_screenshot_url
+      ) VALUES (?, ?, ?, ?, ?, ?, 'pending', ?)
+    `, [
+      req.user.id, 
+      parseFloat(amount), 
+      currency.toUpperCase(), 
+      accountName,
+      paymentPhone || null,
+      paymentAccountNumber || null,
+      paymentScreenshotUrl // Store temporarily for admin access if needed
+    ]);
+
+    const manualPaymentId = result.insertId;
+
+    // Insert activation payment record linking to manual payment
+    await pool.query(`
+      INSERT INTO activation_payments (
+        user_id, amount_usd, amount_original, currency, 
+        payment_method, payment_type, manual_payment_id, payment_status
+      ) VALUES (?, ?, ?, ?, 'manual', 'manual', ?, 'pending')
+    `, [req.user.id, amountUsd, parseFloat(amount), currency.toUpperCase(), manualPaymentId]);
+
+    // Send WhatsApp notification to admin with screenshot link
+    try {
+      const whatsappResult = await sendWhatsAppNotification({
+        user: req.user,
+        amount: amount,
+        currency: currency,
+        accountName: accountName,
+        paymentPhone: paymentPhone,
+        paymentAccountNumber: paymentAccountNumber,
+        paymentScreenshotUrl: fullScreenshotUrl, // Full URL for easy access
+        manualPaymentId: manualPaymentId
+      });
+      
+      if (whatsappResult.success) {
+        // Mark WhatsApp as sent and store the URL for potential admin access
+        await pool.query(`
+          UPDATE manual_activation_payments 
+          SET whatsapp_sent = TRUE,
+              admin_notes = CONCAT(COALESCE(admin_notes, ''), '\nWhatsApp URL: ', ?)
+          WHERE id = ?
+        `, [whatsappResult.whatsappUrl, manualPaymentId]);
+        
+        console.log('✅ WhatsApp notification prepared successfully');
+        console.log('🔗 Admin can use this URL to send WhatsApp message:', whatsappResult.whatsappUrl);
+        console.log('📸 Screenshot available at:', fullScreenshotUrl);
+        
+        // Optional: Schedule file cleanup after 72 hours (configurable)
+        // You can uncomment this if you want automatic cleanup
+        /*
+        setTimeout(() => {
+          try {
+            if (fs.existsSync(newPath)) {
+              fs.unlinkSync(newPath);
+              console.log(`🗑️ Cleaned up temporary screenshot: ${newFileName}`);
+            }
+          } catch (cleanupError) {
+            console.error('File cleanup error:', cleanupError);
+          }
+        }, 72 * 60 * 60 * 1000); // 72 hours
+        */
+        
+        // Return success with WhatsApp URL for user redirection
+        return res.json({ 
+          success: true, 
+          message: 'Payment details saved! Redirecting to WhatsApp to send details to admin.',
+          whatsappUrl: whatsappResult.whatsappUrl,
+          redirectToWhatsApp: true
+        });
+      }
+    } catch (whatsappError) {
+      console.error('WhatsApp notification preparation failed:', whatsappError);
+      // Continue even if WhatsApp preparation fails
+    }
+
+    // Fallback response if WhatsApp preparation fails
+    res.json({ 
+      success: true, 
+      message: 'Payment details and screenshot submitted successfully. Admin has been notified. You will be notified once approved.' 
+    });
+
+  } catch (err) {
+    console.error('Manual payment submission error:', err);
+    res.json({ success: false, error: 'Failed to submit payment details. Please try again.' });
+  }
+});
+
+// Helper function to send WhatsApp notification using wa.me
+async function sendWhatsAppNotification(paymentData) {
+  const { user, amount, currency, accountName, paymentPhone, paymentAccountNumber, paymentScreenshotUrl, manualPaymentId } = paymentData;
+  
+  // Get admin WhatsApp number from config
+  const [adminConfig] = await pool.query(`
+    SELECT value FROM config WHERE key_name = 'admin_whatsapp_number'
+  `);
+  
+  const adminWhatsApp = adminConfig.length > 0 ? adminConfig[0].value : '0783987223';
+  
+  // Construct WhatsApp message with screenshot link
+  const message = `🔔 *New Manual Payment Submission*
+
+👤 *User:* ${user.username} (ID: ${user.id})
+📧 *Email:* ${user.email}
+💰 *Amount:* ${amount} ${currency}
+🏦 *Account Name:* ${accountName}
+${paymentPhone ? `📱 *Phone:* ${paymentPhone}\n` : ''}${paymentAccountNumber ? `🔢 *Account/Ref:* ${paymentAccountNumber}\n` : ''}📄 *Payment ID:* ${manualPaymentId}
+
+📸 *Payment Screenshot:* ${paymentScreenshotUrl}
+
+❗ *Action Required:* Please review the payment details and screenshot, then approve/reject the activation.
+
+💼 *BenixSpace Activation Payment* - Please process this manual payment verification.`;
+
+  // Create wa.me URL with encoded message
+  const encodedMessage = encodeURIComponent(message);
+  const whatsappUrl = `https://wa.me/${adminWhatsApp.replace(/[^0-9]/g, '')}?text=${encodedMessage}`;
+  
+  // Log the WhatsApp URL for the admin to click
+  console.log('🚀 WhatsApp notification ready!');
+  console.log('📱 Admin WhatsApp:', adminWhatsApp);
+  console.log('🔗 WhatsApp URL:', whatsappUrl);
+  console.log('💬 Message preview:', message);
+  
+  // In a real application, you could:
+  // 1. Send this URL via email to admin
+  // 2. Display it in the admin dashboard
+  // 3. Create a notification system that shows this URL
+  // 4. Use a webhook to trigger opening this URL on admin's device
+  
+  return {
+    success: true,
+    whatsappUrl: whatsappUrl,
+    message: message,
+    adminPhone: adminWhatsApp
+  };
+}
+
+// Route to get WhatsApp URL for admin (can be called from admin panel)
+router.get('/admin/manual-payment/:id/whatsapp', isAuthenticated, async (req, res) => {
+  try {
+    // Check if user is admin (simple check, you might want to use isAdmin middleware)
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, error: 'Admin access required' });
+    }
+
+    const paymentId = req.params.id;
+    
+    // Get manual payment details
+    const [payments] = await pool.query(`
+      SELECT 
+        map.*,
+        u.username,
+        u.email,
+        ap.amount_original,
+        ap.currency
+      FROM manual_activation_payments map
+      JOIN users u ON map.user_id = u.id
+      JOIN activation_payments ap ON ap.manual_payment_id = map.id
+      WHERE map.id = ?
+    `, [paymentId]);
+
+    if (payments.length === 0) {
+      return res.status(404).json({ success: false, error: 'Payment not found' });
+    }
+
+    const payment = payments[0];
+    
+    // Generate WhatsApp notification
+    const whatsappResult = await sendWhatsAppNotification({
+      user: {
+        id: payment.user_id,
+        username: payment.username,
+        email: payment.email
+      },
+      amount: payment.amount_original,
+      currency: payment.currency,
+      accountName: payment.account_name,
+      paymentPhone: payment.phone_number,
+      paymentAccountNumber: payment.account_number,
+      paymentScreenshotUrl: payment.payment_screenshot_url,
+      manualPaymentId: payment.id
+    });
+
+    res.json(whatsappResult);
+  } catch (err) {
+    console.error('WhatsApp URL generation error:', err);
+    res.status(500).json({ success: false, error: 'Failed to generate WhatsApp URL' });
+  }
+});
+
+router.get('/user/activate/callback', async (req, res) => {
+  try {
+    const { tx_ref, status } = req.query;
+
+    if (status === 'successful') {
+      // Verify payment with Flutterwave
+      const flutterwaveService = req.app.locals.flutterwaveService;
+      const verification = await flutterwaveService.verifyPaymentByTxRef(tx_ref);
+
+      if (verification.success) {
+        // Update payment record
+        await pool.query(`
+          UPDATE activation_payments 
+          SET payment_status = 'successful', 
+              flutterwave_tx_id = ?,
+              payment_response = ?,
+              updated_at = CURRENT_TIMESTAMP
+          WHERE flutterwave_tx_ref = ?
+        `, [verification.data.id, JSON.stringify(verification.data), tx_ref]);
+
+        // Get payment record to find user
+        const [payments] = await pool.query(`
+          SELECT user_id FROM activation_payments WHERE flutterwave_tx_ref = ?
+        `, [tx_ref]);
+
+        if (payments.length > 0) {
+          const userId = payments[0].user_id;
+
+          // Activate user
+          await pool.query(`
+            UPDATE users 
+            SET status = 'active', 
+                activation_paid = TRUE, 
+                activated_at = CURRENT_TIMESTAMP 
+            WHERE id = ?
+          `, [userId]);
+
+          // Process commissions
+          const commissionService = req.app.locals.commissionService;
+          await commissionService.processActivationCommissions(userId);
+
+          res.redirect('/dashboard?success=Account activated successfully! Welcome to BenixSpace!');
+        } else {
+          res.redirect('/user/activate?error=Payment verification failed');
+        }
+      } else {
+        res.redirect('/user/activate?error=Payment verification failed');
+      }
+    } else if (status === 'cancelled') {
+      // Update payment record
+      await pool.query(`
+        UPDATE activation_payments 
+        SET payment_status = 'cancelled', 
+            updated_at = CURRENT_TIMESTAMP
+        WHERE flutterwave_tx_ref = ?
+      `, [tx_ref]);
+      
+      res.redirect('/user/activate?error=Payment was cancelled');
+    } else {
+      res.redirect('/user/activate?error=Payment failed');
+    }
+  } catch (err) {
+    console.error('Activation callback error:', err);
+    res.redirect('/user/activate?error=Payment processing failed');
   }
 });
 

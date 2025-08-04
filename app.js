@@ -20,6 +20,12 @@ const productRoutes = require('./routes/productRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const userRoutes = require('./routes/userRoutes');
 
+// Import new services
+const CurrencyService = require('./services/currencyService');
+const CommissionService = require('./services/commissionService');
+const FlutterwaveService = require('./services/flutterwaveService');
+
+
 
 
 // Create uploads directory if it doesn't exist
@@ -111,6 +117,24 @@ app.use(async (req, res, next) => {
   next();
 });
 
+// User middleware - makes user available in all templates
+app.use(async (req, res, next) => {
+  if (req.session.userId) {
+    try {
+      const [users] = await pool.query(
+        'SELECT * FROM users WHERE id = ?',
+        [req.session.userId]
+      );
+      if (users.length > 0) {
+        res.locals.user = users[0];
+      }
+    } catch (err) {
+      console.error('Error fetching user for global middleware:', err);
+    }
+  }
+  next();
+});
+
 // Set EJS as the view engine
 app.set('view engine', 'ejs');
 
@@ -124,6 +148,18 @@ const pool = mysql.createPool({
   connectionLimit: 10,
   queueLimit: 0
 });
+
+// Initialize services
+const currencyService = new CurrencyService(pool);
+const commissionService = new CommissionService(pool, currencyService);
+const flutterwaveService = new FlutterwaveService();
+
+
+// Make services available to routes
+app.locals.pool = pool;
+app.locals.currencyService = currencyService;
+app.locals.commissionService = commissionService;
+app.locals.flutterwaveService = flutterwaveService;
 
 // Configure email transporter
 const transporter = nodemailer.createTransport({
@@ -450,14 +486,7 @@ try {
       )
     `);
 
-try {
-  await connection.query(`
-    ALTER TABLE order_items 
-    MODIFY commission_earned DECIMAL(10,4) NOT NULL
-  `);
-} catch (err) {
-  console.error('Error updating order_items decimal precision:', err);
-}
+
 try {
   const [columns] = await connection.query(`
     SHOW COLUMNS FROM users LIKE 'referral_id'
@@ -479,6 +508,430 @@ try {
 } catch (err) {
   console.error('Error adding referral_id column:', err);
 }
+
+    // Add new columns for unilevel commission system
+    try {
+      // Add activation_paid column to users table
+      const [activationColumns] = await connection.query(`
+        SHOW COLUMNS FROM users LIKE 'activation_paid'
+      `);
+      
+      if (activationColumns.length === 0) {
+        await connection.query(`
+          ALTER TABLE users 
+          ADD COLUMN activation_paid BOOLEAN DEFAULT FALSE AFTER is_verified
+        `);
+        console.log('Added activation_paid column');
+      }
+
+      // Add referrer_id column to users table (for tracking who referred this user)
+      const [referrerColumns] = await connection.query(`
+        SHOW COLUMNS FROM users LIKE 'referrer_id'
+      `);
+      
+      if (referrerColumns.length === 0) {
+        await connection.query(`
+          ALTER TABLE users 
+          ADD COLUMN referrer_id INT AFTER referral_id,
+          ADD INDEX idx_referrer_id (referrer_id)
+        `);
+        console.log('Added referrer_id column');
+      }
+
+      // Add activated_at column to users table
+      const [activatedAtColumns] = await connection.query(`
+        SHOW COLUMNS FROM users LIKE 'activated_at'
+      `);
+      
+      if (activatedAtColumns.length === 0) {
+        await connection.query(`
+          ALTER TABLE users 
+          ADD COLUMN activated_at TIMESTAMP NULL AFTER last_login_date
+        `);
+        console.log('Added activated_at column');
+      }
+
+      // Add status column for pending users (modify role enum)
+      const [statusColumns] = await connection.query(`
+        SHOW COLUMNS FROM users LIKE 'status'
+      `);
+      
+      if (statusColumns.length === 0) {
+        await connection.query(`
+          ALTER TABLE users 
+          ADD COLUMN status ENUM('pending', 'active', 'suspended') DEFAULT 'pending' AFTER role
+        `);
+        console.log('Added status column');
+      }
+
+    } catch (err) {
+      console.error('Error adding unilevel system columns:', err);
+    }
+
+    // Create system_settings table for admin configuration
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS system_settings (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        setting_key VARCHAR(100) UNIQUE NOT NULL,
+        setting_value TEXT,
+        setting_type ENUM('string', 'number', 'boolean', 'json') DEFAULT 'string',
+        description TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        INDEX idx_setting_key (setting_key)
+      ) ENGINE=InnoDB
+    `);
+
+    // Create commissions table for tracking unilevel commissions
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS commissions (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        user_id INT NOT NULL,
+        referrer_id INT NOT NULL,
+        referred_user_id INT NOT NULL,
+        level INT NOT NULL,
+        amount_usd DECIMAL(15, 2) NOT NULL,
+        amount_rwf DECIMAL(15, 2) NOT NULL,
+        commission_type ENUM('activation', 'purchase', 'referral') DEFAULT 'activation',
+        status ENUM('pending', 'paid', 'cancelled') DEFAULT 'pending',
+        payment_reference VARCHAR(255),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+        FOREIGN KEY (referrer_id) REFERENCES users(id) ON DELETE CASCADE,
+        FOREIGN KEY (referred_user_id) REFERENCES users(id) ON DELETE CASCADE,
+        INDEX idx_user_id (user_id),
+        INDEX idx_referrer_id (referrer_id),
+        INDEX idx_level (level),
+        INDEX idx_status (status),
+        INDEX idx_commission_type (commission_type)
+      ) ENGINE=InnoDB
+    `);
+
+    // Create activation_payments table for tracking activation payments
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS activation_payments (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        user_id INT NOT NULL,
+        amount_usd DECIMAL(15, 2) NOT NULL,
+        amount_original DECIMAL(15, 2) NOT NULL,
+        currency VARCHAR(10) NOT NULL,
+        payment_method VARCHAR(50),
+        payment_type ENUM('automatic', 'manual') DEFAULT 'automatic',
+        flutterwave_tx_ref VARCHAR(255),
+        flutterwave_tx_id VARCHAR(255),
+        manual_payment_id INT NULL,
+        payment_status ENUM('pending', 'successful', 'failed', 'cancelled') DEFAULT 'pending',
+        payment_response JSON,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+        INDEX idx_user_id (user_id),
+        INDEX idx_tx_ref (flutterwave_tx_ref),
+        INDEX idx_status (payment_status)
+      ) ENGINE=InnoDB
+    `);
+
+    // Add payment_type column to activation_payments if it doesn't exist
+    try {
+      const [paymentTypeColumns] = await connection.query(`
+        SHOW COLUMNS FROM activation_payments LIKE 'payment_type'
+      `);
+      
+      if (paymentTypeColumns.length === 0) {
+        await connection.query(`
+          ALTER TABLE activation_payments 
+          ADD COLUMN payment_type ENUM('automatic', 'manual') DEFAULT 'automatic' AFTER payment_method
+        `);
+        console.log('Added payment_type column to activation_payments');
+      }
+    } catch (err) {
+      console.error('Error adding payment_type column:', err);
+    }
+
+    // Add manual_payment_id column to activation_payments if it doesn't exist
+    try {
+      const [manualPaymentIdColumns] = await connection.query(`
+        SHOW COLUMNS FROM activation_payments LIKE 'manual_payment_id'
+      `);
+      
+      if (manualPaymentIdColumns.length === 0) {
+        await connection.query(`
+          ALTER TABLE activation_payments 
+          ADD COLUMN manual_payment_id INT NULL AFTER flutterwave_tx_id
+        `);
+        console.log('Added manual_payment_id column to activation_payments');
+      }
+    } catch (err) {
+      console.error('Error adding manual_payment_id column:', err);
+    }
+
+    // Modify flutterwave_tx_ref to allow NULL values for manual payments
+    try {
+      await connection.query(`
+        ALTER TABLE activation_payments 
+        MODIFY COLUMN flutterwave_tx_ref VARCHAR(255) NULL
+      `);
+    } catch (err) {
+      console.error('Error modifying flutterwave_tx_ref column:', err);
+    }
+
+    // Create manual_activation_payments table for manual payment submissions
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS manual_activation_payments (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        user_id INT NOT NULL,
+        amount_original DECIMAL(15, 2) NOT NULL,
+        currency VARCHAR(10) NOT NULL,
+        account_name VARCHAR(255) NOT NULL,
+        phone_number VARCHAR(20),
+        account_number VARCHAR(100),
+        payment_screenshot_url VARCHAR(500),
+        status ENUM('pending', 'approved', 'rejected') DEFAULT 'pending',
+        admin_notes TEXT,
+        whatsapp_sent BOOLEAN DEFAULT FALSE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+        INDEX idx_user_id (user_id),
+        INDEX idx_status (status)
+      ) ENGINE=InnoDB
+    `);
+
+    // Add foreign key constraint for manual_payment_id in activation_payments
+    try {
+      // Check if foreign key constraint already exists
+      const [constraints] = await connection.query(`
+        SELECT CONSTRAINT_NAME 
+        FROM information_schema.KEY_COLUMN_USAGE 
+        WHERE TABLE_SCHEMA = DATABASE() 
+        AND TABLE_NAME = 'activation_payments' 
+        AND COLUMN_NAME = 'manual_payment_id'
+        AND REFERENCED_TABLE_NAME = 'manual_activation_payments'
+      `);
+      
+      if (constraints.length === 0) {
+        await connection.query(`
+          ALTER TABLE activation_payments 
+          ADD CONSTRAINT fk_manual_payment 
+          FOREIGN KEY (manual_payment_id) REFERENCES manual_activation_payments(id) ON DELETE SET NULL
+        `);
+        console.log('Added foreign key constraint for manual_payment_id');
+      }
+    } catch (err) {
+      console.error('Error adding foreign key constraint for manual_payment_id:', err);
+    }
+
+    // Create user_referrals table for detailed referral tracking
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS user_referrals (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        referrer_id INT NOT NULL,
+        referred_id INT NOT NULL,
+        referral_code VARCHAR(20) NOT NULL,
+        status ENUM('pending', 'activated', 'expired') DEFAULT 'pending',
+        commission_paid BOOLEAN DEFAULT FALSE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        activated_at TIMESTAMP NULL,
+        FOREIGN KEY (referrer_id) REFERENCES users(id) ON DELETE CASCADE,
+        FOREIGN KEY (referred_id) REFERENCES users(id) ON DELETE CASCADE,
+        UNIQUE KEY unique_referral (referrer_id, referred_id),
+        INDEX idx_referrer (referrer_id),
+        INDEX idx_referred (referred_id),
+        INDEX idx_code (referral_code),
+        INDEX idx_status (status)
+      ) ENGINE=InnoDB
+    `);
+
+    // Migrate data from old referrals table to user_referrals table (one-time migration)
+    try {
+      // Check if migration has already been done successfully
+      const [migrationCheck] = await connection.query(`
+        SELECT setting_value FROM system_settings 
+        WHERE setting_key = 'referrals_migrated_v2'
+      `);
+
+      if (!migrationCheck.length || migrationCheck[0].setting_value !== 'true') {
+        console.log('Starting referrals migration from old table to new table...');
+
+        // Check if old referrals table exists and has data
+        const [oldReferrals] = await connection.query(`
+          SELECT 
+            r.referrer_id,
+            r.referred_id,
+            r.commission_paid,
+            r.created_at,
+            CONCAT('REF_', r.id) as referral_code
+          FROM referrals r
+          WHERE NOT EXISTS (
+            SELECT 1 FROM user_referrals ur 
+            WHERE ur.referrer_id = r.referrer_id 
+            AND ur.referred_id = r.referred_id
+          )
+        `);
+
+        if (oldReferrals.length > 0) {
+          console.log(`Found ${oldReferrals.length} referrals to migrate...`);
+
+          let successCount = 0;
+          for (const referral of oldReferrals) {
+            try {
+              // Check if referred user is activated
+              const [userStatus] = await connection.query(`
+                SELECT status FROM users WHERE id = ?
+              `, [referral.referred_id]);
+
+              const status = (userStatus.length > 0 && userStatus[0].status === 'active') ? 'activated' : 'pending';
+              const commissionPaid = referral.commission_paid > 0;
+              const activatedAt = status === 'activated' ? referral.created_at : null;
+
+              // Insert into user_referrals table
+              await connection.query(`
+                INSERT INTO user_referrals 
+                (referrer_id, referred_id, referral_code, status, commission_paid, created_at, activated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                ON DUPLICATE KEY UPDATE
+                status = VALUES(status),
+                commission_paid = VALUES(commission_paid),
+                activated_at = VALUES(activated_at)
+              `, [
+                referral.referrer_id,
+                referral.referred_id,
+                referral.referral_code,
+                status,
+                commissionPaid,
+                referral.created_at,
+                activatedAt
+              ]);
+
+              // If commission was paid in old table, create commission record
+              if (commissionPaid && referral.commission_paid > 0) {
+                // Convert USD to RWF (assuming old commissions were in USD)
+                const commissionRWF = referral.commission_paid * 1300; // Approximate conversion
+
+                await connection.query(`
+                  INSERT IGNORE INTO commissions 
+                  (user_id, referrer_id, referred_user_id, level, amount_rwf, amount_usd, commission_type, status, created_at)
+                  VALUES (?, ?, ?, 1, ?, ?, 'activation', 'paid', ?)
+                `, [
+                  referral.referrer_id,
+                  referral.referrer_id,
+                  referral.referred_id,
+                  commissionRWF,
+                  referral.commission_paid,
+                  referral.created_at
+                ]);
+              }
+
+              successCount++;
+            } catch (err) {
+              console.error(`Error migrating referral ${referral.referrer_id} -> ${referral.referred_id}:`, err.message);
+            }
+          }
+
+          console.log(`Successfully migrated ${successCount} out of ${oldReferrals.length} referrals to new system`);
+        } else {
+          console.log('No referrals found to migrate from old table');
+        }
+
+        // Mark migration as completed with new version flag
+        await connection.query(`
+          INSERT INTO system_settings (setting_key, setting_value, setting_type, description)
+          VALUES ('referrals_migrated_v2', 'true', 'boolean', 'Flag to indicate referrals have been migrated from old table (v2)')
+          ON DUPLICATE KEY UPDATE setting_value = 'true'
+        `);
+
+        console.log('Referrals migration completed successfully');
+      }
+    } catch (err) {
+      console.error('Error during referrals migration:', err);
+      // Don't stop the app from starting if migration fails
+    }
+
+    // Insert default settings for unilevel system
+    const unilevelSettings = [
+      ['activation_fee_rwf', '3000', 'number', 'User activation fee in Rwandan Francs'],
+      ['level1_commission_rwf', '1500', 'number', 'Level 1 commission in Rwandan Francs'],
+      ['level2_commission_rwf', '500', 'number', 'Level 2 commission in Rwandan Francs'],
+      ['max_commission_levels', '2', 'number', 'Maximum number of commission levels'],
+      ['supported_currencies', '["RWF", "USD", "UGX", "KES", "EUR", "GBP"]', 'json', 'List of supported payment currencies'],
+      ['auto_activate_existing_users', 'true', 'boolean', 'Automatically activate existing users without payment']
+    ];
+
+    for (const [key, value, type, description] of unilevelSettings) {
+      await connection.query(`
+        INSERT IGNORE INTO system_settings (setting_key, setting_value, setting_type, description)
+        VALUES (?, ?, ?, ?)
+      `, [key, value, type, description]);
+    }
+
+    // Auto-activate existing users (users created before this system was implemented)
+    // Only run this once by checking if there's a flag in system_settings
+    const [migrationCheck] = await connection.query(`
+      SELECT setting_value FROM system_settings 
+      WHERE setting_key = 'existing_users_activated'
+    `);
+
+    if (migrationCheck.length === 0) {
+      // First time running this migration - only activate users who already have 'active' status
+      // This ensures that only users who were already considered active get auto-activated
+      await connection.query(`
+        UPDATE users 
+        SET activation_paid = TRUE, 
+            activated_at = CURRENT_TIMESTAMP
+        WHERE status = 'active' 
+        AND activation_paid = FALSE
+      `);
+
+      // Set status to 'pending' for all users who don't have 'active' status
+      await connection.query(`
+        UPDATE users 
+        SET status = 'pending'
+        WHERE status != 'active'
+      `);
+
+      // Set flag to prevent this from running again
+      await connection.query(`
+        INSERT INTO system_settings (setting_key, setting_value, setting_type, description)
+        VALUES ('existing_users_activated', 'true', 'boolean', 'Flag to indicate existing users have been auto-activated')
+      `);
+
+      console.log('Auto-activated users with active status (one-time migration)');
+    }
+
+    // Create currency_rates table for exchange rate caching
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS currency_rates (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        from_currency VARCHAR(10) NOT NULL,
+        to_currency VARCHAR(10) NOT NULL,
+        rate DECIMAL(15, 6) NOT NULL,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE KEY unique_currency_pair (from_currency, to_currency),
+        INDEX idx_currencies (from_currency, to_currency),
+        INDEX idx_updated (updated_at)
+      ) ENGINE=InnoDB
+    `);
+
+    // Insert initial exchange rates (these will be updated by the API)
+    const initialRates = [
+      ['RWF', 'USD', 0.00069],  // Updated to more accurate rate
+      ['USD', 'RWF', 1449.28],  // Inverse of 0.00069
+      ['RWF', 'UGX', 2.5],
+      ['RWF', 'KES', 0.1],
+      ['USD', 'UGX', 3700],
+      ['USD', 'KES', 130],
+      ['USD', 'EUR', 0.85],
+      ['USD', 'GBP', 0.75]
+    ];
+
+    for (const [fromCurrency, toCurrency, rate] of initialRates) {
+      await connection.query(`
+        INSERT IGNORE INTO currency_rates (from_currency, to_currency, rate)
+        VALUES (?, ?, ?)
+      `, [fromCurrency, toCurrency, rate]);
+    }
  
 
     // Create shared_links table
@@ -568,7 +1021,14 @@ try {
         FOREIGN KEY (referrer_id) REFERENCES users(id)
       )
     `);
-
+try {
+  await connection.query(`
+    ALTER TABLE order_items 
+    MODIFY commission_earned DECIMAL(10,4) NOT NULL
+  `);
+} catch (err) {
+  console.error('Error updating order_items decimal precision:', err);
+}
     // Insert default config values
     const configValues = [
       ['commission_rate', '5', 'Default commission percentage for users (deprecated - use user_commission_percentage)'],
@@ -589,7 +1049,9 @@ try {
       ['manual_payment_bank_name', '', 'Bank name for manual payments'],
       ['manual_payment_account_name', '', 'Account name for manual payments'],
       ['manual_payment_account_number', '', 'Account number for manual payments'],
-      ['manual_payment_swift_code', '', 'SWIFT/BIC code for international transfers (optional)']
+      ['manual_payment_swift_code', '', 'SWIFT/BIC code for international transfers (optional)'],
+      ['manual_payment_enabled', 'true', 'Enable manual payment option for activations'],
+      ['admin_whatsapp_number', '0783987223', 'Admin WhatsApp number for manual payment notifications']
     ];
 
     for (const [key, value, description] of configValues) {
@@ -762,7 +1224,7 @@ async function processAdminCommissions(orderId) {
           `Admin commission for Order #${orderId}`
         ]);
 
-        console.log(`Processed admin commission of $${totalAdminCommission.toFixed(2)} for Order #${orderId}`);
+        console.log(`Processed admin commission of $${totalAdminCommission.toFixed(4)} for Order #${orderId}`);
       }
     }
   } catch (err) {
@@ -827,10 +1289,10 @@ async function processProductCommissions(orderId) {
           `, [
             sharedProduct.user_id,
             userCommission,
-            `Product commission for "${item.product_name}" (Order #${orderId}) - User gets ${userCommissionPercentage}% of admin commission ($${adminCommission.toFixed(2)})`
+            `Product commission for "${item.product_name}" (Order #${orderId}) - User gets ${userCommissionPercentage}% of admin commission ($${adminCommission.toFixed(4)})`
           ]);
           
-          console.log(`Processed commission: Admin gets $${adminCommission.toFixed(2)} (${adminCommissionRate}%), User ${sharedProduct.username} gets $${userCommission.toFixed(2)} (${userCommissionPercentage}% of admin commission) on product "${item.product_name}"`);
+          console.log(`Processed commission: Admin gets $${adminCommission.toFixed(4)} (${adminCommissionRate}%), User ${sharedProduct.username} gets $${userCommission.toFixed(4)} (${userCommissionPercentage}% of admin commission) on product "${item.product_name}"`);
         }
       }
     }
@@ -886,7 +1348,7 @@ async function processAdminCommissions(orderId) {
           `Admin commission for Order #${orderId}`
         ]);
 
-        console.log(`Processed admin commission of $${totalAdminCommission.toFixed(2)} for Order #${orderId}`);
+        console.log(`Processed admin commission of $${totalAdminCommission.toFixed(4)} for Order #${orderId}`);
       }
     }
   } catch (err) {
@@ -921,6 +1383,49 @@ function isMerchant(req, res, next) {
     return next();
   }
   res.status(403).render('error', { message: 'Access denied. Merchant privileges required.' });
+}
+
+// Activation middleware - checks if user is logged in AND activated
+async function isActivated(req, res, next) {
+  if (!req.session.userId) {
+    // Store the original URL in session for redirect after login
+    if (req.method === 'GET' && !req.path.includes('/login') && !req.path.includes('/register') && !req.path.includes('/auth')) {
+      req.session.redirectTo = req.originalUrl;
+    }
+    return res.redirect('/login');
+  }
+
+  try {
+    const [users] = await pool.query(
+      'SELECT status, activation_paid FROM users WHERE id = ?',
+      [req.session.userId]
+    );
+
+    if (users.length === 0) {
+      return res.status(403).render('error', { message: 'User not found' });
+    }
+
+    const user = users[0];
+    
+    // Check if user is activated (except for activation page itself)
+    if (user.status !== 'active' || !user.activation_paid) {
+      // Allow access to activation-related pages
+      const allowedPaths = [
+        '/user/activate',
+        '/user/activate/payment',
+        '/user/activate/callback'
+      ];
+      
+      if (!allowedPaths.includes(req.path)) {
+        return res.redirect('/user/activate?error=Please activate your account to access this page');
+      }
+    }
+
+    next();
+  } catch (error) {
+    console.error('Activation middleware error:', error);
+    res.status(500).render('error', { message: 'Server error' });
+  }
 }
 
 // =============== ROUTES ===============
@@ -1428,6 +1933,11 @@ app.post('/login', async (req, res) => {
       [user.id]
     );
     
+    // Check if user needs activation (for new unilevel system)
+    if (user.status === 'pending' && !user.activation_paid) {
+      return res.redirect('/user/activate?info=Please activate your account to access all features');
+    }
+    
     // Redirect to intended destination or dashboard
     const redirectTo = req.session.redirectTo || '/dashboard';
     delete req.session.redirectTo; // Clean up the redirect URL
@@ -1440,7 +1950,7 @@ app.post('/login', async (req, res) => {
 });
 // Dashboard route
 // Dashboard route
-app.get('/dashboard', isAuthenticated, async (req, res) => {
+app.get('/dashboard', isActivated, async (req, res) => {
   try {
     const userId = req.session.userId;
     const [users] = await pool.query('SELECT * FROM users WHERE id = ?', [userId]);
@@ -1532,11 +2042,42 @@ app.get('/dashboard', isAuthenticated, async (req, res) => {
       [user.id]
     );
     
+    // Get leaderboard data for all dashboard types
+    const [topPerformers] = await pool.query(`
+      SELECT u.id, u.username, u.wallet, u.earnings,
+             COALESCE(referrals.referral_count, 0) as referral_count,
+             COALESCE(links.total_shared_links, 0) as total_shared_links,
+             COALESCE(orders.total_orders, 0) as total_orders,
+             (COALESCE(u.wallet, 0) + COALESCE(u.earnings, 0) + COALESCE(referrals.referral_count, 0) * 5 + COALESCE(links.total_shared_links, 0) * 2) as performance_score
+      FROM users u
+      LEFT JOIN (
+        SELECT referrer_id, COUNT(*) as referral_count
+        FROM users 
+        WHERE referrer_id IS NOT NULL
+        GROUP BY referrer_id
+      ) referrals ON u.id = referrals.referrer_id
+      LEFT JOIN (
+        SELECT user_id, COUNT(*) as total_shared_links
+        FROM shared_links
+        GROUP BY user_id
+      ) links ON u.id = links.user_id
+      LEFT JOIN (
+        SELECT user_id, COUNT(*) as total_orders
+        FROM orders
+        WHERE status = 'completed'
+        GROUP BY user_id
+      ) orders ON u.id = orders.user_id
+      WHERE u.role != 'admin'
+      ORDER BY performance_score DESC
+      LIMIT 5
+    `);
+    
     // Render dashboard with all required data
     res.render('dashboard', {
       user: user,
       stats: stats,
       cartCount: cartCount[0].count || 0,
+      topPerformers: topPerformers,
       page: 'dashboard'
     });
   } catch (err) {
@@ -1948,59 +2489,38 @@ app.post('/register', async (req, res) => {
       });
     }
     
-    // Create user with referral ID
+    // Create user with referral ID and pending status for new unilevel system
     const hashedPassword = await bcrypt.hash(password, 10);
     const referralId = uuidv4().substring(0, 8);
     
+    // Find referrer if referral code provided
+    let referrerId = null;
+    if (referral_code) {
+      const [referrers] = await pool.query(
+        'SELECT id FROM users WHERE referral_id = ?',
+        [referral_code]
+      );
+      if (referrers.length > 0) {
+        referrerId = referrers[0].id;
+      }
+    }
+    
     const [result] = await pool.query(
-      'INSERT INTO users (username, email, password, role, business_name, business_description, referral_id, country, phone_number) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-      [username, email, hashedPassword, role, business_name || null, business_description || null, referralId, countryCode, phone_number]
+      `INSERT INTO users (
+        username, email, password, role, business_name, business_description, 
+        referral_id, country, phone_number, referrer_id, status, activation_paid
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', FALSE)`,
+      [username, email, hashedPassword, role, business_name || null, business_description || null, 
+       referralId, countryCode, phone_number, referrerId]
     );
     
-    // Process referral if provided
-    if (referral_code) {
-      try {
-        const [referrers] = await pool.query(
-          'SELECT * FROM users WHERE referral_id = ?',
-          [referral_code]
-        );
-        
-        if (referrers.length > 0) {
-          const referrerId = referrers[0].id;
-          
-          // Add referral commission to referrer's wallet and earnings
-          await pool.query(`
-            UPDATE users 
-            SET wallet = wallet + 0.100, 
-                earnings = COALESCE(earnings, 0) + 0.100 
-            WHERE id = ?
-          `, [referrerId]);
-          
-          // Create a transaction record for the referral bonus
-          await pool.query(`
-            INSERT INTO transactions (
-              user_id, type, amount, status, details
-            ) VALUES (?, ?, ?, ?, ?)
-          `, [
-            referrerId,
-            'commission',
-            0.100,
-            'completed',
-            `Referral commission for new user: ${username}`
-          ]);
-          
-          // Add to referrals table
-          await pool.query(
-            'INSERT INTO referrals (referrer_id, referred_id, commission_paid) VALUES (?, ?, ?)',
-            [referrerId, result.insertId, 0.100]
-          );
-          
-          console.log(`Referral commission of $0.100 added to user ID ${referrerId} for referring ${username}`);
-        }
-      } catch (referralErr) {
-        console.error('Error processing referral:', referralErr);
-        // Continue with registration even if referral processing fails
-      }
+    // Create referral record if there's a referrer
+    if (referrerId) {
+      await pool.query(
+        `INSERT INTO user_referrals (referrer_id, referred_id, referral_code, status) 
+         VALUES (?, ?, ?, 'pending')`,
+        [referrerId, result.insertId, referral_code]
+      );
     }
     
     // Set session
@@ -2008,11 +2528,8 @@ app.post('/register', async (req, res) => {
     req.session.username = username;
     req.session.role = role;
     
-    // Redirect to intended destination or dashboard
-    const redirectTo = req.session.redirectTo || '/dashboard';
-    delete req.session.redirectTo; // Clean up the redirect URL
-    
-    res.redirect(redirectTo);
+    // Redirect new users to activation page
+    res.redirect('/user/activate?success=Registration successful! Please activate your account to access all features.');
   } catch (err) {
     console.error('Registration error:', err);
     res.render('auth', { 
@@ -2228,7 +2745,7 @@ app.get('/api/countries', (req, res) => {
 
 
 // Route to show user's referral stats and link
-app.get('/referrals', isAuthenticated, async (req, res) => {
+app.get('/referrals', isActivated, async (req, res) => {
   try {
     const userId = req.session.userId;
     
@@ -2240,35 +2757,77 @@ app.get('/referrals', isAuthenticated, async (req, res) => {
     
     const user = users[0];
     
-    // Get referral stats
-    const [referralCount] = await pool.query(`
-      SELECT COUNT(*) as total_referrals
-      FROM referrals
-      WHERE referrer_id = ?
+    // Get Level 1 referrals (direct referrals)
+    const [level1Referrals] = await pool.query(`
+      SELECT 
+        u.id,
+        u.username, 
+        u.email, 
+        u.status,
+        u.activation_paid,
+        u.activated_at,
+        u.created_at,
+        c.amount_rwf as commission_earned,
+        c.amount_usd as commission_earned_usd,
+        c.created_at as commission_date
+      FROM users u
+      LEFT JOIN commissions c ON c.referred_user_id = u.id AND c.user_id = ? AND c.level = 1
+      WHERE u.referrer_id = ?
+      ORDER BY u.created_at DESC
+    `, [userId, userId]);
+    
+    // Get Level 2 referrals (referrals of your referrals)
+    const [level2Referrals] = await pool.query(`
+      SELECT 
+        u.id,
+        u.username, 
+        u.email, 
+        u.status,
+        u.activation_paid,
+        u.activated_at,
+        u.created_at,
+        u.referrer_id,
+        ref_user.username as referrer_username,
+        c.amount_rwf as commission_earned,
+        c.amount_usd as commission_earned_usd,
+        c.created_at as commission_date
+      FROM users u
+      JOIN users ref_user ON u.referrer_id = ref_user.id
+      LEFT JOIN commissions c ON c.referred_user_id = u.id AND c.user_id = ? AND c.level = 2
+      WHERE ref_user.referrer_id = ?
+      ORDER BY u.created_at DESC
+    `, [userId, userId]);
+    
+    // Get total referral stats
+    const [referralStats] = await pool.query(`
+      SELECT 
+        COUNT(CASE WHEN c.level = 1 THEN 1 END) as level1_count,
+        COUNT(CASE WHEN c.level = 2 THEN 1 END) as level2_count,
+        COALESCE(SUM(CASE WHEN c.level = 1 THEN c.amount_rwf END), 0) as level1_earnings_rwf,
+        COALESCE(SUM(CASE WHEN c.level = 2 THEN c.amount_rwf END), 0) as level2_earnings_rwf,
+        COALESCE(SUM(c.amount_usd), 0) as total_earnings_usd
+      FROM commissions c
+      WHERE c.user_id = ? AND c.commission_type = 'activation'
     `, [userId]);
     
-    const [referralEarnings] = await pool.query(`
-      SELECT COALESCE(SUM(commission_paid), 0) as total_earnings
-      FROM referrals
-      WHERE referrer_id = ?
-    `, [userId]);
+    const stats = referralStats[0];
     
-    // Get list of referred users
-    const [referredUsers] = await pool.query(`
-      SELECT r.*, u.username, u.email, r.created_at
-      FROM referrals r
-      JOIN users u ON r.referred_id = u.id
-      WHERE r.referrer_id = ?
-      ORDER BY r.created_at DESC
-    `, [userId]);
+    // Combine Level 1 and Level 2 for total counts (including non-activated)
+    const totalLevel1 = level1Referrals.length;
+    const totalLevel2 = level2Referrals.length;
     
     res.render('user/referrals', {
       user: user,
       referralStats: {
-        totalReferrals: referralCount[0].total_referrals,
-        totalEarnings: referralEarnings[0].total_earnings,
+        totalReferrals: totalLevel1 + totalLevel2,
+        level1Count: totalLevel1,
+        level2Count: totalLevel2,
+        level1Earnings: stats.level1_earnings_rwf || 0,
+        level2Earnings: stats.level2_earnings_rwf || 0,
+        totalEarnings: stats.total_earnings_usd || 0,
         referralLink: `${req.protocol}://${req.get('host')}/register?ref=${user.referral_id}`,
-        referredUsers: referredUsers
+        level1Referrals: level1Referrals,
+        level2Referrals: level2Referrals
       }
     });
   } catch (err) {
@@ -2930,7 +3489,7 @@ app.get('/cart', async (req, res) => {
 });
 
 // API to add product to cart
-app.post('/api/cart/add', isAuthenticated, async (req, res) => {
+app.post('/api/cart/add', isActivated, async (req, res) => {
   try {
     const userId = req.session.userId;
     const { productId, quantity } = req.body;
@@ -4039,7 +4598,7 @@ app.get('/logout', (req, res) => {
 });
 
 // Route to view user's shared products
-app.get('/user/shared-products', isAuthenticated, async (req, res) => {
+app.get('/user/shared-products', isActivated, async (req, res) => {
   try {
     const userId = req.session.userId;
     
@@ -5053,13 +5612,100 @@ app.post('/admin/merchants/create', isAuthenticated, isAdmin, async (req, res) =
   }
 });
 // Admin users management route
+// Admin users management route - MOVED TO adminRoutes.js
+/*
 app.get('/admin/users', isAuthenticated, isAdmin, async (req, res) => {
   try {
-    // Get ALL users (including merchants)
+    // Get filter parameters
+    const roleFilter = req.query.role;
+    const searchQuery = req.query.search || '';
+    const minWallet = req.query.minWallet ? parseFloat(req.query.minWallet) : null;
+    const maxWallet = req.query.maxWallet ? parseFloat(req.query.maxWallet) : null;
+    const minReferrals = req.query.minReferrals ? parseInt(req.query.minReferrals) : null;
+    const maxReferrals = req.query.maxReferrals ? parseInt(req.query.maxReferrals) : null;
+    const page = parseInt(req.query.page) || 1;
+    const limit = 20;
+    const offset = (page - 1) * limit;
+    
+    // Build WHERE clause for filters
+    let whereConditions = [];
+    let queryParams = [];
+    
+    if (roleFilter) {
+      whereConditions.push('u.role = ?');
+      queryParams.push(roleFilter);
+    }
+    
+    if (searchQuery) {
+      whereConditions.push('(u.username LIKE ? OR u.email LIKE ?)');
+      queryParams.push(`%${searchQuery}%`, `%${searchQuery}%`);
+    }
+    
+    if (minWallet !== null) {
+      whereConditions.push('(u.wallet >= ? OR u.wallet IS NULL)');
+      queryParams.push(minWallet);
+    }
+    
+    if (maxWallet !== null) {
+      whereConditions.push('(u.wallet <= ? OR u.wallet IS NULL)');
+      queryParams.push(maxWallet);
+    }
+    
+    if (minReferrals !== null) {
+      whereConditions.push('COALESCE(referral_count, 0) >= ?');
+      queryParams.push(minReferrals);
+    }
+    
+    if (maxReferrals !== null) {
+      whereConditions.push('COALESCE(referral_count, 0) <= ?');
+      queryParams.push(maxReferrals);
+    }
+    
+    const whereClause = whereConditions.length > 0 ? 'WHERE ' + whereConditions.join(' AND ') : '';
+    
+    // Get users with referral counts, shared links, and orders
     const [users] = await pool.query(`
-      SELECT * FROM users 
-      ORDER BY created_at DESC
-    `);
+      SELECT u.*, 
+             COALESCE(referrals.referral_count, 0) as referral_count,
+             COALESCE(links.total_shared_links, 0) as total_shared_links,
+             COALESCE(orders.total_orders, 0) as total_orders
+      FROM users u
+      LEFT JOIN (
+        SELECT referred_by, COUNT(*) as referral_count
+        FROM users 
+        WHERE referred_by IS NOT NULL
+        GROUP BY referred_by
+      ) referrals ON u.id = referrals.referred_by
+      LEFT JOIN (
+        SELECT user_id, COUNT(*) as total_shared_links
+        FROM links
+        GROUP BY user_id
+      ) links ON u.id = links.user_id
+      LEFT JOIN (
+        SELECT user_id, COUNT(*) as total_orders
+        FROM orders
+        GROUP BY user_id
+      ) orders ON u.id = orders.user_id
+      ${whereClause}
+      ORDER BY u.created_at DESC
+      LIMIT ? OFFSET ?
+    `, [...queryParams, limit, offset]);
+    
+    // Get total count for pagination
+    const [countResult] = await pool.query(`
+      SELECT COUNT(DISTINCT u.id) as total_count
+      FROM users u
+      LEFT JOIN (
+        SELECT referred_by, COUNT(*) as referral_count
+        FROM users 
+        WHERE referred_by IS NOT NULL
+        GROUP BY referred_by
+      ) referrals ON u.id = referrals.referred_by
+      ${whereClause}
+    `, queryParams);
+    
+    const totalUsers = countResult[0].total_count;
+    const totalPages = Math.ceil(totalUsers / limit);
     
     // Get recent user registrations
     const [recentRegistrations] = await pool.query(`
@@ -5089,6 +5735,17 @@ app.get('/admin/users', isAuthenticated, isAdmin, async (req, res) => {
       users: users,
       recentRegistrations: recentRegistrations,
       stats: userStats[0],
+      currentPage: page,
+      totalPages: totalPages,
+      totalUsers: totalUsers,
+      selectedRole: roleFilter || '',
+      searchQuery: searchQuery,
+      filters: {
+        minWallet: minWallet,
+        maxWallet: maxWallet,
+        minReferrals: minReferrals,
+        maxReferrals: maxReferrals
+      },
       success: req.query.success,
       error: req.query.error
     });
@@ -5097,6 +5754,7 @@ app.get('/admin/users', isAuthenticated, isAdmin, async (req, res) => {
     res.status(500).render('error', { message: 'Server error. Please try again later.' });
   }
 });
+*/
 
 // Route to toggle user premium status
 app.post('/admin/users/:id/toggle-premium', isAuthenticated, isAdmin, async (req, res) => {
@@ -5502,14 +6160,36 @@ app.post('/admin/users/:id/set-password', isAuthenticated, isAdmin, async (req, 
 // Admin transactions route
 app.get('/admin/transactions', isAuthenticated, isAdmin, async (req, res) => {
   try {
+    // Get filter parameters
+    const typeFilter = req.query.type;
+    const statusFilter = req.query.status;
+    
+    // Build WHERE clause for filters
+    let whereClause = '';
+    let queryParams = [];
+    
+    if (typeFilter && typeFilter !== 'all') {
+      whereClause += 'WHERE t.type = ?';
+      queryParams.push(typeFilter);
+    }
+    
+    if (statusFilter && statusFilter !== 'all') {
+      if (whereClause) {
+        whereClause += ' AND t.status = ?';
+      } else {
+        whereClause += 'WHERE t.status = ?';
+      }
+      queryParams.push(statusFilter);
+    }
+    
     // Get transactions with user information
     const [transactions] = await pool.query(`
       SELECT t.*, u.username 
       FROM transactions t
       JOIN users u ON t.user_id = u.id
+      ${whereClause}
       ORDER BY t.created_at DESC
-      LIMIT 200
-    `);
+    `, queryParams);
     
     // Get transaction statistics
     const [stats] = await pool.query(`
@@ -5532,6 +6212,10 @@ app.get('/admin/transactions', isAuthenticated, isAdmin, async (req, res) => {
       },
       transactions: transactions,
       stats: stats[0],
+      currentFilter: {
+        type: typeFilter || 'all',
+        status: statusFilter || 'all'
+      },
       success: req.query.success,
       error: req.query.error
     });
@@ -6268,10 +6952,26 @@ app.get('/admin/orders/export', isAuthenticated, isAdmin, async (req, res) => {
 });
 app.listen(PORT, async () => {
   try {
+    console.log('Starting BenixSpace server...');
+    
+    // Initialize database tables
     await initializeDatabase();
-    console.log(`Server running on port ${PORT}`);
+    
+    // Initialize currency service
+    await currencyService.initialize();
+    
+    console.log(`✓ Server running on port ${PORT}`);
+    console.log(`✓ Database initialized successfully`);
+    console.log(`✓ Currency service initialized`);
+    console.log(`✓ Commission system ready`);
+    
+    if (flutterwaveService.isConfigured()) {
+      console.log(`✓ Flutterwave payment service configured`);
+    } else {
+      console.log(`⚠ Flutterwave not configured - update .env file with your keys`);
+    }
   } catch (err) {
     console.error('Server startup error:', err);
+    process.exit(1);
   }
-}
-);
+});

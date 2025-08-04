@@ -79,7 +79,7 @@
       <div class="col-md-4">
         <div class="card stats-card">
           <div class="card-body text-center">
-            <h3 class="mb-2">$<%= parseFloat(stats.total_earnings || 0).toFixed(2) %></h3>
+            <h3 class="mb-2">$<%= parseFloat(stats.total_earnings || 0).toFixed(4) %></h3>
             <p class="mb-0">Total Earnings</p>
           </div>
         </div>
@@ -117,13 +117,13 @@
                 
                 <div class="mb-3">
                   <div class="d-flex justify-content-between align-items-center mb-2">
-                    <span class="h5 text-primary mb-0">$<%= parseFloat(product.price).toFixed(2) %></span>
+                    <span class="h5 text-primary mb-0">$<%= parseFloat(product.price).toFixed(4) %></span>
                     <span class="badge bg-success">
                       <%
                         const adminCommission = parseFloat(product.price) * parseFloat(adminCommissionRate) / 100;
                         const userCommission = adminCommission * parseFloat(userCommissionPercentage) / 100;
                       %>
-                      $<%= userCommission.toFixed(2) %> per sale
+                      $<%= userCommission.toFixed(4) %> per sale
                     </span>
                   </div>
                   <small class="text-muted">by <%= product.business_name || product.merchant_name %> | You earn <%= userCommissionPercentage %>% of admin commission</small>
@@ -138,7 +138,7 @@
                   </div>
                   <div class="col-6">
                     <div class="card earnings-badge text-center py-2">
-                      <small><strong>$<%= parseFloat(product.earnings || 0).toFixed(2) %></strong><br>Earned</small>
+                      <small><strong>$<%= parseFloat(product.earnings || 0).toFixed(4) %></strong><br>Earned</small>
                     </div>
                   </div>
                 </div>

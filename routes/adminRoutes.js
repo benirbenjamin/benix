@@ -4,6 +4,22 @@ const mysql = require('mysql2/promise');
 const fs = require('fs');
 const path = require('path');
 const nodemailer = require('nodemailer');
+const multer = require('multer');
+
+// Configure multer for file uploads
+const upload = multer({
+  dest: path.join(__dirname, '../public/uploads/'),
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5MB limit
+  },
+  fileFilter: function (req, file, cb) {
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
+    if (!allowedTypes.includes(file.mimetype)) {
+      return cb(new Error('Only JPG, PNG, and GIF files are allowed'));
+    }
+    cb(null, true);
+  }
+});
 
 // Configure email transporter with enhanced error handling
 const createEmailTransporter = () => {
@@ -137,6 +153,37 @@ router.get('/admin/dashboard', isAdmin, async (req, res) => {
       ORDER BY l.created_at DESC LIMIT 5
     `);
 
+    // Get top performers leaderboard
+    const [topPerformers] = await pool.query(`
+      SELECT u.id, u.username, u.wallet, u.earnings,
+             COALESCE(referrals.referral_count, 0) as referral_count,
+             COALESCE(links.total_shared_links, 0) as total_shared_links,
+             COALESCE(orders.total_orders, 0) as total_orders,
+             COALESCE(orders.total_spent, 0) as total_spent,
+             (COALESCE(u.wallet, 0) + COALESCE(u.earnings, 0) + COALESCE(referrals.referral_count, 0) * 5 + COALESCE(links.total_shared_links, 0) * 2) as performance_score
+      FROM users u
+      LEFT JOIN (
+        SELECT referrer_id, COUNT(*) as referral_count
+        FROM users 
+        WHERE referrer_id IS NOT NULL
+        GROUP BY referrer_id
+      ) referrals ON u.id = referrals.referrer_id
+      LEFT JOIN (
+        SELECT user_id, COUNT(*) as total_shared_links
+        FROM shared_links
+        GROUP BY user_id
+      ) links ON u.id = links.user_id
+      LEFT JOIN (
+        SELECT user_id, COUNT(*) as total_orders, SUM(total_amount) as total_spent
+        FROM orders
+        WHERE status = 'completed'
+        GROUP BY user_id
+      ) orders ON u.id = orders.user_id
+      WHERE u.role != 'admin'
+      ORDER BY performance_score DESC
+      LIMIT 5
+    `);
+
     res.render('admin/dashboard', {
       user: req.user,
       counts: {
@@ -146,7 +193,8 @@ router.get('/admin/dashboard', isAdmin, async (req, res) => {
         orders: orderResults[0].count
       },
       recentProducts,
-      recentLinks
+      recentLinks,
+      topPerformers
     });
   } catch (err) {
     console.error('Admin dashboard error:', err);
@@ -791,82 +839,138 @@ router.get('/admin/run-migration/:name', isAdmin, async (req, res) => {
 // Users management route
 router.get('/admin/users', isAdmin, async (req, res) => {
   try {
+    // Get filter parameters
+    const roleFilter = req.query.role;
+    const searchQuery = req.query.search || '';
+    const minWallet = req.query.minWallet ? parseFloat(req.query.minWallet) : null;
+    const maxWallet = req.query.maxWallet ? parseFloat(req.query.maxWallet) : null;
+    const minReferrals = req.query.minReferrals ? parseInt(req.query.minReferrals) : null;
+    const maxReferrals = req.query.maxReferrals ? parseInt(req.query.maxReferrals) : null;
     const page = parseInt(req.query.page) || 1;
     const limit = 20;
     const offset = (page - 1) * limit;
-    const selectedRole = req.query.role || '';
-    const searchQuery = req.query.search || '';
-
-    // Build the query with filters - check which tables exist
-    let hasSharedLinksTable = false;
-    let hasOrdersTable = false;
     
-    try {
-      await pool.query('SELECT 1 FROM shared_links LIMIT 1');
-      hasSharedLinksTable = true;
-    } catch (err) {
-      console.log('Shared_links table not found in users list');
-    }
+    // Build WHERE clause for filters
+    let whereConditions = [];
+    let queryParams = [];
     
-    try {
-      await pool.query('SELECT 1 FROM orders LIMIT 1');
-      hasOrdersTable = true;
-    } catch (err) {
-      console.log('Orders table not found in users list');
-    }
-    
-    let query = `
-      SELECT u.*
-             ${hasSharedLinksTable ? ', (SELECT COUNT(*) FROM shared_links WHERE user_id = u.id) as total_shared_links' : ', 0 as total_shared_links'}
-             ${hasOrdersTable ? ', (SELECT COUNT(*) FROM orders WHERE user_id = u.id) as total_orders' : ', 0 as total_orders'}
-      FROM users u
-      WHERE 1=1
-    `;
-    
-    const queryParams = [];
-    
-    if (selectedRole) {
-      query += ` AND u.role = ?`;
-      queryParams.push(selectedRole);
+    if (roleFilter) {
+      whereConditions.push('u.role = ?');
+      queryParams.push(roleFilter);
     }
     
     if (searchQuery) {
-      query += ` AND (u.username LIKE ? OR u.email LIKE ?)`;
+      whereConditions.push('(u.username LIKE ? OR u.email LIKE ?)');
       queryParams.push(`%${searchQuery}%`, `%${searchQuery}%`);
     }
     
-    // Count query for pagination
-    const [countResults] = await pool.query(
-      `SELECT COUNT(*) as total FROM users u WHERE 1=1 ${
-        selectedRole ? ' AND u.role = ?' : ''
-      }${searchQuery ? ' AND (u.username LIKE ? OR u.email LIKE ?)' : ''}`,
-      queryParams
-    );
+    if (minWallet !== null) {
+      whereConditions.push('(u.wallet >= ? OR u.wallet IS NULL)');
+      queryParams.push(minWallet);
+    }
     
-    const totalUsers = countResults[0].total;
+    if (maxWallet !== null) {
+      whereConditions.push('(u.wallet <= ? OR u.wallet IS NULL)');
+      queryParams.push(maxWallet);
+    }
+    
+    if (minReferrals !== null) {
+      whereConditions.push('COALESCE(referral_count, 0) >= ?');
+      queryParams.push(minReferrals);
+    }
+    
+    if (maxReferrals !== null) {
+      whereConditions.push('COALESCE(referral_count, 0) <= ?');
+      queryParams.push(maxReferrals);
+    }
+    
+    const whereClause = whereConditions.length > 0 ? 'WHERE ' + whereConditions.join(' AND ') : '';
+    
+    // Get users with referral counts, shared links, and orders
+    const [users] = await pool.query(`
+      SELECT u.*, 
+             COALESCE(referrals.referral_count, 0) as referral_count,
+             COALESCE(links.total_shared_links, 0) as total_shared_links,
+             COALESCE(orders.total_orders, 0) as total_orders
+      FROM users u
+      LEFT JOIN (
+        SELECT referrer_id, COUNT(*) as referral_count
+        FROM users 
+        WHERE referrer_id IS NOT NULL
+        GROUP BY referrer_id
+      ) referrals ON u.id = referrals.referrer_id
+      LEFT JOIN (
+        SELECT user_id, COUNT(*) as total_shared_links
+        FROM shared_links
+        GROUP BY user_id
+      ) links ON u.id = links.user_id
+      LEFT JOIN (
+        SELECT user_id, COUNT(*) as total_orders
+        FROM orders
+        GROUP BY user_id
+      ) orders ON u.id = orders.user_id
+      ${whereClause}
+      ORDER BY u.created_at DESC
+      LIMIT ? OFFSET ?
+    `, [...queryParams, limit, offset]);
+    
+    // Get total count for pagination
+    const [countResult] = await pool.query(`
+      SELECT COUNT(DISTINCT u.id) as total_count
+      FROM users u
+      LEFT JOIN (
+        SELECT referrer_id, COUNT(*) as referral_count
+        FROM users 
+        WHERE referrer_id IS NOT NULL
+        GROUP BY referrer_id
+      ) referrals ON u.id = referrals.referrer_id
+      ${whereClause}
+    `, queryParams);
+    
+    const totalUsers = countResult[0].total_count;
     const totalPages = Math.ceil(totalUsers / limit);
     
-    // Add pagination to the query
-    query += ` ORDER BY u.created_at DESC LIMIT ? OFFSET ?`;
-    queryParams.push(limit, offset);
+    // Get recent user registrations
+    const [recentRegistrations] = await pool.query(`
+      SELECT * FROM users
+      WHERE role = 'user'
+      ORDER BY created_at DESC
+      LIMIT 10
+    `);
     
-    // Execute the query
-    const [users] = await pool.query(query, queryParams);
+    // Get user statistics
+    const [userStats] = await pool.query(`
+      SELECT 
+        COUNT(*) as total_users,
+        SUM(CASE WHEN role = 'user' THEN 1 ELSE 0 END) as regular_users,
+        SUM(CASE WHEN role = 'merchant' THEN 1 ELSE 0 END) as merchant_users,
+        SUM(CASE WHEN role = 'admin' THEN 1 ELSE 0 END) as admin_users,
+        SUM(CASE WHEN has_lifetime_commission = 1 THEN 1 ELSE 0 END) as premium_users
+      FROM users
+    `);
     
     res.render('admin/users', {
       user: req.user,
-      users,
+      users: users,
+      recentRegistrations: recentRegistrations,
+      stats: userStats[0],
       currentPage: page,
-      totalPages,
-      selectedRole,
-      searchQuery
+      totalPages: totalPages,
+      totalUsers: totalUsers,
+      selectedRole: roleFilter || '',
+      searchQuery: searchQuery,
+      filters: {
+        minWallet: minWallet,
+        maxWallet: maxWallet,
+        minReferrals: minReferrals,
+        maxReferrals: maxReferrals
+      },
+      success: req.query.success,
+      error: req.query.error
     });
   } catch (err) {
-    console.error('Admin users error:', err);
-    res.status(500).render('error', {
-      message: 'Error loading users',
-      error: { status: 500, stack: process.env.NODE_ENV === 'development' ? err.stack : '' }
-    });
+    console.error('Admin users page error:', err);
+    res.status(500).render('error', { message: 'Server error. Please try again later.' });
   }
 });
 
@@ -1219,9 +1323,9 @@ router.post('/admin/users/:id/edit', isAdmin, async (req, res) => {
   try {
     const userId = req.params.id;
     const { 
-      username, email, role, phone_number, wallet, earnings, 
+      username, email, role, status, phone_number, wallet, earnings, 
       has_lifetime_commission, business_name, business_description,
-      account_name, account_number, bank_name, notes 
+      account_name, account_number, notes 
     } = req.body;
     
     // Validate required fields
@@ -1251,33 +1355,49 @@ router.post('/admin/users/:id/edit', isAdmin, async (req, res) => {
     
     // Update user information - handle missing columns gracefully
     try {
-      // Try with all fields including updated_at timestamp
+      // Try with core fields without updated_at (which may not exist)
       await pool.query(`
         UPDATE users 
-        SET username = ?, email = ?, role = ?, phone_number = ?, wallet = ?, 
+        SET username = ?, email = ?, role = ?, status = ?, phone_number = ?, wallet = ?, 
             earnings = ?, has_lifetime_commission = ?, business_name = ?, 
-            business_description = ?, account_name = ?, account_number = ?, 
-            bank_name = ?, notes = ?, updated_at = NOW()
+            business_description = ?, account_name = ?, account_number = ?, notes = ?
         WHERE id = ?
       `, [
-        username, email, role, phone_number || null, safeWallet, 
+        username, email, role, status || 'active', phone_number || null, safeWallet, 
         safeEarnings, safePremiumStatus, business_name || null, 
         business_description || null, account_name || null, 
-        account_number || null, bank_name || null, notes || null, userId
+        account_number || null, notes || null, userId
       ]);
+      
+      console.log('User updated successfully with all available fields');
     } catch (innerErr) {
-      // If some columns don't exist, try with basic fields only
+      // If some columns don't exist, try with core fields that should exist
       if (innerErr.sqlMessage && (innerErr.sqlMessage.includes("Unknown column") || innerErr.sqlMessage.includes("doesn't exist"))) {
-        console.log('Some columns missing, trying with basic fields:', innerErr.sqlMessage);
+        console.log('Some columns missing, trying with core fields:', innerErr.sqlMessage);
         
-        // Try with minimal columns that should exist
-        await pool.query(`
-          UPDATE users 
-          SET username = ?, email = ?, role = ?, business_name = ?, business_description = ?
-          WHERE id = ?
-        `, [username, email, role, business_name || null, business_description || null, userId]);
-        
-        console.log('User updated with basic fields only. Some advanced fields may not be saved due to missing columns.');
+        try {
+          // Try with core fields including wallet and earnings
+          await pool.query(`
+            UPDATE users 
+            SET username = ?, email = ?, role = ?, status = ?, wallet = ?, earnings = ?, 
+                has_lifetime_commission = ?, business_name = ?, business_description = ?
+            WHERE id = ?
+          `, [username, email, role, status || 'active', safeWallet, safeEarnings, 
+              safePremiumStatus, business_name || null, business_description || null, userId]);
+          
+          console.log('User updated with core fields including wallet and earnings');
+        } catch (coreErr) {
+          console.log('Core fields failed, trying with minimal fields:', coreErr.sqlMessage);
+          
+          // Final fallback with absolute minimum fields
+          await pool.query(`
+            UPDATE users 
+            SET username = ?, email = ?, role = ?, status = ?
+            WHERE id = ?
+          `, [username, email, role, status || 'active', userId]);
+          
+          console.log('User updated with minimal fields only. Financial data may not be saved due to missing columns.');
+        }
       } else {
         throw innerErr;
       }
@@ -1965,6 +2085,435 @@ router.post('/admin/register', isAdmin, async (req, res) => {
   } catch (err) {
     console.error('Admin register user error:', err);
     res.redirect('/admin/register?error=Failed to create user: ' + err.message);
+  }
+});
+
+// Unilevel System Settings Routes
+router.get('/admin/settings', isAdmin, async (req, res) => {
+  try {
+    const pool = req.app.locals.pool;
+    
+    // Get general system settings from config table
+    const [configs] = await pool.query(`
+      SELECT key_name, value, description 
+      FROM config 
+      WHERE key_name IN (
+        'manual_payment_instructions', 
+        'manual_payment_bank_name', 
+        'manual_payment_account_name', 
+        'manual_payment_account_number', 
+        'manual_payment_swift_code',
+        'manual_payment_enabled',
+        'admin_whatsapp_number'
+      ) OR key_name NOT LIKE 'manual_payment%' AND key_name != 'admin_whatsapp_number'
+      ORDER BY key_name
+    `);
+    
+    // Get all unilevel system settings
+    const [settings] = await pool.query(`
+      SELECT setting_key, setting_value, setting_type, description 
+      FROM system_settings 
+      WHERE setting_key IN (
+        'activation_fee_rwf', 
+        'level1_commission_rwf', 
+        'level2_commission_rwf', 
+        'max_commission_levels', 
+        'supported_currencies',
+        'auto_activate_existing_users'
+      )
+      ORDER BY setting_key
+    `);
+
+    // Convert settings to key-value pairs
+    const settingsMap = {};
+    settings.forEach(setting => {
+      let value = setting.setting_value;
+      if (setting.setting_type === 'json') {
+        try {
+          value = JSON.parse(value);
+        } catch (e) {
+          value = setting.setting_value;
+        }
+      } else if (setting.setting_type === 'boolean') {
+        value = value === 'true';
+      } else if (setting.setting_type === 'number') {
+        value = parseFloat(value);
+      }
+      settingsMap[setting.setting_key] = {
+        value: value,
+        type: setting.setting_type,
+        description: setting.description
+      };
+    });
+
+    // Get commission statistics
+    const [commissionStats] = await pool.query(`
+      SELECT 
+        COUNT(*) as total_commissions,
+        SUM(CASE WHEN status = 'paid' THEN amount_usd ELSE 0 END) as total_paid,
+        SUM(CASE WHEN status = 'pending' THEN amount_usd ELSE 0 END) as total_pending
+      FROM commissions
+    `);
+
+    // Ensure numeric values for commission stats
+    const formattedCommissionStats = commissionStats[0] ? {
+      total_commissions: parseInt(commissionStats[0].total_commissions || 0),
+      total_paid: parseFloat(commissionStats[0].total_paid || 0),
+      total_pending: parseFloat(commissionStats[0].total_pending || 0)
+    } : {
+      total_commissions: 0,
+      total_paid: 0,
+      total_pending: 0
+    };
+
+    // Get user activation statistics
+    const [userStats] = await pool.query(`
+      SELECT 
+        COUNT(*) as total_users,
+        SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) as active_users,
+        SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending_users,
+        SUM(CASE WHEN activation_paid = 1 THEN 1 ELSE 0 END) as paid_activations
+      FROM users
+    `);
+
+    res.render('admin/settings', {
+      user: req.session.user,
+      configs: configs, // Add configs data
+      settings: settingsMap,
+      commissionStats: formattedCommissionStats,
+      userStats: userStats[0] || {},
+      successMessage: req.query.success,
+      errorMessage: req.query.error
+    });
+  } catch (err) {
+    console.error('Admin settings error:', err);
+    res.redirect('/admin/dashboard?error=Failed to load settings');
+  }
+});
+
+router.post('/admin/settings', isAdmin, async (req, res) => {
+  try {
+    const pool = req.app.locals.pool;
+    const {
+      activation_fee_rwf,
+      level1_commission_rwf,
+      level2_commission_rwf,
+      max_commission_levels,
+      supported_currencies,
+      auto_activate_existing_users
+    } = req.body;
+
+    // Update settings
+    const settingsToUpdate = [
+      ['activation_fee_rwf', activation_fee_rwf, 'number'],
+      ['level1_commission_rwf', level1_commission_rwf, 'number'],
+      ['level2_commission_rwf', level2_commission_rwf, 'number'],
+      ['max_commission_levels', max_commission_levels, 'number'],
+      ['supported_currencies', JSON.stringify(supported_currencies || []), 'json'],
+      ['auto_activate_existing_users', auto_activate_existing_users === 'on' ? 'true' : 'false', 'boolean']
+    ];
+
+    for (const [key, value, type] of settingsToUpdate) {
+      await pool.query(`
+        INSERT INTO system_settings (setting_key, setting_value, setting_type) 
+        VALUES (?, ?, ?)
+        ON DUPLICATE KEY UPDATE 
+        setting_value = VALUES(setting_value),
+        updated_at = CURRENT_TIMESTAMP
+      `, [key, value, type]);
+    }
+
+    res.redirect('/admin/settings?success=Settings updated successfully');
+  } catch (err) {
+    console.error('Admin settings update error:', err);
+    res.redirect('/admin/settings?error=Failed to update settings');
+  }
+});
+
+// Route to handle manual payment settings update
+router.post('/admin/settings/manual-payment', isAdmin, upload.single('manual_payment_screenshot'), async (req, res) => {
+  try {
+    const pool = req.app.locals.pool;
+    const {
+      manual_payment_enabled,
+      manual_payment_instructions,
+      manual_payment_bank_name,
+      manual_payment_account_name,
+      manual_payment_account_number,
+      manual_payment_swift_code,
+      admin_whatsapp_number
+    } = req.body;
+
+    // Handle screenshot upload
+    let screenshotUrl = null;
+    if (req.file) {
+      // Rename uploaded file with better naming
+      const fileExtension = path.extname(req.file.originalname);
+      const newFileName = `manual_payment_instructions_${Date.now()}${fileExtension}`;
+      const oldPath = req.file.path;
+      const newPath = path.join(path.dirname(oldPath), newFileName);
+      
+      fs.renameSync(oldPath, newPath);
+      screenshotUrl = `/uploads/${newFileName}`;
+    }
+
+    // Update manual payment settings in config table
+    const settingsToUpdate = [
+      ['manual_payment_enabled', manual_payment_enabled === 'on' ? 'true' : 'false', 'Enable manual payment option for activations'],
+      ['manual_payment_instructions', manual_payment_instructions || 'Please transfer the amount to our account and upload a screenshot/receipt as proof of payment.', 'Instructions for manual payment processing'],
+      ['manual_payment_bank_name', manual_payment_bank_name || '', 'Bank name for manual payments'],
+      ['manual_payment_account_name', manual_payment_account_name || '', 'Account name for manual payments'],
+      ['manual_payment_account_number', manual_payment_account_number || '', 'Account number for manual payments'],
+      ['manual_payment_swift_code', manual_payment_swift_code || '', 'SWIFT/BIC code for international transfers (optional)'],
+      ['admin_whatsapp_number', admin_whatsapp_number || '0783987223', 'Admin WhatsApp number for manual payment notifications']
+    ];
+
+    // Add screenshot URL to settings if uploaded
+    if (screenshotUrl) {
+      settingsToUpdate.push(['manual_payment_screenshot', screenshotUrl, 'Screenshot showing manual payment instructions and account details']);
+    }
+
+    for (const [key, value, description] of settingsToUpdate) {
+      await pool.query(`
+        INSERT INTO config (key_name, value, description) 
+        VALUES (?, ?, ?)
+        ON DUPLICATE KEY UPDATE 
+        value = VALUES(value),
+        description = VALUES(description)
+      `, [key, value, description]);
+    }
+
+    res.redirect('/admin/settings?success=Manual payment settings updated successfully');
+  } catch (err) {
+    console.error('Manual payment settings update error:', err);
+    res.redirect('/admin/settings?error=Failed to update manual payment settings');
+  }
+});
+
+// Route to handle updating individual config settings
+router.post('/admin/settings/update', isAdmin, async (req, res) => {
+  try {
+    const pool = req.app.locals.pool;
+    const { key_name, value } = req.body;
+
+    if (!key_name || value === undefined) {
+      return res.redirect('/admin/settings?error=Missing required fields');
+    }
+
+    // Update or insert the config setting
+    await pool.query(`
+      INSERT INTO config (key_name, value) 
+      VALUES (?, ?)
+      ON DUPLICATE KEY UPDATE 
+      value = VALUES(value)
+    `, [key_name, value]);
+
+    res.redirect('/admin/settings?success=' + encodeURIComponent(`${key_name} updated successfully`));
+  } catch (err) {
+    console.error('Config update error:', err);
+    res.redirect('/admin/settings?error=Failed to update configuration');
+  }
+});
+
+//  Activation Payments Management
+router.get('/admin/activation-payments', isAdmin, async (req, res) => {
+  try {
+    const pool = req.app.locals.pool;
+    
+    const [payments] = await pool.query(`
+      SELECT 
+        ap.*,
+        u.username,
+        u.email,
+        u.status as user_status,
+        map.account_name as manual_account_name,
+        map.phone_number as manual_phone_number,
+        map.account_number as manual_account_number,
+        map.payment_screenshot_url,
+        map.status as manual_status,
+        map.admin_notes,
+        map.whatsapp_sent
+      FROM activation_payments ap
+      JOIN users u ON ap.user_id = u.id
+      LEFT JOIN manual_activation_payments map ON ap.manual_payment_id = map.id
+      ORDER BY ap.created_at DESC
+      LIMIT 100
+    `);
+
+    res.render('admin/activation-payments', {
+      user: req.session.user,
+      payments: payments,
+      successMessage: req.query.success,
+      errorMessage: req.query.error
+    });
+  } catch (err) {
+    console.error('Admin activation payments error:', err);
+    res.redirect('/admin/dashboard?error=Failed to load activation payments');
+  }
+});
+
+// Manual approval of activation payment
+router.post('/admin/activation-payments/:id/approve', isAdmin, async (req, res) => {
+  try {
+    const pool = req.app.locals.pool;
+    const commissionService = req.app.locals.commissionService;
+    const paymentId = req.params.id;
+    const { admin_notes } = req.body;
+
+    // Get payment details including manual payment info
+    const [payments] = await pool.query(`
+      SELECT 
+        ap.*, 
+        u.username, 
+        u.email, 
+        u.status as user_status,
+        map.id as manual_payment_id
+      FROM activation_payments ap
+      JOIN users u ON ap.user_id = u.id
+      LEFT JOIN manual_activation_payments map ON ap.manual_payment_id = map.id
+      WHERE ap.id = ?
+    `, [paymentId]);
+
+    if (payments.length === 0) {
+      return res.redirect('/admin/activation-payments?error=Payment not found');
+    }
+
+    const payment = payments[0];
+
+    // Check if payment is already successful
+    if (payment.payment_status === 'successful') {
+      return res.redirect('/admin/activation-payments?error=Payment is already approved');
+    }
+
+    // Update payment status to successful
+    await pool.query(`
+      UPDATE activation_payments 
+      SET payment_status = 'successful',
+          payment_method = CASE 
+            WHEN payment_type = 'manual' THEN 'manual_approval' 
+            ELSE payment_method 
+          END,
+          updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `, [paymentId]);
+
+    // If this is a manual payment, update the manual payment record
+    if (payment.manual_payment_id) {
+      await pool.query(`
+        UPDATE manual_activation_payments 
+        SET status = 'approved',
+            admin_notes = ?,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+      `, [admin_notes || 'Payment approved by admin', payment.manual_payment_id]);
+    }
+
+    // Activate user if not already active
+    if (payment.user_status !== 'active') {
+      await pool.query(`
+        UPDATE users 
+        SET status = 'active', 
+            activation_paid = TRUE, 
+            activated_at = CURRENT_TIMESTAMP 
+        WHERE id = ?
+      `, [payment.user_id]);
+
+      // Process commissions
+      try {
+        await commissionService.processActivationCommissions(payment.user_id);
+      } catch (commissionError) {
+        console.error('Commission processing error:', commissionError);
+        // Continue even if commission processing fails
+      }
+    }
+
+    res.redirect('/admin/activation-payments?success=' + encodeURIComponent(`Payment approved successfully for user ${payment.username}. User has been activated.`));
+  } catch (err) {
+    console.error('Manual approval error:', err);
+    res.redirect('/admin/activation-payments?error=Failed to approve payment');
+  }
+});
+
+// Reject activation payment
+router.post('/admin/activation-payments/:id/reject', isAdmin, async (req, res) => {
+  try {
+    const pool = req.app.locals.pool;
+    const paymentId = req.params.id;
+    const { reason } = req.body;
+
+    // Get payment details including manual payment info
+    const [payments] = await pool.query(`
+      SELECT 
+        ap.*, 
+        u.username,
+        map.id as manual_payment_id
+      FROM activation_payments ap
+      JOIN users u ON ap.user_id = u.id
+      LEFT JOIN manual_activation_payments map ON ap.manual_payment_id = map.id
+      WHERE ap.id = ?
+    `, [paymentId]);
+
+    if (payments.length === 0) {
+      return res.redirect('/admin/activation-payments?error=Payment not found');
+    }
+
+    const payment = payments[0];
+
+    // Update payment status to failed
+    await pool.query(`
+      UPDATE activation_payments 
+      SET payment_status = 'failed',
+          payment_response = ?,
+          updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `, [JSON.stringify({ rejection_reason: reason || 'Manually rejected by admin' }), paymentId]);
+
+    // If this is a manual payment, update the manual payment record
+    if (payment.manual_payment_id) {
+      await pool.query(`
+        UPDATE manual_activation_payments 
+        SET status = 'rejected',
+            admin_notes = ?,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+      `, [reason || 'Payment rejected by admin', payment.manual_payment_id]);
+    }
+
+    res.redirect('/admin/activation-payments?success=' + encodeURIComponent(`Payment rejected for user ${payment.username}`));
+  } catch (err) {
+    console.error('Manual rejection error:', err);
+    res.redirect('/admin/activation-payments?error=Failed to reject payment');
+  }
+});
+
+// Commission Management
+router.get('/admin/commissions', isAdmin, async (req, res) => {
+  try {
+    const pool = req.app.locals.pool;
+    
+    const [commissions] = await pool.query(`
+      SELECT 
+        c.*,
+        u.username as user_username,
+        r.username as referrer_username,
+        ru.username as referred_username
+      FROM commissions c
+      JOIN users u ON c.user_id = u.id
+      JOIN users r ON c.referrer_id = r.id
+      JOIN users ru ON c.referred_user_id = ru.id
+      ORDER BY c.created_at DESC
+      LIMIT 100
+    `);
+
+    res.render('admin/commissions', {
+      user: req.session.user,
+      commissions: commissions,
+      successMessage: req.query.success,
+      errorMessage: req.query.error
+    });
+  } catch (err) {
+    console.error('Admin commissions error:', err);
+    res.redirect('/admin/dashboard?error=Failed to load commissions');
   }
 });
 

@@ -73,13 +73,35 @@
           <div class="card-header bg-white d-flex justify-content-between">
             <h5 class="mb-0">Transactions List</h5>
             <div>
-              <button class="btn btn-sm btn-outline-primary me-2" onclick="filterTransactions('all')">All</button>
-              <button class="btn btn-sm btn-outline-success" onclick="filterTransactions('payment')">Payments</button>
-              <button class="btn btn-sm btn-outline-warning" onclick="filterTransactions('withdrawal')">Withdrawals</button>
-              <button class="btn btn-sm btn-outline-info" onclick="filterTransactions('commission')">Commissions</button>
+              <a href="/admin/transactions" class="btn btn-sm <%= (typeof currentFilter !== 'undefined' && currentFilter.type === 'all') || typeof currentFilter === 'undefined' ? 'btn-primary' : 'btn-outline-primary' %> me-2">All</a>
+              <a href="/admin/transactions?type=payment" class="btn btn-sm <%= typeof currentFilter !== 'undefined' && currentFilter.type === 'payment' ? 'btn-success' : 'btn-outline-success' %>">Payments</a>
+              <a href="/admin/transactions?type=withdrawal" class="btn btn-sm <%= typeof currentFilter !== 'undefined' && currentFilter.type === 'withdrawal' ? 'btn-warning' : 'btn-outline-warning' %>">Withdrawals</a>
+              <a href="/admin/transactions?type=commission" class="btn btn-sm <%= typeof currentFilter !== 'undefined' && currentFilter.type === 'commission' ? 'btn-info' : 'btn-outline-info' %>">Commissions</a>
             </div>
           </div>
           <div class="card-body">
+            <div class="mb-3">
+              <div class="row">
+                <div class="col-md-6">
+                  <label for="statusFilter" class="form-label">Filter by Status:</label>
+                  <select class="form-select" id="statusFilter" onchange="filterByStatus()">
+                    <option value="all" <%= typeof currentFilter !== 'undefined' && currentFilter.status === 'all' ? 'selected' : '' %>>All Status</option>
+                    <option value="completed" <%= typeof currentFilter !== 'undefined' && currentFilter.status === 'completed' ? 'selected' : '' %>>Completed</option>
+                    <option value="pending" <%= typeof currentFilter !== 'undefined' && currentFilter.status === 'pending' ? 'selected' : '' %>>Pending</option>
+                    <option value="rejected" <%= typeof currentFilter !== 'undefined' && currentFilter.status === 'rejected' ? 'selected' : '' %>>Rejected</option>
+                    <option value="failed" <%= typeof currentFilter !== 'undefined' && currentFilter.status === 'failed' ? 'selected' : '' %>>Failed</option>
+                  </select>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label">Current Filter:</label>
+                  <p class="mb-0">
+                    <span class="badge bg-primary">Type: <%= typeof currentFilter !== 'undefined' ? currentFilter.type.charAt(0).toUpperCase() + currentFilter.type.slice(1) : 'All' %></span>
+                    <span class="badge bg-secondary ms-1">Status: <%= typeof currentFilter !== 'undefined' ? currentFilter.status.charAt(0).toUpperCase() + currentFilter.status.slice(1) : 'All' %></span>
+                    <span class="badge bg-info ms-1">Total: <%= transactions.length %> transaction<%= transactions.length !== 1 ? 's' : '' %></span>
+                  </p>
+                </div>
+              </div>
+            </div>
             <div class="table-responsive">
               <table class="table table-hover" id="transactions-table">
                 <thead>
@@ -97,7 +119,7 @@
                 <tbody>
                   <% if (transactions && transactions.length > 0) { %>
                     <% transactions.forEach(transaction => { %>
-                      <tr data-type="<%= transaction.type %>">
+                      <tr>
                         <td><%= transaction.id %></td>
                         <td><%= new Date(transaction.created_at).toLocaleString() %></td>
                         <td><%= transaction.username %></td>
@@ -174,16 +196,17 @@
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
   <script>
-    function filterTransactions(type) {
-      const rows = document.querySelectorAll('#transactions-table tbody tr');
+    function filterByStatus() {
+      const statusFilter = document.getElementById('statusFilter').value;
+      const currentUrl = new URL(window.location);
       
-      rows.forEach(row => {
-        if (type === 'all' || row.dataset.type === type) {
-          row.style.display = '';
-        } else {
-          row.style.display = 'none';
-        }
-      });
+      if (statusFilter === 'all') {
+        currentUrl.searchParams.delete('status');
+      } else {
+        currentUrl.searchParams.set('status', statusFilter);
+      }
+      
+      window.location.href = currentUrl.toString();
     }
     
     function processTransaction(id, status) {

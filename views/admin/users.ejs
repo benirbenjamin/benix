@@ -88,26 +88,42 @@
         <div class="card shadow-sm mb-4">
           <div class="card-body">
             <form action="/admin/users" method="GET" class="row g-3">
-              <div class="col-md-4">
+              <div class="col-md-3">
                 <label for="role" class="form-label">Filter by Role</label>
-                <select class="form-select" id="role" name="role" onchange="this.form.submit()">
+                <select class="form-select" id="role" name="role">
                   <option value="" <%= !selectedRole ? 'selected' : '' %>>All Roles</option>
                   <option value="admin" <%= selectedRole === 'admin' ? 'selected' : '' %>>Admin</option>
                   <option value="merchant" <%= selectedRole === 'merchant' ? 'selected' : '' %>>Merchant</option>
                   <option value="user" <%= selectedRole === 'user' ? 'selected' : '' %>>User</option>
                 </select>
               </div>
-              <div class="col-md-6">
+              <div class="col-md-3">
                 <label for="search" class="form-label">Search Users</label>
+                <input type="text" class="form-control" id="search" name="search" placeholder="Username or email" value="<%= searchQuery %>">
+              </div>
+              <div class="col-md-3">
+                <label for="minWallet" class="form-label">Wallet Range ($)</label>
                 <div class="input-group">
-                  <input type="text" class="form-control" id="search" name="search" placeholder="Search by username or email" value="<%= searchQuery %>">
-                  <button class="btn btn-outline-secondary" type="submit">
-                    <i class="bi bi-search"></i>
-                  </button>
+                  <input type="number" class="form-control" id="minWallet" name="minWallet" placeholder="Min" value="<%= filters.minWallet || '' %>" step="0.01">
+                  <span class="input-group-text">-</span>
+                  <input type="number" class="form-control" id="maxWallet" name="maxWallet" placeholder="Max" value="<%= filters.maxWallet || '' %>" step="0.01">
                 </div>
               </div>
-              <div class="col-md-2 d-flex align-items-end">
-                <a href="/admin/users" class="btn btn-outline-secondary w-100">Clear Filters</a>
+              <div class="col-md-3">
+                <label for="minReferrals" class="form-label">Referrals Range</label>
+                <div class="input-group">
+                  <input type="number" class="form-control" id="minReferrals" name="minReferrals" placeholder="Min" value="<%= filters.minReferrals || '' %>" min="0">
+                  <span class="input-group-text">-</span>
+                  <input type="number" class="form-control" id="maxReferrals" name="maxReferrals" placeholder="Max" value="<%= filters.maxReferrals || '' %>" min="0">
+                </div>
+              </div>
+              <div class="col-12">
+                <div class="d-flex gap-2">
+                  <button class="btn btn-primary" type="submit">
+                    <i class="bi bi-search"></i> Apply Filters
+                  </button>
+                  <a href="/admin/users" class="btn btn-outline-secondary">Clear Filters</a>
+                </div>
               </div>
             </form>
           </div>
@@ -124,6 +140,7 @@
                     <th>Username</th>
                     <th>Email</th>
                     <th>Role</th>
+                    <th>Referrals</th>
                     <th>Shared Links</th>
                     <th>Orders</th>
                     <th>Wallet</th>
@@ -153,6 +170,11 @@
                           u.role === 'merchant' ? 'bg-primary' : 'bg-success' 
                         %> role-badge">
                           <%= u.role %>
+                        </span>
+                      </td>
+                      <td>
+                        <span class="badge bg-info">
+                          <%= u.referral_count || 0 %>
                         </span>
                       </td>
                       <td><%= u.total_shared_links || 0 %></td>
@@ -192,22 +214,41 @@
             
             <!-- Pagination -->
             <% if (totalPages > 1) { %>
+              <% 
+                // Helper function to build URL with all filters
+                function buildPageUrl(page) {
+                  let url = `/admin/users?page=${page}`;
+                  if (selectedRole) url += `&role=${selectedRole}`;
+                  if (searchQuery) url += `&search=${encodeURIComponent(searchQuery)}`;
+                  if (filters.minWallet) url += `&minWallet=${filters.minWallet}`;
+                  if (filters.maxWallet) url += `&maxWallet=${filters.maxWallet}`;
+                  if (filters.minReferrals) url += `&minReferrals=${filters.minReferrals}`;
+                  if (filters.maxReferrals) url += `&maxReferrals=${filters.maxReferrals}`;
+                  return url;
+                }
+              %>
               <nav aria-label="User pagination" class="mt-4">
                 <ul class="pagination justify-content-center">
                   <li class="page-item <%= currentPage === 1 ? 'disabled' : '' %>">
-                    <a class="page-link" href="/admin/users?page=<%= currentPage - 1 %>&role=<%= selectedRole %>&search=<%= searchQuery %>" tabindex="-1" aria-disabled="<%= currentPage === 1 ? 'true' : 'false' %>">Previous</a>
+                    <a class="page-link" href="<%= buildPageUrl(currentPage - 1) %>" tabindex="-1" aria-disabled="<%= currentPage === 1 ? 'true' : 'false' %>">Previous</a>
                   </li>
                   
                   <% for (let i = 1; i <= totalPages; i++) { %>
                     <li class="page-item <%= currentPage === i ? 'active' : '' %>">
-                      <a class="page-link" href="/admin/users?page=<%= i %>&role=<%= selectedRole %>&search=<%= searchQuery %>"><%= i %></a>
+                      <a class="page-link" href="<%= buildPageUrl(i) %>"><%= i %></a>
                     </li>
                   <% } %>
                   
                   <li class="page-item <%= currentPage === totalPages ? 'disabled' : '' %>">
-                    <a class="page-link" href="/admin/users?page=<%= currentPage + 1 %>&role=<%= selectedRole %>&search=<%= searchQuery %>">Next</a>
+                    <a class="page-link" href="<%= buildPageUrl(currentPage + 1) %>">Next</a>
                   </li>
                 </ul>
+                <div class="text-center mt-2">
+                  <small class="text-muted">
+                    Showing <%= users.length %> of <%= totalUsers %> users
+                    (Page <%= currentPage %> of <%= totalPages %>)
+                  </small>
+                </div>
               </nav>
             <% } %>
           </div>

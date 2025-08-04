@@ -90,7 +90,7 @@
                         <td><%= user.username %></td>
                         <td><%= user.email %></td>
                         <td><span class="badge bg-<%= user.role === 'admin' ? 'danger' : user.role === 'merchant' ? 'warning' : 'primary' %>"><%= user.role %></span></td>
-                        <td>$<%= parseFloat(user.wallet || 0).toFixed(2) %></td>
+                        <td>$<%= parseFloat(user.wallet || 0).toFixed(4) %></td>
                         <td><%= new Date(user.created_at).toLocaleDateString() %></td>
                       </tr>
                       <% }) %>

@@ -308,7 +308,7 @@
                         
                         <div class="card-body pt-0">
                             <div class="d-flex justify-content-between align-items-center mb-2">
-                                <span class="product-price">$<%= parseFloat(product.price).toFixed(2) %></span><br>
+                                <span class="product-price">$<%= parseFloat(product.price).toFixed(4) %></span><br>
                                 <span class="stock-indicator badge bg-<%= product.stock > 0 ? 'success' : 'danger' %>">
                                     <i class="fas fa-<%= product.stock > 0 ? 'check' : 'times' %> me-1"></i>
                                     <%= product.stock > 0 ? 'In Stock' : 'Out of Stock' %>

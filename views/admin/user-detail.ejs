@@ -330,6 +330,19 @@
                         <td><span class="badge <%= targetUser.role === 'admin' ? 'bg-danger' : targetUser.role === 'merchant' ? 'bg-primary' : 'bg-success' %>"><%= targetUser.role %></span></td>
                       </tr>
                       <tr>
+                        <th>Status</th>
+                        <td>
+                          <span class="badge <%= 
+                            targetUser.status === 'active' ? 'bg-success' : 
+                            targetUser.status === 'pending' ? 'bg-warning' : 
+                            targetUser.status === 'suspended' ? 'bg-secondary' : 
+                            targetUser.status === 'banned' ? 'bg-danger' : 'bg-light text-dark' 
+                          %>">
+                            <%= targetUser.status || 'Unknown' %>
+                          </span>
+                        </td>
+                      </tr>
+                      <tr>
                         <th>Premium Status</th>
                         <td><%= targetUser.has_lifetime_commission ? 'Premium Member' : 'Standard Member' %></td>
                       </tr>
@@ -680,12 +693,14 @@
           
           <div class="mb-3">
             <label for="new_password" class="form-label">New Password *</label>
-            <input type="password" class="form-control" id="new_password" minlength="8" required>
+            <input type="password" class="form-control" id="new_password" minlength="8" required 
+                   onkeypress="if(event.key==='Enter'){event.preventDefault();}">
             <div class="form-text">Password must be at least 8 characters long</div>
           </div>
           <div class="mb-3">
             <label for="confirm_password" class="form-label">Confirm Password *</label>
-            <input type="password" class="form-control" id="confirm_password" minlength="8" required>
+            <input type="password" class="form-control" id="confirm_password" minlength="8" required
+                   onkeypress="if(event.key==='Enter'){event.preventDefault();}">
             <div class="form-text">Re-enter the password to confirm</div>
           </div>
           <div class="alert alert-warning">
@@ -799,9 +814,25 @@
       document.getElementById('resetPasswordSuccess').classList.add('d-none');
     }
     
+    // Global flag to prevent double submission
+    let isResettingPassword = false;
+    
     function resetPassword(userId) {
+      // Prevent double submission
+      if (isResettingPassword) {
+        console.log('Password reset already in progress, ignoring duplicate call');
+        return;
+      }
+      
       const newPassword = document.getElementById('new_password').value;
       const confirmPassword = document.getElementById('confirm_password').value;
+      
+      console.log('Password reset initiated:', { 
+        userId, 
+        hasNewPassword: !!newPassword, 
+        hasConfirmPassword: !!confirmPassword,
+        newPasswordLength: newPassword ? newPassword.length : 0 
+      });
       
       // Hide previous messages
       hideResetPasswordMessages();
@@ -823,7 +854,10 @@
         return;
       }
       
-      // Show loading state
+      // Set global flag to prevent double submission
+      isResettingPassword = true;
+      
+      // Show loading state and disable button
       const resetBtn = document.querySelector('#resetPasswordModal .btn-primary');
       const originalText = resetBtn.innerHTML;
       resetBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Resetting...';
@@ -837,7 +871,12 @@
         },
         body: JSON.stringify({ new_password: newPassword }),
       })
-      .then(response => response.json())
+      .then(response => {
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+      })
       .then(data => {
         if (data.success) {
           showResetPasswordSuccess('Password has been reset successfully!');
@@ -846,7 +885,10 @@
           document.getElementById('confirm_password').value = '';
           // Close modal after 2 seconds
           setTimeout(() => {
-            $('#resetPasswordModal').modal('hide');
+            const modal = bootstrap.Modal.getInstance(document.getElementById('resetPasswordModal'));
+            if (modal) {
+              modal.hide();
+            }
           }, 2000);
         } else {
           showResetPasswordError(data.message || 'Failed to reset password');
@@ -857,11 +899,28 @@
         showResetPasswordError('An error occurred while resetting password. Please try again.');
       })
       .finally(() => {
-        // Restore button state
+        // Restore button state and reset global flag
         resetBtn.innerHTML = originalText;
         resetBtn.disabled = false;
+        isResettingPassword = false;
       });
     }
+    
+    // Clear form when modal opens
+    document.addEventListener('DOMContentLoaded', function() {
+      const resetModal = document.getElementById('resetPasswordModal');
+      if (resetModal) {
+        resetModal.addEventListener('show.bs.modal', function() {
+          // Clear form fields
+          document.getElementById('new_password').value = '';
+          document.getElementById('confirm_password').value = '';
+          // Hide any previous messages
+          hideResetPasswordMessages();
+          // Reset global flag in case of modal reopening
+          isResettingPassword = false;
+        });
+      }
+    });
     
     function togglePremiumStatus(userId, status) {
       if (!confirm(status ? 

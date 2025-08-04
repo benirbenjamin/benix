@@ -142,7 +142,7 @@
         // Dynamic content addition test
         document.getElementById('addPriceBtn').addEventListener('click', function() {
             const dynamicContent = document.getElementById('dynamicContent');
-            const randomPrice = (Math.random() * 1000 + 10).toFixed(2);
+            const randomPrice = (Math.random() * 1000 + 10).toFixed(4);
             
             const newDiv = document.createElement('div');
             newDiv.className = 'alert alert-secondary mt-2';
