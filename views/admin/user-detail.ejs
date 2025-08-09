@@ -303,6 +303,11 @@
               <li class="nav-item" role="presentation">
                 <button class="nav-link" id="referrals-tab" data-bs-toggle="tab" data-bs-target="#referrals" type="button" role="tab" aria-controls="referrals" aria-selected="false">Referrals</button>
               </li>
+              <% if (targetUser.role === 'merchant') { %>
+              <li class="nav-item" role="presentation">
+                <button class="nav-link" id="merchant-analytics-tab" data-bs-toggle="tab" data-bs-target="#merchant-analytics" type="button" role="tab" aria-controls="merchant-analytics" aria-selected="false">Merchant Analytics</button>
+              </li>
+              <% } %>
             </ul>
           </div>
           <div class="card-body">
@@ -615,6 +620,145 @@
                   </div>
                 <% } %>
               </div>
+
+              <!-- Merchant Analytics Tab -->
+              <% if (targetUser.role === 'merchant') { %>
+              <div class="tab-pane fade" id="merchant-analytics" role="tabpanel" aria-labelledby="merchant-analytics-tab">
+                <% if (merchantAnalytics) { %>
+                  <!-- Analytics Summary -->
+                  <div class="row mb-4">
+                    <div class="col-md-3">
+                      <div class="card bg-primary text-white">
+                        <div class="card-body text-center">
+                          <h4><%= merchantAnalytics.totalStats.total_links %></h4>
+                          <small>Total Links</small>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="col-md-3">
+                      <div class="card bg-info text-white">
+                        <div class="card-body text-center">
+                          <h4><%= merchantAnalytics.totalStats.total_shares %></h4>
+                          <small>Total Shares</small>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="col-md-3">
+                      <div class="card bg-success text-white">
+                        <div class="card-body text-center">
+                          <h4><%= merchantAnalytics.totalStats.total_clicks %></h4>
+                          <small>Total Clicks</small>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="col-md-3">
+                      <div class="card bg-warning text-dark">
+                        <div class="card-body text-center">
+                          <h4>$<%= parseFloat(merchantAnalytics.totalStats.total_commissions_paid).toFixed(4) %></h4>
+                          <small>Commissions Paid</small>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Quick Actions -->
+                  <div class="mb-4">
+                    <a href="/admin/merchant-analytics/<%= targetUser.id %>" class="btn btn-primary">
+                      <i class="bi bi-graph-up"></i> View Detailed Analytics
+                    </a>
+                  </div>
+
+                  <!-- Top Performing Links -->
+                  <div class="card mb-4">
+                    <div class="card-header">
+                      <h6 class="mb-0">Top Performing Links</h6>
+                    </div>
+                    <div class="card-body">
+                      <% if (merchantAnalytics.linkAnalytics && merchantAnalytics.linkAnalytics.length > 0) { %>
+                        <div class="table-responsive">
+                          <table class="table table-sm">
+                            <thead>
+                              <tr>
+                                <th>Link Title</th>
+                                <th>Type</th>
+                                <th>Shares</th>
+                                <th>Clicks</th>
+                                <th>Cost Incurred</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              <% merchantAnalytics.linkAnalytics.slice(0, 5).forEach(link => { %>
+                                <tr>
+                                  <td>
+                                    <strong><%= link.title %></strong>
+                                    <br><small class="text-muted">CPC: $<%= parseFloat(link.cost_per_click).toFixed(4) %></small>
+                                  </td>
+                                  <td>
+                                    <span class="badge bg-<%= link.type === 'product' ? 'primary' : 'info' %>">
+                                      <%= link.type %>
+                                    </span>
+                                  </td>
+                                  <td><%= link.total_shares %></td>
+                                  <td><span class="badge bg-success"><%= link.total_clicks %></span></td>
+                                  <td class="text-danger">$<%= parseFloat(link.total_cost_incurred).toFixed(4) %></td>
+                                </tr>
+                              <% }) %>
+                            </tbody>
+                          </table>
+                        </div>
+                      <% } else { %>
+                        <div class="text-center py-3">
+                          <i class="bi bi-link-45deg text-muted" style="font-size: 2rem;"></i>
+                          <p class="text-muted mt-2">No links created yet</p>
+                        </div>
+                      <% } %>
+                    </div>
+                  </div>
+
+                  <!-- Recent Monthly Performance -->
+                  <div class="card">
+                    <div class="card-header">
+                      <h6 class="mb-0">Recent Monthly Performance</h6>
+                    </div>
+                    <div class="card-body">
+                      <% if (merchantAnalytics.monthlyStats && merchantAnalytics.monthlyStats.length > 0) { %>
+                        <div class="table-responsive">
+                          <table class="table table-sm">
+                            <thead>
+                              <tr>
+                                <th>Month</th>
+                                <th>Clicks</th>
+                                <th>Commissions Paid</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              <% merchantAnalytics.monthlyStats.forEach(month => { %>
+                                <tr>
+                                  <td><%= month.month %></td>
+                                  <td><%= month.clicks %></td>
+                                  <td class="text-success">$<%= parseFloat(month.commissions_paid || 0).toFixed(4) %></td>
+                                </tr>
+                              <% }) %>
+                            </tbody>
+                          </table>
+                        </div>
+                      <% } else { %>
+                        <div class="text-center py-3">
+                          <i class="bi bi-calendar-x text-muted" style="font-size: 2rem;"></i>
+                          <p class="text-muted mt-2">No monthly data available</p>
+                        </div>
+                      <% } %>
+                    </div>
+                  </div>
+
+                <% } else { %>
+                  <div class="text-center py-5">
+                    <i class="bi bi-graph-up text-muted" style="font-size: 3rem;"></i>
+                    <p class="text-muted mt-3">Analytics data not available</p>
+                  </div>
+                <% } %>
+              </div>
+              <% } %>
             </div>
           </div>
         </div>

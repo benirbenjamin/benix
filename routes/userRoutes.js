@@ -164,9 +164,10 @@ router.get('/profile', isActivated, async (req, res) => {
     
     // Get user's shared links stats
     const [sharedLinksStats] = await pool.query(`
-      SELECT COUNT(sl.id) as total_links, SUM(sl.clicks) as total_clicks, 
+      SELECT COUNT(sl.id) as total_links, COUNT(DISTINCT c.id) as total_clicks, 
              COUNT(DISTINCT sl.link_id) as unique_links
       FROM shared_links sl
+      LEFT JOIN clicks c ON sl.id = c.shared_link_id
       WHERE sl.user_id = ?
     `, [userId]);
     
@@ -256,9 +257,10 @@ router.get('/profile', isActivated, async (req, res) => {
       stats.totalLinks = linkCountResults[0].count || 0;
       
       const [clickResults] = await pool.query(`
-        SELECT COALESCE(SUM(sl.clicks), 0) as totalClicks
+        SELECT COUNT(DISTINCT c.id) as totalClicks
         FROM links l
         LEFT JOIN shared_links sl ON l.id = sl.link_id
+        LEFT JOIN clicks c ON sl.id = c.shared_link_id
         WHERE l.merchant_id = ?
       `, [userId]);
       
@@ -502,19 +504,23 @@ router.get('/shared-links', isActivated, async (req, res) => {
     const [sharedLinks] = await pool.query(`
       SELECT sl.*, l.title, l.url, l.type, l.created_at as link_created,
              u.username as merchant_name, u.id as merchant_id,
-             CONCAT('/l/', sl.share_code) as short_url
+             CONCAT('/l/', sl.share_code) as short_url,
+             COUNT(c.id) as clicks
       FROM shared_links sl
       JOIN links l ON sl.link_id = l.id
       JOIN users u ON l.merchant_id = u.id
+      LEFT JOIN clicks c ON sl.id = c.shared_link_id
       WHERE sl.user_id = ?
-      ORDER BY sl.clicks DESC
+      GROUP BY sl.id, l.title, l.url, l.type, l.created_at, u.username, u.id
+      ORDER BY clicks DESC
     `, [userId]);
     
     // Get total clicks and earnings from these links
     const [stats] = await pool.query(`
-      SELECT COUNT(id) as total_links, SUM(clicks) as total_clicks
-      FROM shared_links
-      WHERE user_id = ?
+      SELECT COUNT(sl.id) as total_links, COUNT(DISTINCT c.id) as total_clicks
+      FROM shared_links sl
+      LEFT JOIN clicks c ON sl.id = c.shared_link_id
+      WHERE sl.user_id = ?
     `, [userId]);
     
     // Get total earnings
@@ -596,7 +602,7 @@ router.get('/orders', isActivated, async (req, res) => {
 });
 
 // View single order details
-router.get('/orders/:id', isActivated, async (req, res) => {
+router.get('/orders/:id', isAuthenticated, async (req, res) => {
   try {
     const orderId = req.params.id;
     const userId = req.session.userId;
