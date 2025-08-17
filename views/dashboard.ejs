@@ -184,6 +184,81 @@
                 </div>
             </div>
 
+            <!-- Merchant Analytics Section -->
+            <div class="row mt-4">
+                <div class="col-md-12">
+                    <div class="card">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0">Your Analytics Overview</h5>
+                            <div>
+                                <a href="/admin/merchant-analytics/<%= user.id %>" class="btn btn-sm btn-outline-primary">
+                                    <i class="fas fa-chart-bar"></i> Detailed Analytics
+                                </a>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-2">
+                                    <div class="text-center">
+                                        <h4 class="text-primary"><%= stats.linkCount %></h4>
+                                        <small class="text-muted">Active Links</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-2">
+                                    <div class="text-center">
+                                        <h4 class="text-info"><%= stats.totalClicks %></h4>
+                                        <small class="text-muted">Total Clicks</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-2">
+                                    <div class="text-center">
+                                        <h4 class="text-success">$<%= parseFloat(stats.amountToPay || 0).toFixed(2) %></h4>
+                                        <small class="text-muted">Amount Due</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-2">
+                                    <div class="text-center">
+                                        <h4 class="text-warning">$<%= parseFloat(stats.paidBalance || 0).toFixed(2) %></h4>
+                                        <small class="text-muted">Paid Balance</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-2">
+                                    <div class="text-center">
+                                        <h4 class="text-danger">$<%= (parseFloat(stats.amountToPay || 0) + parseFloat(stats.paidBalance || 0)).toFixed(2) %></h4>
+                                        <small class="text-muted">Total Revenue</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-2">
+                                    <div class="text-center">
+                                        <% const avgCPC = stats.linkCount > 0 ? (parseFloat(stats.amountToPay || 0) + parseFloat(stats.paidBalance || 0)) / stats.totalClicks : 0 %>
+                                        <h4 class="text-secondary">$<%= avgCPC.toFixed(4) %></h4>
+                                        <small class="text-muted">Avg CPC</small>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Performance Indicators -->
+                            <div class="row mt-3">
+                                <div class="col-12">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <span class="text-muted">Click Performance:</span>
+                                        <div class="progress" style="width: 200px; height: 8px;">
+                                            <% 
+                                                // Calculate performance percentage (assuming 1000 clicks is 100%)
+                                                const performancePercent = Math.min((stats.totalClicks / 1000) * 100, 100);
+                                            %>
+                                            <div class="progress-bar bg-<%= performancePercent > 75 ? 'success' : performancePercent > 50 ? 'warning' : 'danger' %>" 
+                                                 style="width: <%= performancePercent %>%"></div>
+                                        </div>
+                                        <span class="text-muted"><%= performancePercent.toFixed(1) %>%</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Link Performance Overview -->
             <div class="row mt-4">
                 <div class="col-md-12">

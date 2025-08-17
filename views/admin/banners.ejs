@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Advertisement Banners - Admin Dashboard</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    body {
+      background-color: #f8f9fa;
+    }
+    .banner-preview {
+      max-width: 200px;
+      max-height: 100px;
+      object-fit: cover;
+      border-radius: 5px;
+    }
+    .status-badge {
+      font-size: 0.75rem;
+    }
+    .stats-card {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border-radius: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container-fluid">
+    <div class="row">
+      <!-- Sidebar -->
+      <div class="col-md-2 bg-dark text-white min-vh-100 p-3">
+        <h5><i class="fas fa-shield-alt me-2"></i>Admin Panel</h5>
+        <ul class="nav flex-column mt-4">
+          <li class="nav-item">
+            <a class="nav-link text-white" href="/admin/dashboard">
+              <i class="fas fa-tachometer-alt me-2"></i>Dashboard
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link text-white" href="/admin/users">
+              <i class="fas fa-users me-2"></i>Users
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link text-white" href="/admin/links">
+              <i class="fas fa-link me-2"></i>Links
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link text-white" href="/admin/products">
+              <i class="fas fa-box me-2"></i>Products
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link text-white-50 active bg-primary rounded" href="/admin/banners">
+              <i class="fas fa-ad me-2"></i>Ad Banners
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link text-white" href="/admin/transactions">
+              <i class="fas fa-credit-card me-2"></i>Transactions
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link text-white" href="/admin/settings">
+              <i class="fas fa-cog me-2"></i>Settings
+            </a>
+          </li>
+        </ul>
+      </div>
+
+      <!-- Main Content -->
+      <div class="col-md-10">
+        <div class="container-fluid py-4">
+          <!-- Header -->
+          <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+              <h2><i class="fas fa-ad me-3"></i>Advertisement Banners</h2>
+              <p class="text-muted">Manage advertisement banners and track their performance</p>
+            </div>
+            <a href="/admin/banners/create" class="btn btn-primary">
+              <i class="fas fa-plus me-2"></i>Create Banner
+            </a>
+          </div>
+
+          <!-- Alerts -->
+          <% if (successMessage) { %>
+            <div class="alert alert-success alert-dismissible fade show" role="alert">
+              <i class="fas fa-check-circle me-2"></i><%= successMessage %>
+              <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+          <% } %>
+          <% if (errorMessage) { %>
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+              <i class="fas fa-exclamation-circle me-2"></i><%= errorMessage %>
+              <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+          <% } %>
+
+          <!-- Stats Cards -->
+          <div class="row mb-4">
+            <div class="col-md-3">
+              <div class="card stats-card">
+                <div class="card-body text-center">
+                  <i class="fas fa-ad fa-2x mb-2"></i>
+                  <h4><%= banners.length %></h4>
+                  <small>Total Banners</small>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="card stats-card">
+                <div class="card-body text-center">
+                  <i class="fas fa-eye fa-2x mb-2"></i>
+                  <h4><%= banners.reduce((sum, banner) => sum + banner.total_impressions, 0) %></h4>
+                  <small>Total Impressions</small>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="card stats-card">
+                <div class="card-body text-center">
+                  <i class="fas fa-mouse-pointer fa-2x mb-2"></i>
+                  <h4><%= banners.reduce((sum, banner) => sum + banner.total_clicks, 0) %></h4>
+                  <small>Total Clicks</small>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="card stats-card">
+                <div class="card-body text-center">
+                  <i class="fas fa-percentage fa-2x mb-2"></i>
+                  <h4>
+                    <% 
+                      const totalImpressions = banners.reduce((sum, banner) => sum + banner.total_impressions, 0);
+                      const totalClicks = banners.reduce((sum, banner) => sum + banner.total_clicks, 0);
+                      const ctr = totalImpressions > 0 ? ((totalClicks / totalImpressions) * 100).toFixed(1) : 0;
+                    %>
+                    <%= ctr %>%
+                  </h4>
+                  <small>Average CTR</small>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Banners Table -->
+          <div class="card">
+            <div class="card-header">
+              <h5 class="mb-0"><i class="fas fa-list me-2"></i>Banner List</h5>
+            </div>
+            <div class="card-body">
+              <% if (banners.length === 0) { %>
+                <div class="text-center py-5">
+                  <i class="fas fa-ad fa-3x text-muted mb-3"></i>
+                  <h5 class="text-muted">No banners found</h5>
+                  <p class="text-muted">Create your first advertisement banner to get started.</p>
+                  <a href="/admin/banners/create" class="btn btn-primary">
+                    <i class="fas fa-plus me-2"></i>Create Banner
+                  </a>
+                </div>
+              <% } else { %>
+                <div class="table-responsive">
+                  <table class="table table-hover">
+                    <thead>
+                      <tr>
+                        <th>Preview</th>
+                        <th>Title</th>
+                        <th>Target</th>
+                        <th>Status</th>
+                        <th>Impressions</th>
+                        <th>Clicks</th>
+                        <th>CTR</th>
+                        <th>Created</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <% banners.forEach(banner => { %>
+                        <tr>
+                          <td>
+                            <img src="<%= banner.image_url %>" alt="Banner" class="banner-preview">
+                          </td>
+                          <td>
+                            <strong><%= banner.title %></strong>
+                            <br>
+                            <small class="text-muted">by <%= banner.created_by_name %></small>
+                          </td>
+                          <td>
+                            <% if (banner.target_type === 'all') { %>
+                              <span class="badge bg-info">All Links</span>
+                            <% } else if (banner.target_type === 'specific') { %>
+                              <span class="badge bg-warning">Specific Links</span>
+                            <% } else { %>
+                              <span class="badge bg-success">Popular (>= <%= banner.min_clicks %> clicks)</span>
+                            <% } %>
+                          </td>
+                          <td>
+                            <% if (banner.is_active) { %>
+                              <span class="badge bg-success status-badge">Active</span>
+                            <% } else { %>
+                              <span class="badge bg-secondary status-badge">Inactive</span>
+                            <% } %>
+                          </td>
+                          <td>
+                            <i class="fas fa-eye text-primary me-1"></i>
+                            <%= banner.total_impressions.toLocaleString() %>
+                          </td>
+                          <td>
+                            <i class="fas fa-mouse-pointer text-success me-1"></i>
+                            <%= banner.total_clicks.toLocaleString() %>
+                          </td>
+                          <td>
+                            <% 
+                              const ctr = banner.total_impressions > 0 ? 
+                                ((banner.total_clicks / banner.total_impressions) * 100).toFixed(1) : 0;
+                            %>
+                            <%= ctr %>%
+                          </td>
+                          <td>
+                            <small><%= new Date(banner.created_at).toLocaleDateString() %></small>
+                          </td>
+                          <td>
+                            <div class="btn-group" role="group">
+                              <a href="/admin/banners/<%= banner.id %>/analytics" 
+                                 class="btn btn-sm btn-outline-info" title="Analytics">
+                                <i class="fas fa-chart-bar"></i>
+                              </a>
+                              <a href="/admin/banners/<%= banner.id %>/edit" 
+                                 class="btn btn-sm btn-outline-primary" title="Edit">
+                                <i class="fas fa-edit"></i>
+                              </a>
+                              <button type="button" class="btn btn-sm btn-outline-danger" 
+                                      onclick="deleteBanner(<%= banner.id %>, '<%= banner.title %>')" title="Delete">
+                                <i class="fas fa-trash"></i>
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      <% }); %>
+                    </tbody>
+                  </table>
+                </div>
+              <% } %>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Delete Confirmation Modal -->
+  <div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Delete Banner</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <p>Are you sure you want to delete the banner "<span id="bannerTitle"></span>"?</p>
+          <p class="text-danger"><strong>This action cannot be undone.</strong></p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <form id="deleteForm" method="POST" style="display: inline;">
+            <button type="submit" class="btn btn-danger">Delete Banner</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    function deleteBanner(bannerId, title) {
+      document.getElementById('bannerTitle').textContent = title;
+      document.getElementById('deleteForm').action = `/admin/banners/${bannerId}/delete`;
+      new bootstrap.Modal(document.getElementById('deleteModal')).show();
+    }
+  </script>
+</body>
+</html>

@@ -157,41 +157,7 @@
     </div>
   </div>
 
-  <!-- Commission Info Cards -->
-  <div class="row mb-4">
-    <div class="col-md-6 mb-3">
-      <div class="card commission-card level1-card">
-        <div class="card-body text-center py-4">
-          <i class="fas fa-user-plus text-primary mb-3" style="font-size: 3rem;"></i>
-          <h4 class="text-primary mb-2">Level 1 Commissions</h4>
-          <h2 class="text-primary mb-3">1,500 RWF</h2>
-          <p class="mb-2">
-            <strong>Direct Referrals:</strong> <%= referralStats.level1Count %>
-          </p>
-          <p class="mb-2">
-            <strong>Total Earned:</strong> <%= referralStats.level1Earnings %> RWF
-          </p>
-          <small class="text-muted">Earn when someone you directly refer activates their account</small>
-        </div>
-      </div>
-    </div>
-    <div class="col-md-6 mb-3">
-      <div class="card commission-card level2-card">
-        <div class="card-body text-center py-4">
-          <i class="fas fa-network-wired text-secondary mb-3" style="font-size: 3rem;"></i>
-          <h4 class="text-secondary mb-2">Level 2 Commissions</h4>
-          <h2 class="text-secondary mb-3">500 RWF</h2>
-          <p class="mb-2">
-            <strong>Indirect Referrals:</strong> <%= referralStats.level2Count %>
-          </p>
-          <p class="mb-2">
-            <strong>Total Earned:</strong> <%= referralStats.level2Earnings %> RWF
-          </p>
-          <small class="text-muted">Earn when your referrals refer others and they activate</small>
-        </div>
-      </div>
-    </div>
-  </div>
+  
   <!-- Level 1 Referrals Table -->
   <div class="row mb-4">
     <div class="col-12">
@@ -258,7 +224,7 @@
             <div class="text-center py-4">
               <i class="fas fa-user-plus text-muted mb-3" style="font-size: 3rem;"></i>
               <h5 class="text-muted">No Level 1 Referrals Yet</h5>
-              <p class="text-muted">Share your referral link to start earning 1,500 RWF per direct referral!</p>
+              <p class="text-muted">Share your referral link to start earning per direct referral!</p>
             </div>
           <% } %>
         </div>
@@ -338,7 +304,7 @@
             <div class="text-center py-4">
               <i class="fas fa-network-wired text-muted mb-3" style="font-size: 3rem;"></i>
               <h5 class="text-muted">No Level 2 Referrals Yet</h5>
-              <p class="text-muted">Earn 500 RWF when your Level 1 referrals refer others!</p>
+              <p class="text-muted">Earn when your Level 1 referrals refer others!</p>
             </div>
           <% } %>
         </div>
@@ -361,8 +327,8 @@
               <ol class="mb-3">
                 <li><strong>Copy your referral link</strong> from the card above</li>
                 <li><strong>Share it with friends</strong> on social media or directly</li>
-                <li><strong>Earn 1,500 RWF</strong> when they activate their account</li>
-                <li><strong>Earn 500 RWF more</strong> when they refer others</li>
+                <li><strong>Earn when they activate their account</li>
+                <li><strong>Earn  when they refer others</li>
               </ol>
               <div class="alert alert-info">
                 <i class="fas fa-lightbulb me-2"></i>

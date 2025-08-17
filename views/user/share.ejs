@@ -86,6 +86,199 @@
       width: 100%;
       height: 100%;
     }
+
+    /* Advertisement Banner Styles - Link-Viewer Design */
+    .banner-container {
+      position: fixed;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 280px;
+      z-index: 1000;
+    }
+
+    .banner-container.left {
+      left: 20px;
+    }
+
+    .banner-container.right {
+      right: 20px;
+    }
+
+    .banner-slot {
+      background: white;
+      border-radius: 15px;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+      margin-bottom: 20px;
+      overflow: hidden;
+      height: 200px;
+      position: relative;
+      transition: all 0.3s ease;
+    }
+
+    .banner-slot:hover {
+      transform: scale(1.02);
+      box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+    }
+
+    .banner-slot .banner-image {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      cursor: pointer;
+      transition: opacity 0.5s ease;
+    }
+
+    .banner-slot .advertise-placeholder {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      background: linear-gradient(45deg, #f8f9fa, #ffffff);
+      border: 2px dashed #dee2e6;
+      color: #6c757d;
+      text-decoration: none;
+      transition: all 0.3s ease;
+      padding: 20px;
+      text-align: center;
+    }
+
+    .banner-slot .advertise-placeholder:hover {
+      background: linear-gradient(45deg, #e9ecef, #f8f9fa);
+      color: #495057;
+      border-color: #adb5bd;
+      text-decoration: none;
+    }
+
+    .banner-toggle {
+      position: absolute;
+      top: 10px;
+      background: rgba(0,0,0,0.7);
+      color: white;
+      border: none;
+      border-radius: 20px;
+      width: 35px;
+      height: 35px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .banner-container.left .banner-toggle {
+      right: -45px;
+    }
+
+    .banner-container.right .banner-toggle {
+      left: -45px;
+    }
+
+    .banner-toggle:hover {
+      background: rgba(102, 126, 234, 0.9);
+    }
+
+    .banner-container.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .banner-container.left.hidden {
+      transform: translate(-100%, -50%);
+    }
+
+    .banner-container.right.hidden {
+      transform: translate(100%, -50%);
+    }
+
+    /* Mobile Banner Section */
+    .mobile-banner-section {
+      display: none;
+      margin-top: 30px;
+    }
+
+    .mobile-banner-header {
+      text-align: center;
+      margin-bottom: 15px;
+    }
+
+    .mobile-banner-header h6 {
+      color: #495057;
+      font-weight: 600;
+      margin: 0;
+    }
+
+    .mobile-banner-inline {
+      background: white;
+      border-radius: 15px;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+      overflow: hidden;
+      height: 140px;
+      position: relative;
+      transition: all 0.3s ease;
+    }
+
+    .mobile-banner-inline:hover {
+      transform: scale(1.02);
+      box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+    }
+
+    .mobile-banner-inline .banner-image {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      cursor: pointer;
+    }
+
+    .mobile-banner-inline .advertise-placeholder {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      background: linear-gradient(45deg, #f8f9fa, #ffffff);
+      border: 2px dashed #dee2e6;
+      color: #6c757d;
+      text-decoration: none;
+      transition: all 0.3s ease;
+      padding: 20px;
+      text-align: center;
+    }
+
+    .mobile-banner-inline .advertise-placeholder:hover {
+      background: linear-gradient(45deg, #e9ecef, #f8f9fa);
+      color: #495057;
+      border-color: #adb5bd;
+      text-decoration: none;
+    }
+
+    @media (min-width: 1201px) {
+      .banner-container {
+        display: block;
+      }
+      .mobile-banner-section {
+        display: none;
+      }
+    }
+
+    @media (max-width: 1200px) {
+      .banner-container {
+        display: none;
+      }
+      .mobile-banner-section {
+        display: block;
+      }
+    }
+
+    @media (max-width: 991px) {
+      .mobile-banner-section {
+        margin-top: 20px;
+      }
+      
+      .mobile-banner-inline {
+        height: 120px;
+      }
+    }
   </style>
 </head>
 <body class="bg-light">
@@ -93,7 +286,8 @@
 
   <div class="container mt-4">
     <div class="row justify-content-center">
-      <div class="col-md-8">        <div class="card shadow-sm">
+      <div class="col-lg-6 col-md-8 col-sm-10">
+        <div class="card shadow-sm">
           <div class="card-body">
             <div class="d-flex justify-content-between align-items-center mb-4">
               <h2 class="card-title mb-0"><%= link.title %></h2>
@@ -201,9 +395,53 @@
               Share this link to earn commission for every click! 
               The link will remain active until it reaches <%= link.click_target %> clicks.
             </div>
+
+            <!-- Mobile Banner Section -->
+            <div class="mobile-banner-section">
+              <div class="mobile-banner-header">
+                <h6><i class="fas fa-star text-warning me-1"></i>Sponsored Content</h6>
+              </div>
+              <div class="mobile-banner-inline" id="mobileBannerContainer">
+                <!-- Mobile banners will be loaded here -->
+              </div>
+            </div>
           </div>
         </div>
       </div>
+    </div>
+  </div>
+
+  <!-- Desktop Banner Containers -->
+  <div class="banner-container left" id="leftBanners">
+    <button class="banner-toggle" onclick="toggleBanners('left')" title="Hide Ads">
+      <i class="fas fa-eye-slash"></i>
+    </button>
+    <div class="banner-slot" data-position="1">
+      <a href="#" class="advertise-placeholder">
+        <i class="fas fa-bullhorn fa-2x mb-2"></i>
+        <strong>Advertise Here</strong>
+        <small>Reach our audience</small>
+      </a>
+    </div>
+    <div class="banner-slot" data-position="2">
+      <a href="#" class="advertise-placeholder">
+        <i class="fas fa-bullhorn fa-2x mb-2"></i>
+        <strong>Advertise Here</strong>
+        <small>Reach our audience</small>
+      </a>
+    </div>
+  </div>
+
+  <div class="banner-container right" id="rightBanners">
+    <button class="banner-toggle" onclick="toggleBanners('right')" title="Hide Ads">
+      <i class="fas fa-eye-slash"></i>
+    </button>
+    <div class="banner-slot" data-position="3">
+      <a href="#" class="advertise-placeholder">
+        <i class="fas fa-bullhorn fa-2x mb-2"></i>
+        <strong>Advertise Here</strong>
+        <small>Reach our audience</small>
+      </a>
     </div>
   </div>
 
@@ -378,6 +616,313 @@
         window.open(shareUrl, '_blank', 'width=600,height=400');
       });
     });
+
+    // Banner tracking and interaction functions
+    function handleBannerClick(bannerId, targetUrl, linkId) {
+      // Track the click
+      fetch('/api/banner/click', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          bannerId: bannerId,
+          targetUrl: targetUrl,
+          linkId: linkId
+        })
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.success && data.targetUrl) {
+          // Open the target URL in a new tab
+          window.open(data.targetUrl, '_blank');
+        }
+      })
+      .catch(error => {
+        console.error('Banner click tracking error:', error);
+        // Still open the URL even if tracking fails
+        window.open(targetUrl, '_blank');
+      });
+    }
+
+    // Advanced Banner Management System - Link Viewer Design
+    let bannerData = [];
+    let desktopBannerIndex = 0;
+    let mobileBannerIndex = 0;
+    let desktopRotationInterval = null;
+    let mobileRotationInterval = null;
+    let bannersHidden = { left: false, right: false };
+
+    function initializeBanners() {
+      try {
+        bannerData = <%- JSON.stringify(banners || []) %>;
+        console.log('Initializing banners:', bannerData.length);
+        
+        if (bannerData && bannerData.length > 0) {
+          displayBannersOnDesktop();
+          displayBannersOnMobile();
+          startRotations();
+          trackBannerImpressions();
+        } else {
+          displayPlaceholderBanners();
+        }
+      } catch (error) {
+        console.error('Banner initialization error:', error);
+        displayPlaceholderBanners();
+      }
+    }
+
+    function displayBannersOnDesktop() {
+      const leftContainer = document.getElementById('leftBanners');
+      const rightContainer = document.getElementById('rightBanners');
+      
+      if (!leftContainer || !rightContainer || !bannerData || bannerData.length === 0) return;
+
+      // Define the 3 desktop slots: 2 left, 1 right
+      const leftSlots = leftContainer.querySelectorAll('.banner-slot');
+      const rightSlots = rightContainer.querySelectorAll('.banner-slot');
+      
+      // Fill left slots (positions 1-2)
+      leftSlots.forEach((slot, index) => {
+        if (bannerData.length > 3) {
+          // Use rotation index when we have more than 3 ads
+          const bannerIndex = (desktopBannerIndex + index) % bannerData.length;
+          const banner = bannerData[bannerIndex];
+          slot.innerHTML = `
+            <img src="${banner.image_url}" 
+                 alt="${banner.title}" 
+                 class="banner-image" 
+                 onclick="handleBannerClick('${banner.id}', '${banner.click_url}', '<%= link.id %>')"
+                 loading="lazy">
+          `;
+        } else if (bannerData[index]) {
+          // Show real ad if available (for 3 or fewer ads)
+          const banner = bannerData[index];
+          slot.innerHTML = `
+            <img src="${banner.image_url}" 
+                 alt="${banner.title}" 
+                 class="banner-image" 
+                 onclick="handleBannerClick('${banner.id}', '${banner.click_url}', '<%= link.id %>')"
+                 loading="lazy">
+          `;
+        } else {
+          // Show "Advertise Here" placeholder if no ad available
+          slot.innerHTML = `
+            <a href="https://wa.me/0783987223?text=Hello%20admin%20of%20benixspace%20i%20want%20to%20advertise%20on%20your%20platform" 
+               target="_blank" 
+               class="advertise-placeholder">
+              <i class="fas fa-bullhorn fa-2x mb-2"></i>
+              <strong>Advertise Here</strong>
+              <small>Reach our audience</small>
+            </a>
+          `;
+        }
+      });
+
+      // Fill right slot (position 3)
+      rightSlots.forEach((slot, index) => {
+        if (bannerData.length > 3) {
+          // Use rotation index when we have more than 3 ads
+          const bannerIndex = (desktopBannerIndex + index + 2) % bannerData.length; // Right side starts from 3rd position
+          const banner = bannerData[bannerIndex];
+          slot.innerHTML = `
+            <img src="${banner.image_url}" 
+                 alt="${banner.title}" 
+                 class="banner-image" 
+                 onclick="handleBannerClick('${banner.id}', '${banner.click_url}', '<%= link.id %>')"
+                 loading="lazy">
+          `;
+        } else {
+          const bannerIndex = index + 2; // Right side starts from 3rd banner (for 3 or fewer ads)
+          if (bannerData[bannerIndex]) {
+            // Show real ad if available
+            const banner = bannerData[bannerIndex];
+            slot.innerHTML = `
+              <img src="${banner.image_url}" 
+                   alt="${banner.title}" 
+                   class="banner-image" 
+                   onclick="handleBannerClick('${banner.id}', '${banner.click_url}', '<%= link.id %>')"
+                   loading="lazy">
+            `;
+          } else {
+            // Show "Advertise Here" placeholder if no ad available
+            slot.innerHTML = `
+              <a href="https://wa.me/0783987223?text=Hello%20admin%20of%20benixspace%20i%20want%20to%20advertise%20on%20your%20platform" 
+                 target="_blank" 
+                 class="advertise-placeholder">
+                <i class="fas fa-bullhorn fa-2x mb-2"></i>
+                <strong>Advertise Here</strong>
+                <small>Reach our audience</small>
+              </a>
+            `;
+          }
+        }
+      });
+    }
+
+    function displayBannersOnMobile() {
+      const mobileContainer = document.getElementById('mobileBannerContainer');
+      if (!mobileContainer || !bannerData || bannerData.length === 0) return;
+
+      const banner = bannerData[mobileBannerIndex % bannerData.length];
+      
+      mobileContainer.innerHTML = `
+        <img src="${banner.image_url}" 
+             alt="${banner.title}" 
+             class="banner-image" 
+             onclick="handleBannerClick('${banner.id}', '${banner.click_url}', '<%= link.id %>')"
+             loading="lazy">
+      `;
+    }
+
+    function displayPlaceholderBanners() {
+      // Desktop placeholders - only 3 slots total
+      const leftContainer = document.getElementById('leftBanners');
+      const rightContainer = document.getElementById('rightBanners');
+      
+      if (leftContainer) {
+        const leftSlots = leftContainer.querySelectorAll('.banner-slot');
+        leftSlots.forEach(slot => {
+          slot.innerHTML = `
+            <a href="https://wa.me/0783987223?text=Hello%20admin%20of%20benixspace%20i%20want%20to%20advertise%20on%20your%20platform" 
+               target="_blank" 
+               class="advertise-placeholder">
+              <i class="fas fa-bullhorn fa-2x mb-2"></i>
+              <strong>Advertise Here</strong>
+              <small>Reach our audience</small>
+            </a>
+          `;
+        });
+      }
+
+      if (rightContainer) {
+        const rightSlots = rightContainer.querySelectorAll('.banner-slot');
+        rightSlots.forEach(slot => {
+          slot.innerHTML = `
+            <a href="https://wa.me/0783987223?text=Hello%20admin%20of%20benixspace%20i%20want%20to%20advertise%20on%20your%20platform" 
+               target="_blank" 
+               class="advertise-placeholder">
+              <i class="fas fa-bullhorn fa-2x mb-2"></i>
+              <strong>Advertise Here</strong>
+              <small>Reach our audience</small>
+            </a>
+          `;
+        });
+      }
+
+      // Mobile placeholder
+      const mobileContainer = document.getElementById('mobileBannerContainer');
+      if (mobileContainer) {
+        mobileContainer.innerHTML = `
+          <a href="https://wa.me/0783987223?text=Hello%20admin%20of%20benixspace%20i%20want%20to%20advertise%20on%20your%20platform" 
+             target="_blank" 
+             class="advertise-placeholder">
+            <i class="fas fa-bullhorn fa-2x mb-2"></i>
+            <strong>Advertise Here</strong>
+            <small>Reach our audience</small>
+          </a>
+        `;
+      }
+    }
+
+    function startRotations() {
+      if (!bannerData || bannerData.length <= 1) return; // No rotation needed for 1 or fewer ads
+
+      // Desktop rotation (8 seconds) - only rotate when we have more than 3 ads
+      if (bannerData.length > 3) {
+        desktopRotationInterval = setInterval(() => {
+          desktopBannerIndex = (desktopBannerIndex + 1) % bannerData.length;
+          displayBannersOnDesktop();
+        }, 8000);
+      }
+
+      // Mobile rotation (6 seconds, only if more than 1 banner)
+      if (bannerData.length > 1) {
+        mobileRotationInterval = setInterval(() => {
+          mobileBannerIndex = (mobileBannerIndex + 1) % bannerData.length;
+          displayBannersOnMobile();
+        }, 6000);
+      }
+    }
+
+    function stopRotations() {
+      if (desktopRotationInterval) {
+        clearInterval(desktopRotationInterval);
+        desktopRotationInterval = null;
+      }
+      if (mobileRotationInterval) {
+        clearInterval(mobileRotationInterval);
+        mobileRotationInterval = null;
+      }
+    }
+
+    function toggleBanners(side) {
+      const container = document.getElementById(side + 'Banners');
+      const toggle = container.querySelector('.banner-toggle');
+      
+      if (bannersHidden[side]) {
+        container.classList.remove('hidden');
+        toggle.innerHTML = '<i class="fas fa-eye-slash"></i>';
+        toggle.title = 'Hide Ads';
+        bannersHidden[side] = false;
+      } else {
+        container.classList.add('hidden');
+        toggle.innerHTML = '<i class="fas fa-eye"></i>';
+        toggle.title = 'Show Ads';
+        bannersHidden[side] = true;
+      }
+    }
+
+    // Track banner impressions when banners are visible
+    function trackBannerImpressions() {
+      if (!bannerData || bannerData.length === 0) return;
+      
+      const linkId = '<%= link.id %>';
+      
+      bannerData.forEach(banner => {
+        fetch('/api/banner/track', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            bannerId: banner.id,
+            eventType: 'impression',
+            linkId: linkId
+          })
+        })
+        .catch(error => console.error('Banner impression tracking error:', error));
+      });
+    }
+
+    // Handle window resize to refresh banner display and rotation
+    window.addEventListener('resize', function() {
+      // Stop current rotations
+      stopRotations();
+      
+      // Reset banner indices
+      desktopBannerIndex = 0;
+      mobileBannerIndex = 0;
+      
+      // Redisplay banners based on new screen size
+      if (bannerData && bannerData.length > 0) {
+        displayBannersOnDesktop();
+        displayBannersOnMobile();
+        // Restart rotations with appropriate settings
+        startRotations();
+      } else {
+        displayPlaceholderBanners();
+      }
+    });
+
+    // Initialize banners when page loads
+    document.addEventListener('DOMContentLoaded', function() {
+      // Add a small delay to ensure all elements are properly loaded
+      setTimeout(initializeBanners, 500);
+    });
+
+    // Cleanup when page unloads
+    window.addEventListener('beforeunload', stopRotations);
   </script>
 </body>
 </html>

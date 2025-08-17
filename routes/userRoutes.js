@@ -26,7 +26,7 @@ const pool = mysql.createPool({
   host: process.env.DB_HOST || 'localhost',
   user: process.env.DB_USER || 'root',
   password: process.env.DB_PASSWORD || '',
-  database: process.env.DB_NAME || 'benixs_benix',
+  database: process.env.DB_NAME || 'benix',
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0
@@ -63,7 +63,7 @@ const isAuthenticated = async (req, res, next) => {
   }
 };
 
-// Auth middleware to check if user is logged in AND activated
+// Auth middleware to check if user is logged in AND activated (only for regular users)
 const isActivated = async (req, res, next) => {
   if (!req.session.userId) {
     return res.redirect('/login?redirect=' + encodeURIComponent(req.originalUrl));
@@ -85,7 +85,12 @@ const isActivated = async (req, res, next) => {
     const user = users[0];
     req.user = user;
 
-    // Check if user is activated (except for activation page itself)
+    // Skip activation check for merchants and admins
+    if (user.role === 'merchant' || user.role === 'admin') {
+      return next();
+    }
+
+    // Check if regular user is activated (except for activation page itself)
     if (user.status !== 'active' || !user.activation_paid) {
       // Allow access to activation-related pages
       const allowedPaths = [
@@ -164,9 +169,10 @@ router.get('/profile', isActivated, async (req, res) => {
     
     // Get user's shared links stats
     const [sharedLinksStats] = await pool.query(`
-      SELECT COUNT(sl.id) as total_links, SUM(sl.clicks) as total_clicks, 
+      SELECT COUNT(sl.id) as total_links, COUNT(DISTINCT c.id) as total_clicks, 
              COUNT(DISTINCT sl.link_id) as unique_links
       FROM shared_links sl
+      LEFT JOIN clicks c ON sl.id = c.shared_link_id
       WHERE sl.user_id = ?
     `, [userId]);
     
@@ -256,9 +262,10 @@ router.get('/profile', isActivated, async (req, res) => {
       stats.totalLinks = linkCountResults[0].count || 0;
       
       const [clickResults] = await pool.query(`
-        SELECT COALESCE(SUM(sl.clicks), 0) as totalClicks
+        SELECT COUNT(DISTINCT c.id) as totalClicks
         FROM links l
         LEFT JOIN shared_links sl ON l.id = sl.link_id
+        LEFT JOIN clicks c ON sl.id = c.shared_link_id
         WHERE l.merchant_id = ?
       `, [userId]);
       
@@ -502,19 +509,23 @@ router.get('/shared-links', isActivated, async (req, res) => {
     const [sharedLinks] = await pool.query(`
       SELECT sl.*, l.title, l.url, l.type, l.created_at as link_created,
              u.username as merchant_name, u.id as merchant_id,
-             CONCAT('/l/', sl.share_code) as short_url
+             CONCAT('/l/', sl.share_code) as short_url,
+             COUNT(c.id) as clicks
       FROM shared_links sl
       JOIN links l ON sl.link_id = l.id
       JOIN users u ON l.merchant_id = u.id
+      LEFT JOIN clicks c ON sl.id = c.shared_link_id
       WHERE sl.user_id = ?
-      ORDER BY sl.clicks DESC
+      GROUP BY sl.id, l.title, l.url, l.type, l.created_at, u.username, u.id
+      ORDER BY clicks DESC
     `, [userId]);
     
     // Get total clicks and earnings from these links
     const [stats] = await pool.query(`
-      SELECT COUNT(id) as total_links, SUM(clicks) as total_clicks
-      FROM shared_links
-      WHERE user_id = ?
+      SELECT COUNT(sl.id) as total_links, COUNT(DISTINCT c.id) as total_clicks
+      FROM shared_links sl
+      LEFT JOIN clicks c ON sl.id = c.shared_link_id
+      WHERE sl.user_id = ?
     `, [userId]);
     
     // Get total earnings
@@ -596,7 +607,7 @@ router.get('/orders', isActivated, async (req, res) => {
 });
 
 // View single order details
-router.get('/orders/:id', isActivated, async (req, res) => {
+router.get('/orders/:id', isAuthenticated, async (req, res) => {
   try {
     const orderId = req.params.id;
     const userId = req.session.userId;
@@ -652,70 +663,115 @@ router.get('/orders/:id', isActivated, async (req, res) => {
 // User Activation Payment Routes
 router.get('/user/activate', isAuthenticated, async (req, res) => {
   try {
+    console.log('Activation page accessed by user:', req.user.id, req.user.username);
+    
     // Check if user is already activated
     if (req.user.status === 'active' && req.user.activation_paid) {
       return res.redirect('/dashboard?success=Your account is already activated');
     }
 
-    // Get activation fee from settings
-    const [settings] = await pool.query(`
-      SELECT setting_key, setting_value, setting_type 
-      FROM system_settings 
-      WHERE setting_key IN ('activation_fee_rwf', 'supported_currencies')
-    `);
+    // Initialize default values
+    let activationFeeRwf = 3000;
+    let supportedCurrencies = ['RWF', 'USD', 'UGX', 'KES'];
+    let configMap = {};
+    let exchangeRates = {};
+    let fees = {};
 
-    // Get manual payment settings from config
-    const [configSettings] = await pool.query(`
-      SELECT key_name, value 
-      FROM config 
-      WHERE key_name IN (
-        'manual_payment_instructions', 
-        'manual_payment_bank_name', 
-        'manual_payment_account_name', 
-        'manual_payment_account_number', 
-        'manual_payment_swift_code',
-        'manual_payment_enabled',
-        'manual_payment_screenshot'
-      )
-    `);
+    // Try to get activation fee from settings (with fallback)
+    try {
+      const [settings] = await pool.query(`
+        SELECT setting_key, setting_value, setting_type 
+        FROM system_settings 
+        WHERE setting_key IN ('activation_fee_rwf', 'supported_currencies')
+      `);
 
-    const settingsMap = {};
-    settings.forEach(setting => {
-      let value = setting.setting_value;
-      if (setting.setting_type === 'json') {
-        try {
-          value = JSON.parse(value);
-        } catch (e) {
-          value = setting.setting_value;
+      const settingsMap = {};
+      settings.forEach(setting => {
+        let value = setting.setting_value;
+        if (setting.setting_type === 'json') {
+          try {
+            value = JSON.parse(value);
+          } catch (e) {
+            console.log('JSON parse error for setting:', setting.setting_key, e.message);
+            value = setting.setting_value;
+          }
+        } else if (setting.setting_type === 'number') {
+          value = parseFloat(value);
         }
-      } else if (setting.setting_type === 'number') {
-        value = parseFloat(value);
-      }
-      settingsMap[setting.setting_key] = value;
-    });
+        settingsMap[setting.setting_key] = value;
+      });
 
-    // Add config settings to settingsMap
-    const configMap = {};
-    configSettings.forEach(config => {
-      configMap[config.key_name] = config.value;
-    });
-
-    const activationFeeRwf = settingsMap.activation_fee_rwf || 3000;
-    const supportedCurrencies = settingsMap.supported_currencies || ['RWF', 'USD', 'UGX', 'KES'];
-
-    // Get currency conversion rates
-    const currencyService = req.app.locals.currencyService;
-    const exchangeRates = await currencyService.getExchangeRates();
-
-    // Calculate fees in different currencies
-    const fees = {};
-    for (const currency of supportedCurrencies) {
-      if (currency === 'RWF') {
-        fees[currency] = activationFeeRwf;
-      } else {
-        fees[currency] = await currencyService.convertCurrency(activationFeeRwf, 'RWF', currency);
-      }
+      activationFeeRwf = settingsMap.activation_fee_rwf || 3000;
+      supportedCurrencies = settingsMap.supported_currencies || ['RWF', 'USD', 'UGX', 'KES'];
+      console.log('Settings loaded - Fee:', activationFeeRwf, 'Currencies:', supportedCurrencies);
+    } catch (settingsErr) {
+      console.error('Error loading system settings, using defaults:', settingsErr.message);
     }
+
+    // Try to get manual payment settings from config (with fallback)
+    try {
+      const [configSettings] = await pool.query(`
+        SELECT key_name, value 
+        FROM config 
+        WHERE key_name IN (
+          'manual_payment_instructions', 
+          'manual_payment_bank_name', 
+          'manual_payment_account_name', 
+          'manual_payment_account_number', 
+          'manual_payment_swift_code',
+          'manual_payment_enabled',
+          'manual_payment_screenshot'
+        )
+      `);
+
+      configSettings.forEach(config => {
+        configMap[config.key_name] = config.value;
+      });
+      console.log('Config settings loaded:', Object.keys(configMap));
+    } catch (configErr) {
+      console.error('Error loading config settings, using defaults:', configErr.message);
+    }
+
+    // Try to get currency conversion rates (with fallback)
+    try {
+      const currencyService = req.app.locals.currencyService;
+      if (currencyService) {
+        exchangeRates = await currencyService.getExchangeRates();
+        
+        // Calculate fees in different currencies
+        for (const currency of supportedCurrencies) {
+          if (currency === 'RWF') {
+            fees[currency] = activationFeeRwf;
+          } else {
+            try {
+              fees[currency] = await currencyService.convertCurrency(activationFeeRwf, 'RWF', currency);
+            } catch (convErr) {
+              console.error(`Currency conversion error for ${currency}:`, convErr.message);
+              fees[currency] = activationFeeRwf; // Fallback to RWF amount
+            }
+          }
+        }
+        console.log('Currency fees calculated:', fees);
+      } else {
+        console.warn('Currency service not available, using default fees');
+        // Set default fees if currency service is not available
+        supportedCurrencies.forEach(currency => {
+          fees[currency] = activationFeeRwf;
+        });
+      }
+    } catch (currencyErr) {
+      console.error('Error with currency service, using default fees:', currencyErr.message);
+      supportedCurrencies.forEach(currency => {
+        fees[currency] = activationFeeRwf;
+      });
+    }
+
+    console.log('Rendering activation page with data:', {
+      userId: req.user.id,
+      activationFeeRwf,
+      supportedCurrencies,
+      feesCount: Object.keys(fees).length
+    });
 
     res.render('user/activate', {
       user: req.user,
@@ -727,18 +783,37 @@ router.get('/user/activate', isAuthenticated, async (req, res) => {
       errorMessage: req.query.error,
       protocol: req.protocol,
       host: req.get('host'),
-      // Manual payment settings
+      // Manual payment settings with defaults
       manualPaymentInstructions: configMap.manual_payment_instructions || 'Please transfer the amount to our account and upload a screenshot/receipt as proof of payment.',
-      manualPaymentBankName: configMap.manual_payment_bank_name || '',
-      manualPaymentAccountName: configMap.manual_payment_account_name || '',
-      manualPaymentAccountNumber: configMap.manual_payment_account_number || '',
-      manualPaymentSwiftCode: configMap.manual_payment_swift_code || '',
-      manualPaymentEnabled: configMap.manual_payment_enabled === 'true',
+      manualPaymentBankName: configMap.manual_payment_bank_name || 'Bank of Africa',
+      manualPaymentAccountName: configMap.manual_payment_account_name || 'BenixSpace Ltd',
+      manualPaymentAccountNumber: configMap.manual_payment_account_number || '00012345678',
+      manualPaymentSwiftCode: configMap.manual_payment_swift_code || 'BKEERWRW',
+      manualPaymentEnabled: configMap.manual_payment_enabled === 'true' || true, // Default to true
       manualPaymentScreenshot: configMap.manual_payment_screenshot || null
     });
   } catch (err) {
     console.error('Activation page error:', err);
-    res.redirect('/dashboard?error=Failed to load activation page');
+    // Instead of redirecting, render with minimal data
+    res.render('user/activate', {
+      user: req.user,
+      activationFeeRwf: 3000,
+      fees: { RWF: 3000, USD: 2.5, UGX: 11000, KES: 400 },
+      supportedCurrencies: ['RWF', 'USD', 'UGX', 'KES'],
+      exchangeRates: {},
+      successMessage: req.query.success,
+      errorMessage: req.query.error || 'Some settings could not be loaded, using defaults.',
+      protocol: req.protocol,
+      host: req.get('host'),
+      // Default manual payment settings
+      manualPaymentInstructions: 'Please transfer the amount to our account and upload a screenshot/receipt as proof of payment.',
+      manualPaymentBankName: 'Bank of Africa',
+      manualPaymentAccountName: 'BenixSpace Ltd',
+      manualPaymentAccountNumber: '00012345678',
+      manualPaymentSwiftCode: 'BKEERWRW',
+      manualPaymentEnabled: true,
+      manualPaymentScreenshot: null
+    });
   }
 });
 

@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>System Performance Analytics | Admin - BenixSpace</title>
+    <link rel="icon" href="/static/img/favicon.png" type="image/png" />
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        .stats-card {
+            transition: all 0.3s;
+            border-radius: 10px;
+        }
+        .stats-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+        }
+        .chart-container {
+            position: relative;
+            height: 400px;
+            margin-bottom: 20px;
+        }
+        .metric-value {
+            font-size: 2rem;
+            font-weight: bold;
+        }
+        .metric-label {
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .positive { color: #28a745; }
+        .negative { color: #dc3545; }
+        .neutral { color: #6c757d; }
+    </style>
+</head>
+<body class="bg-light">
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/">BenixSpace</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="/admin/dashboard">Dashboard</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="/admin/performance">Performance</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/admin/users">Users</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/admin/merchants">Merchants</a>
+                    </li>
+                </ul>
+                <ul class="navbar-nav">
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown">
+                            <%= user.username %>
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item" href="/logout">Logout</a></li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid py-4">
+        <!-- Breadcrumb -->
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="/admin/dashboard">Dashboard</a></li>
+                <li class="breadcrumb-item active">System Performance Analytics</li>
+            </ol>
+        </nav>
+
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1 class="h3">System Performance Analytics</h1>
+            <div>
+                <button class="btn btn-outline-primary" onclick="window.print()">
+                    <i class="bi bi-printer"></i> Print Report
+                </button>
+            </div>
+        </div>
+
+        <!-- Key Financial Metrics -->
+        <div class="row mb-4">
+            <div class="col-xl-3 col-md-6 mb-3">
+                <div class="card stats-card bg-primary text-white h-100">
+                    <div class="card-body">
+                        <div class="metric-label">Total Revenue</div>
+                        <div class="metric-value">$<%= parseFloat(stats.total_revenue || 0).toFixed(2) %></div>
+                        <small>From completed orders</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-xl-3 col-md-6 mb-3">
+                <div class="card stats-card bg-warning text-dark h-100">
+                    <div class="card-body">
+                        <div class="metric-label">Amount Due</div>
+                        <div class="metric-value">$<%= parseFloat(stats.total_amount_due || 0).toFixed(2) %></div>
+                        <small>To merchants</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-xl-3 col-md-6 mb-3">
+                <div class="card stats-card bg-success text-white h-100">
+                    <div class="card-body">
+                        <div class="metric-label">Amount Paid</div>
+                        <div class="metric-value">$<%= parseFloat(stats.total_amount_paid || 0).toFixed(2) %></div>
+                        <small>To merchants</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-xl-3 col-md-6 mb-3">
+                <div class="card stats-card bg-<%= stats.net_profit >= 0 ? 'success' : 'danger' %> text-white h-100">
+                    <div class="card-body">
+                        <div class="metric-label">Net Profit</div>
+                        <div class="metric-value">$<%= parseFloat(stats.net_profit || 0).toFixed(2) %></div>
+                        <small>Revenue - User earnings</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- User Metrics -->
+        <div class="row mb-4">
+            <div class="col-xl-2 col-md-4 mb-3">
+                <div class="card stats-card bg-info text-white h-100">
+                    <div class="card-body text-center">
+                        <div class="metric-value"><%= stats.total_users %></div>
+                        <div class="metric-label">Total Users</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-xl-2 col-md-4 mb-3">
+                <div class="card stats-card bg-secondary text-white h-100">
+                    <div class="card-body text-center">
+                        <div class="metric-value"><%= stats.total_merchants %></div>
+                        <div class="metric-label">Merchants</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-xl-2 col-md-4 mb-3">
+                <div class="card stats-card bg-dark text-white h-100">
+                    <div class="card-body text-center">
+                        <div class="metric-value"><%= stats.total_links %></div>
+                        <div class="metric-label">Total Links</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-xl-2 col-md-4 mb-3">
+                <div class="card stats-card bg-primary text-white h-100">
+                    <div class="card-body text-center">
+                        <div class="metric-value"><%= stats.total_clicks %></div>
+                        <div class="metric-label">Total Clicks</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-xl-2 col-md-4 mb-3">
+                <div class="card stats-card bg-success text-white h-100">
+                    <div class="card-body text-center">
+                        <div class="metric-value"><%= stats.completed_orders %></div>
+                        <div class="metric-label">Orders</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-xl-2 col-md-4 mb-3">
+                <div class="card stats-card bg-warning text-dark h-100">
+                    <div class="card-body text-center">
+                        <div class="metric-value">$<%= parseFloat(stats.total_user_earnings || 0).toFixed(2) %></div>
+                        <div class="metric-label">User Earnings</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mb-4">
+            <!-- Monthly Revenue Chart -->
+            <div class="col-lg-8 mb-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">Monthly Revenue Trend</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container">
+                            <canvas id="monthlyRevenueChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Daily Performance Chart -->
+            <div class="col-lg-4 mb-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">Last 30 Days Performance</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container">
+                            <canvas id="dailyPerformanceChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Top Performing Merchants -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Top Performing Merchants by Revenue Generated</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Merchant</th>
+                                <th>Business Name</th>
+                                <th>Links</th>
+                                <th>Total Clicks</th>
+                                <th>Commissions Paid</th>
+                                <th>Amount Due</th>
+                                <th>Amount Paid</th>
+                                <th>Total Revenue Generated</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <% if (topMerchantsByRevenue && topMerchantsByRevenue.length > 0) { %>
+                                <% topMerchantsByRevenue.forEach(merchant => { %>
+                                    <tr>
+                                        <td>
+                                            <a href="/admin/users/<%= merchant.id %>"><%= merchant.username %></a>
+                                        </td>
+                                        <td><%= merchant.business_name || 'N/A' %></td>
+                                        <td><%= merchant.total_links %></td>
+                                        <td><%= merchant.total_clicks %></td>
+                                        <td class="text-success">$<%= parseFloat(merchant.total_earnings_paid || 0).toFixed(4) %></td>
+                                        <td class="text-warning">$<%= parseFloat(merchant.amount_to_pay || 0).toFixed(4) %></td>
+                                        <td class="text-info">$<%= parseFloat(merchant.paid_balance || 0).toFixed(4) %></td>
+                                        <td class="fw-bold text-primary">$<%= parseFloat(merchant.total_revenue_generated || 0).toFixed(4) %></td>
+                                        <td>
+                                            <div class="btn-group btn-group-sm">
+                                                <a href="/admin/merchant-analytics/<%= merchant.id %>" class="btn btn-outline-primary">
+                                                    <i class="bi bi-graph-up"></i> Analytics
+                                                </a>
+                                                <a href="/admin/users/<%= merchant.id %>" class="btn btn-outline-info">
+                                                    <i class="bi bi-person"></i> Details
+                                                </a>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                <% }) %>
+                            <% } else { %>
+                                <tr>
+                                    <td colspan="9" class="text-center">No merchant data available</td>
+                                </tr>
+                            <% } %>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Monthly Revenue Chart
+        const monthlyRevenueCtx = document.getElementById('monthlyRevenueChart').getContext('2d');
+        const monthlyRevenueData = {
+            labels: [<% monthlyRevenue.forEach((month, index) => { %>'<%= month.month %>'<%= index < monthlyRevenue.length - 1 ? ',' : '' %><% }) %>],
+            datasets: [{
+                label: 'Revenue ($)',
+                data: [<% monthlyRevenue.forEach((month, index) => { %><%= parseFloat(month.revenue || 0) %><%= index < monthlyRevenue.length - 1 ? ',' : '' %><% }) %>],
+                borderColor: 'rgb(75, 192, 192)',
+                backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                tension: 0.1
+            }, {
+                label: 'Orders',
+                data: [<% monthlyRevenue.forEach((month, index) => { %><%= month.orders %><%= index < monthlyRevenue.length - 1 ? ',' : '' %><% }) %>],
+                borderColor: 'rgb(255, 99, 132)',
+                backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                tension: 0.1,
+                yAxisID: 'y1'
+            }]
+        };
+
+        new Chart(monthlyRevenueCtx, {
+            type: 'line',
+            data: monthlyRevenueData,
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: {
+                    mode: 'index',
+                    intersect: false,
+                },
+                scales: {
+                    y: {
+                        type: 'linear',
+                        display: true,
+                        position: 'left',
+                    },
+                    y1: {
+                        type: 'linear',
+                        display: true,
+                        position: 'right',
+                        grid: {
+                            drawOnChartArea: false,
+                        },
+                    },
+                }
+            }
+        });
+
+        // Daily Performance Chart
+        const dailyCtx = document.getElementById('dailyPerformanceChart').getContext('2d');
+        const dailyData = {
+            labels: [<% dailyPerformance.slice(0, 15).reverse().forEach((day, index) => { %>'<%= day.date %>'<%= index < Math.min(dailyPerformance.length, 15) - 1 ? ',' : '' %><% }) %>],
+            datasets: [{
+                label: 'Clicks',
+                data: [<% dailyPerformance.slice(0, 15).reverse().forEach((day, index) => { %><%= day.clicks %><%= index < Math.min(dailyPerformance.length, 15) - 1 ? ',' : '' %><% }) %>],
+                borderColor: 'rgb(54, 162, 235)',
+                backgroundColor: 'rgba(54, 162, 235, 0.2)',
+            }]
+        };
+
+        new Chart(dailyCtx, {
+            type: 'line',
+            data: dailyData,
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                    },
+                    title: {
+                        display: true,
+                        text: 'Clicks (Last 15 Days)'
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>

@@ -205,6 +205,202 @@ router.get('/admin/dashboard', isAdmin, async (req, res) => {
   }
 });
 
+// Admin Performance Analytics Dashboard
+router.get('/admin/performance', isAdmin, async (req, res) => {
+  try {
+    // Overall System Financial Analytics
+    const [systemStats] = await pool.query(`
+      SELECT 
+        (SELECT COUNT(*) FROM users WHERE role = 'user') as total_users,
+        (SELECT COUNT(*) FROM users WHERE role = 'merchant') as total_merchants,
+        (SELECT COUNT(*) FROM links) as total_links,
+        (SELECT COUNT(*) FROM clicks) as total_clicks,
+        (SELECT COUNT(*) FROM orders WHERE status = 'completed') as completed_orders,
+        (SELECT COALESCE(SUM(total_amount), 0) FROM orders WHERE status = 'completed') as total_revenue,
+        (SELECT COALESCE(SUM(amount_to_pay), 0) FROM users WHERE role = 'merchant') as total_amount_due,
+        (SELECT COALESCE(SUM(paid_balance), 0) FROM users WHERE role = 'merchant') as total_amount_paid,
+        (SELECT COALESCE(SUM(earnings), 0) FROM users) as total_user_earnings,
+        (SELECT COALESCE(SUM(wallet), 0) FROM users) as total_user_wallets
+    `);
+
+    // Monthly Revenue Trend (last 12 months)
+    const [monthlyRevenue] = await pool.query(`
+      SELECT 
+        DATE_FORMAT(created_at, '%Y-%m') as month,
+        COUNT(*) as orders,
+        COALESCE(SUM(total_amount), 0) as revenue
+      FROM orders 
+      WHERE status = 'completed' 
+        AND created_at >= DATE_SUB(NOW(), INTERVAL 12 MONTH)
+      GROUP BY DATE_FORMAT(created_at, '%Y-%m')
+      ORDER BY month ASC
+    `);
+
+    // Top Performing Merchants by Revenue Generated
+    const [topMerchantsByRevenue] = await pool.query(`
+      SELECT 
+        u.id,
+        u.username,
+        u.business_name,
+        COUNT(DISTINCT l.id) as total_links,
+        COUNT(DISTINCT c.id) as total_clicks,
+        COALESCE(SUM(sl.earnings), 0) as total_earnings_paid,
+        u.amount_to_pay,
+        u.paid_balance,
+        (u.amount_to_pay + u.paid_balance) as total_revenue_generated
+      FROM users u
+      LEFT JOIN links l ON u.id = l.merchant_id
+      LEFT JOIN shared_links sl ON l.id = sl.link_id
+      LEFT JOIN clicks c ON sl.id = c.shared_link_id
+      WHERE u.role = 'merchant'
+      GROUP BY u.id
+      ORDER BY total_revenue_generated DESC
+      LIMIT 10
+    `);
+
+    // Platform Performance by Day (last 30 days)
+    const [dailyPerformance] = await pool.query(`
+      SELECT 
+        DATE(c.created_at) as date,
+        COUNT(c.id) as clicks,
+        COALESCE(SUM(CASE WHEN t.type = 'commission' THEN t.amount ELSE 0 END), 0) as commissions_paid,
+        COUNT(DISTINCT sl.user_id) as active_users
+      FROM clicks c
+      LEFT JOIN shared_links sl ON c.shared_link_id = sl.id
+      LEFT JOIN transactions t ON sl.user_id = t.user_id AND DATE(c.created_at) = DATE(t.created_at)
+      WHERE c.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+      GROUP BY DATE(c.created_at)
+      ORDER BY date DESC
+    `);
+
+    // Calculate Net Profit
+    const stats = systemStats[0];
+    const netProfit = parseFloat(stats.total_revenue) - parseFloat(stats.total_user_earnings);
+
+    res.render('admin/performance', {
+      user: req.user,
+      stats: {
+        ...stats,
+        net_profit: netProfit
+      },
+      monthlyRevenue,
+      topMerchantsByRevenue,
+      dailyPerformance
+    });
+  } catch (err) {
+    console.error('Admin performance error:', err);
+    res.status(500).render('error', {
+      message: 'Error loading performance analytics',
+      error: { status: 500, stack: process.env.NODE_ENV === 'development' ? err.stack : '' }
+    });
+  }
+});
+
+// Enhanced Merchant Analytics
+router.get('/admin/merchant-analytics/:id', isAdmin, async (req, res) => {
+  try {
+    const merchantId = req.params.id;
+
+    // Get merchant info
+    const [merchants] = await pool.query(`
+      SELECT * FROM users WHERE id = ? AND role = 'merchant'
+    `, [merchantId]);
+
+    if (merchants.length === 0) {
+      return res.status(404).render('error', {
+        message: 'Merchant not found',
+        error: { status: 404, stack: '' }
+      });
+    }
+
+    const merchant = merchants[0];
+
+    // Get all links with detailed analytics
+    const [linkAnalytics] = await pool.query(`
+      SELECT 
+        l.*,
+        COUNT(DISTINCT sl.id) as total_shares,
+        COUNT(DISTINCT c.id) as total_clicks,
+        COALESCE(SUM(sl.earnings), 0) as total_commissions_paid,
+        CASE 
+          WHEN COUNT(DISTINCT sl.id) > 0 THEN COUNT(DISTINCT c.id) / COUNT(DISTINCT sl.id)
+          ELSE 0 
+        END as avg_clicks_per_share,
+        (l.cost_per_click * COUNT(DISTINCT c.id)) as total_cost_incurred
+      FROM links l
+      LEFT JOIN shared_links sl ON l.id = sl.link_id
+      LEFT JOIN clicks c ON sl.id = c.shared_link_id
+      WHERE l.merchant_id = ?
+      GROUP BY l.id
+      ORDER BY total_clicks DESC
+    `, [merchantId]);
+
+    // Get individual link performance details
+    const linkIds = linkAnalytics.map(link => link.id);
+    let linkDetails = [];
+    
+    if (linkIds.length > 0) {
+      const [details] = await pool.query(`
+        SELECT 
+          l.id,
+          l.title,
+          sl.user_id,
+          u.username as sharer_name,
+          COUNT(c.id) as clicks,
+          sl.earnings,
+          sl.created_at as shared_at
+        FROM links l
+        JOIN shared_links sl ON l.id = sl.link_id
+        JOIN users u ON sl.user_id = u.id
+        LEFT JOIN clicks c ON sl.id = c.shared_link_id
+        WHERE l.id IN (${linkIds.map(() => '?').join(',')})
+        GROUP BY l.id, sl.id, sl.user_id, u.username, sl.earnings, sl.created_at
+        ORDER BY clicks DESC
+      `, linkIds);
+      linkDetails = details;
+    }
+
+    // Get monthly performance for this merchant
+    const [monthlyPerformance] = await pool.query(`
+      SELECT 
+        DATE_FORMAT(c.created_at, '%Y-%m') as month,
+        COUNT(c.id) as clicks,
+        COALESCE(SUM(sl.earnings), 0) as commissions_paid
+      FROM clicks c
+      JOIN shared_links sl ON c.shared_link_id = sl.id
+      JOIN links l ON sl.link_id = l.id
+      WHERE l.merchant_id = ?
+        AND c.created_at >= DATE_SUB(NOW(), INTERVAL 12 MONTH)
+      GROUP BY DATE_FORMAT(c.created_at, '%Y-%m')
+      ORDER BY month ASC
+    `, [merchantId]);
+
+    // Calculate totals
+    const totalStats = {
+      total_links: linkAnalytics.length,
+      total_shares: linkAnalytics.reduce((sum, link) => sum + link.total_shares, 0),
+      total_clicks: linkAnalytics.reduce((sum, link) => sum + link.total_clicks, 0),
+      total_commissions_paid: linkAnalytics.reduce((sum, link) => sum + parseFloat(link.total_commissions_paid), 0),
+      total_cost_incurred: linkAnalytics.reduce((sum, link) => sum + parseFloat(link.total_cost_incurred), 0)
+    };
+
+    res.render('admin/merchant-analytics', {
+      user: req.user,
+      merchant,
+      linkAnalytics,
+      linkDetails,
+      monthlyPerformance,
+      totalStats
+    });
+  } catch (err) {
+    console.error('Merchant analytics error:', err);
+    res.status(500).render('error', {
+      message: 'Error loading merchant analytics',
+      error: { status: 500, stack: process.env.NODE_ENV === 'development' ? err.stack : '' }
+    });
+  }
+});
+
 // Admin Products Management Routes
 router.get('/admin/products', isAdmin, async (req, res) => {
   try {
@@ -1212,12 +1408,15 @@ router.get('/admin/users/:id', isAdmin, async (req, res) => {
     if (hasSharedLinksTable) {
       try {
         const [sharedLinkResults] = await pool.query(`
-          SELECT sl.*, l.title, l.type, l.url, u.username as merchant_name
+          SELECT sl.*, l.title, l.type, l.url, u.username as merchant_name,
+                 COUNT(c.id) as clicks
           FROM shared_links sl
           JOIN links l ON sl.link_id = l.id
           JOIN users u ON l.merchant_id = u.id
+          LEFT JOIN clicks c ON sl.id = c.shared_link_id
           WHERE sl.user_id = ?
-          ORDER BY sl.clicks DESC
+          GROUP BY sl.id, l.title, l.type, l.url, u.username
+          ORDER BY clicks DESC
           LIMIT 10
         `, [userId]);
         sharedLinks = sharedLinkResults;
@@ -1262,6 +1461,85 @@ router.get('/admin/users/:id', isAdmin, async (req, res) => {
         referrals = [];
       }
     }
+
+    // Get merchant-specific analytics if user is a merchant
+    let merchantAnalytics = null;
+    if (user.role === 'merchant') {
+      try {
+        // Get merchant's links with detailed analytics
+        const [linkAnalytics] = await pool.query(`
+          SELECT 
+            l.*,
+            COUNT(DISTINCT sl.id) as total_shares,
+            COUNT(DISTINCT c.id) as total_clicks,
+            COALESCE(SUM(sl.earnings), 0) as total_commissions_paid,
+            CASE 
+              WHEN COUNT(DISTINCT sl.id) > 0 THEN COUNT(DISTINCT c.id) / COUNT(DISTINCT sl.id)
+              ELSE 0 
+            END as avg_clicks_per_share,
+            (l.cost_per_click * COUNT(DISTINCT c.id)) as total_cost_incurred
+          FROM links l
+          LEFT JOIN shared_links sl ON l.id = sl.link_id
+          LEFT JOIN clicks c ON sl.id = c.shared_link_id
+          WHERE l.merchant_id = ?
+          GROUP BY l.id
+          ORDER BY total_clicks DESC
+          LIMIT 10
+        `, [userId]);
+
+        // Get merchant's top performing shared links
+        const [topSharedLinks] = await pool.query(`
+          SELECT 
+            sl.*,
+            l.title as link_title,
+            u.username as sharer_name,
+            COUNT(c.id) as clicks,
+            sl.earnings
+          FROM shared_links sl
+          JOIN links l ON sl.link_id = l.id
+          JOIN users u ON sl.user_id = u.id
+          LEFT JOIN clicks c ON sl.id = c.shared_link_id
+          WHERE l.merchant_id = ?
+          GROUP BY sl.id, l.title, u.username, sl.earnings
+          ORDER BY clicks DESC
+          LIMIT 10
+        `, [userId]);
+
+        // Get merchant's monthly performance
+        const [monthlyStats] = await pool.query(`
+          SELECT 
+            DATE_FORMAT(c.created_at, '%Y-%m') as month,
+            COUNT(c.id) as clicks,
+            COALESCE(SUM(sl.earnings), 0) as commissions_paid
+          FROM clicks c
+          JOIN shared_links sl ON c.shared_link_id = sl.id
+          JOIN links l ON sl.link_id = l.id
+          WHERE l.merchant_id = ?
+            AND c.created_at >= DATE_SUB(NOW(), INTERVAL 6 MONTH)
+          GROUP BY DATE_FORMAT(c.created_at, '%Y-%m')
+          ORDER BY month DESC
+        `, [userId]);
+
+        // Calculate totals
+        const totalStats = {
+          total_links: linkAnalytics.length,
+          total_shares: linkAnalytics.reduce((sum, link) => sum + link.total_shares, 0),
+          total_clicks: linkAnalytics.reduce((sum, link) => sum + link.total_clicks, 0),
+          total_commissions_paid: linkAnalytics.reduce((sum, link) => sum + parseFloat(link.total_commissions_paid), 0),
+          total_cost_incurred: linkAnalytics.reduce((sum, link) => sum + parseFloat(link.total_cost_incurred), 0)
+        };
+
+        merchantAnalytics = {
+          linkAnalytics,
+          topSharedLinks,
+          monthlyStats,
+          totalStats
+        };
+      } catch (err) {
+        console.log('Error fetching merchant analytics:', err.message);
+        merchantAnalytics = null;
+      }
+    }
     
     // Construct base URL
     const baseUrl = `${req.protocol}://${req.get('host')}`;
@@ -1273,6 +1551,7 @@ router.get('/admin/users/:id', isAdmin, async (req, res) => {
       sharedLinks,
       transactions,
       referrals,
+      merchantAnalytics,
       baseUrl: baseUrl,
       success: req.query.success,
       error: req.query.error
@@ -2514,6 +2793,292 @@ router.get('/admin/commissions', isAdmin, async (req, res) => {
   } catch (err) {
     console.error('Admin commissions error:', err);
     res.redirect('/admin/dashboard?error=Failed to load commissions');
+  }
+});
+
+// Banner Management Routes
+router.get('/admin/banners', isAdmin, async (req, res) => {
+  try {
+    const pool = req.app.locals.pool;
+    
+    const [banners] = await pool.query(`
+      SELECT 
+        b.*,
+        u.username as created_by_name,
+        COALESCE(impressions.count, 0) as total_impressions,
+        COALESCE(clicks.count, 0) as total_clicks
+      FROM ad_banners b
+      JOIN users u ON b.created_by = u.id
+      LEFT JOIN (
+        SELECT banner_id, COUNT(*) as count 
+        FROM banner_analytics 
+        WHERE event_type = 'impression' 
+        GROUP BY banner_id
+      ) impressions ON b.id = impressions.banner_id
+      LEFT JOIN (
+        SELECT banner_id, COUNT(*) as count 
+        FROM banner_analytics 
+        WHERE event_type = 'click' 
+        GROUP BY banner_id
+      ) clicks ON b.id = clicks.banner_id
+      ORDER BY b.created_at DESC
+    `);
+
+    res.render('admin/banners', {
+      user: req.session.user,
+      banners: banners,
+      successMessage: req.query.success,
+      errorMessage: req.query.error
+    });
+  } catch (err) {
+    console.error('Admin banners error:', err);
+    res.redirect('/admin/dashboard?error=Failed to load banners');
+  }
+});
+
+router.get('/admin/banners/create', isAdmin, async (req, res) => {
+  try {
+    const pool = req.app.locals.pool;
+    
+    // Get popular links for targeting options
+    const [popularLinks] = await pool.query(`
+      SELECT 
+        sl.*,
+        l.title,
+        l.url,
+        l.type,
+        l.description,
+        u.username as merchant_name,
+        COALESCE(clicks.click_count, 0) as click_count
+      FROM shared_links sl
+      JOIN links l ON sl.link_id = l.id
+      JOIN users u ON l.merchant_id = u.id
+      LEFT JOIN (
+        SELECT shared_link_id, COUNT(*) as click_count 
+        FROM clicks 
+        GROUP BY shared_link_id
+      ) clicks ON sl.id = clicks.shared_link_id
+      ORDER BY click_count DESC
+      LIMIT 50
+    `);
+
+    res.render('admin/banner-form', {
+      user: req.session.user,
+      banner: null,
+      popularLinks: popularLinks,
+      isEdit: false
+    });
+  } catch (err) {
+    console.error('Admin banner create error:', err);
+    res.redirect('/admin/banners?error=Failed to load create form');
+  }
+});
+
+router.post('/admin/banners/create', isAdmin, upload.single('banner_image'), async (req, res) => {
+  try {
+    const pool = req.app.locals.pool;
+    const { title, click_url, target_type, min_clicks, target_links } = req.body;
+    
+    if (!req.file) {
+      return res.redirect('/admin/banners/create?error=Please upload a banner image');
+    }
+
+    // Move uploaded file to proper location
+    const fileName = req.file.filename;
+    const imageUrl = `/uploads/${fileName}`;
+
+    // Create banner
+    const [result] = await pool.query(`
+      INSERT INTO ad_banners (title, image_url, click_url, target_type, min_clicks, created_by)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `, [title, imageUrl, click_url, target_type, parseInt(min_clicks) || 0, req.session.userId]);
+
+    const bannerId = result.insertId;
+
+    // If specific targeting, add target links
+    if (target_type === 'specific' && target_links) {
+      const linkIds = Array.isArray(target_links) ? target_links : [target_links];
+      for (const linkId of linkIds) {
+        if (linkId) {
+          await pool.query(`
+            INSERT INTO banner_target_links (banner_id, link_id)
+            VALUES (?, ?)
+          `, [bannerId, parseInt(linkId)]);
+        }
+      }
+    }
+
+    res.redirect('/admin/banners?success=Banner created successfully');
+  } catch (err) {
+    console.error('Admin banner create error:', err);
+    res.redirect('/admin/banners/create?error=Failed to create banner');
+  }
+});
+
+router.get('/admin/banners/:id/edit', isAdmin, async (req, res) => {
+  try {
+    const pool = req.app.locals.pool;
+    const bannerId = req.params.id;
+    
+    const [banners] = await pool.query('SELECT * FROM ad_banners WHERE id = ?', [bannerId]);
+    if (banners.length === 0) {
+      return res.redirect('/admin/banners?error=Banner not found');
+    }
+
+    const [popularLinks] = await pool.query(`
+      SELECT 
+        sl.*,
+        l.title,
+        l.url,
+        l.type,
+        l.description,
+        u.username as merchant_name,
+        COALESCE(clicks.click_count, 0) as click_count,
+        CASE WHEN btl.banner_id IS NOT NULL THEN 1 ELSE 0 END as is_targeted
+      FROM shared_links sl
+      JOIN links l ON sl.link_id = l.id
+      JOIN users u ON l.merchant_id = u.id
+      LEFT JOIN (
+        SELECT shared_link_id, COUNT(*) as click_count 
+        FROM clicks 
+        GROUP BY shared_link_id
+      ) clicks ON sl.id = clicks.shared_link_id
+      LEFT JOIN banner_target_links btl ON sl.id = btl.link_id AND btl.banner_id = ?
+      ORDER BY click_count DESC
+      LIMIT 50
+    `, [bannerId]);
+
+    res.render('admin/banner-form', {
+      user: req.session.user,
+      banner: banners[0],
+      popularLinks: popularLinks,
+      isEdit: true
+    });
+  } catch (err) {
+    console.error('Admin banner edit error:', err);
+    res.redirect('/admin/banners?error=Failed to load banner');
+  }
+});
+
+router.post('/admin/banners/:id/edit', isAdmin, upload.single('banner_image'), async (req, res) => {
+  try {
+    const pool = req.app.locals.pool;
+    const bannerId = req.params.id;
+    const { title, click_url, target_type, min_clicks, target_links, is_active } = req.body;
+    
+    let imageUrl = null;
+    if (req.file) {
+      const fileName = req.file.filename;
+      imageUrl = `/uploads/${fileName}`;
+    }
+
+    // Update banner
+    if (imageUrl) {
+      await pool.query(`
+        UPDATE ad_banners 
+        SET title = ?, image_url = ?, click_url = ?, target_type = ?, min_clicks = ?, is_active = ?
+        WHERE id = ?
+      `, [title, imageUrl, click_url, target_type, parseInt(min_clicks) || 0, is_active === 'on', bannerId]);
+    } else {
+      await pool.query(`
+        UPDATE ad_banners 
+        SET title = ?, click_url = ?, target_type = ?, min_clicks = ?, is_active = ?
+        WHERE id = ?
+      `, [title, click_url, target_type, parseInt(min_clicks) || 0, is_active === 'on', bannerId]);
+    }
+
+    // Update target links
+    await pool.query('DELETE FROM banner_target_links WHERE banner_id = ?', [bannerId]);
+    
+    if (target_type === 'specific' && target_links) {
+      const linkIds = Array.isArray(target_links) ? target_links : [target_links];
+      for (const linkId of linkIds) {
+        if (linkId) {
+          await pool.query(`
+            INSERT INTO banner_target_links (banner_id, link_id)
+            VALUES (?, ?)
+          `, [bannerId, parseInt(linkId)]);
+        }
+      }
+    }
+
+    res.redirect('/admin/banners?success=Banner updated successfully');
+  } catch (err) {
+    console.error('Admin banner update error:', err);
+    res.redirect(`/admin/banners/${bannerId}/edit?error=Failed to update banner`);
+  }
+});
+
+router.post('/admin/banners/:id/delete', isAdmin, async (req, res) => {
+  try {
+    const pool = req.app.locals.pool;
+    const bannerId = req.params.id;
+    
+    await pool.query('DELETE FROM ad_banners WHERE id = ?', [bannerId]);
+    
+    res.redirect('/admin/banners?success=Banner deleted successfully');
+  } catch (err) {
+    console.error('Admin banner delete error:', err);
+    res.redirect('/admin/banners?error=Failed to delete banner');
+  }
+});
+
+router.get('/admin/banners/:id/analytics', isAdmin, async (req, res) => {
+  try {
+    const pool = req.app.locals.pool;
+    const bannerId = req.params.id;
+    
+    const [banner] = await pool.query('SELECT * FROM ad_banners WHERE id = ?', [bannerId]);
+    if (banner.length === 0) {
+      return res.redirect('/admin/banners?error=Banner not found');
+    }
+
+    // Get analytics data
+    const [analytics] = await pool.query(`
+      SELECT 
+        DATE(created_at) as date,
+        event_type,
+        COUNT(*) as count
+      FROM banner_analytics 
+      WHERE banner_id = ? 
+        AND created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+      GROUP BY DATE(created_at), event_type
+      ORDER BY date DESC
+    `, [bannerId]);
+
+    const [totalStats] = await pool.query(`
+      SELECT 
+        event_type,
+        COUNT(*) as total
+      FROM banner_analytics 
+      WHERE banner_id = ?
+      GROUP BY event_type
+    `, [bannerId]);
+
+    const [recentActivity] = await pool.query(`
+      SELECT 
+        ba.*,
+        l.title as link_title,
+        u.username
+      FROM banner_analytics ba
+      LEFT JOIN shared_links sl ON ba.link_id = sl.id
+      LEFT JOIN links l ON sl.link_id = l.id
+      LEFT JOIN users u ON ba.user_id = u.id
+      WHERE ba.banner_id = ?
+      ORDER BY ba.created_at DESC
+      LIMIT 50
+    `, [bannerId]);
+
+    res.render('admin/banner-analytics', {
+      user: req.session.user,
+      banner: banner[0],
+      analytics: analytics,
+      totalStats: totalStats,
+      recentActivity: recentActivity
+    });
+  } catch (err) {
+    console.error('Admin banner analytics error:', err);
+    res.redirect('/admin/banners?error=Failed to load analytics');
   }
 });
 

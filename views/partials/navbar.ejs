@@ -118,47 +118,149 @@
 </nav>
 
 <style>
-/* Add these styles to ensure dropdown menus work correctly */
+/* Ensure proper navbar positioning and z-index */
+.navbar {
+  position: relative;
+  z-index: 1030;
+}
+
+/* Fix dropdown menus positioning and z-index */
+.dropdown-menu {
+  position: absolute !important;
+  z-index: 1050 !important;
+  top: 100% !important;
+  left: 0 !important;
+  display: none;
+  float: none;
+  min-width: 160px;
+  padding: 5px 0;
+  margin: 2px 0 0;
+  font-size: 14px;
+  text-align: left;
+  background-color: #fff;
+  background-clip: padding-box;
+  border: 1px solid #ccc;
+  border: 1px solid rgba(0,0,0,.15);
+  border-radius: 4px;
+  box-shadow: 0 6px 12px rgba(0,0,0,.175);
+  max-height: none !important;
+  overflow: visible !important;
+}
+
+.dropdown-menu.dropdown-menu-end {
+  right: 0 !important;
+  left: auto !important;
+}
+
+.dropdown.show .dropdown-menu {
+  display: block !important;
+}
+
+/* Hover functionality for desktop */
 .dropdown:hover .dropdown-menu {
   display: block;
   margin-top: 0;
 }
+
+/* Disable hover on mobile */
 @media (max-width: 992px) {
   .dropdown:hover .dropdown-menu {
     display: none;
   }
   .dropdown.show .dropdown-menu {
-    display: block;
+    display: block !important;
   }
+}
+
+/* Ensure dropdown items are properly styled */
+.dropdown-item {
+  display: block;
+  width: 100%;
+  padding: 3px 20px;
+  clear: both;
+  font-weight: normal;
+  line-height: 1.42857143;
+  color: #333;
+  white-space: nowrap;
+  text-decoration: none;
+  background-color: transparent;
+  border: 0;
+}
+
+.dropdown-item:hover,
+.dropdown-item:focus {
+  color: #262626;
+  text-decoration: none;
+  background-color: #f5f5f5;
+}
+
+/* Fix any overflow issues */
+body {
+  overflow-x: auto;
+}
+
+.container, .container-fluid {
+  overflow: visible;
 }
 </style>
 
 <script>
-// Ensure dropdowns work on all devices
+// Ensure dropdowns work properly on all devices
 document.addEventListener('DOMContentLoaded', function() {
-  // For touch devices - make sure dropdowns work with a click
-  var dropdownToggleList = [].slice.call(document.querySelectorAll('.dropdown-toggle'));
-  dropdownToggleList.forEach(function(dropdownToggle) {
+  // Initialize Bootstrap dropdowns
+  const dropdownElementList = document.querySelectorAll('.dropdown-toggle');
+  const dropdownList = [...dropdownElementList].map(dropdownToggleEl => {
+    return new bootstrap.Dropdown(dropdownToggleEl);
+  });
+
+  // Additional click handling for better mobile support
+  dropdownElementList.forEach(function(dropdownToggle) {
     dropdownToggle.addEventListener('click', function(e) {
-      // Prevent default link behavior
       e.preventDefault();
-      // Toggle the dropdown
-      this.parentNode.classList.toggle('show');
-      this.setAttribute('aria-expanded', this.getAttribute('aria-expanded') === 'true' ? 'false' : 'true');
-      this.nextElementSibling.classList.toggle('show');
+      e.stopPropagation();
+      
+      // Close other dropdowns first
+      document.querySelectorAll('.dropdown.show').forEach(function(otherDropdown) {
+        if (otherDropdown !== this.parentNode) {
+          otherDropdown.classList.remove('show');
+          otherDropdown.querySelector('.dropdown-toggle').setAttribute('aria-expanded', 'false');
+          otherDropdown.querySelector('.dropdown-menu').classList.remove('show');
+        }
+      }.bind(this));
+      
+      // Toggle current dropdown
+      const dropdown = this.parentNode;
+      const menu = this.nextElementSibling;
+      const isShown = dropdown.classList.contains('show');
+      
+      if (isShown) {
+        dropdown.classList.remove('show');
+        this.setAttribute('aria-expanded', 'false');
+        menu.classList.remove('show');
+      } else {
+        dropdown.classList.add('show');
+        this.setAttribute('aria-expanded', 'true');
+        menu.classList.add('show');
+      }
     });
   });
 
   // Close dropdowns when clicking outside
   document.addEventListener('click', function(e) {
     if (!e.target.closest('.dropdown')) {
-      var dropdowns = document.querySelectorAll('.dropdown.show');
-      dropdowns.forEach(function(dropdown) {
+      document.querySelectorAll('.dropdown.show').forEach(function(dropdown) {
         dropdown.classList.remove('show');
         dropdown.querySelector('.dropdown-toggle').setAttribute('aria-expanded', 'false');
         dropdown.querySelector('.dropdown-menu').classList.remove('show');
       });
     }
+  });
+
+  // Prevent dropdown menu clicks from closing the dropdown
+  document.querySelectorAll('.dropdown-menu').forEach(function(menu) {
+    menu.addEventListener('click', function(e) {
+      e.stopPropagation();
+    });
   });
 });
 </script>

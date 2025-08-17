@@ -16,6 +16,7 @@ const { v4: uuidv4 } = require('uuid');
 const axios = require('axios');
 const nodemailer = require('nodemailer');
 const MySQLStore = require('express-mysql-session')(session);
+const indexRoutes = require('./routes/index');
 const productRoutes = require('./routes/productRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const userRoutes = require('./routes/userRoutes');
@@ -255,6 +256,41 @@ async function sendWithdrawalNotification(user, transaction, status) {
   );
 }
 
+// Migration function for validated_view column
+async function runValidatedViewMigration(connection) {
+  try {
+    // Check if validated_view column exists in clicks table
+    const [columns] = await connection.query(`
+      SELECT COLUMN_NAME 
+      FROM INFORMATION_SCHEMA.COLUMNS 
+      WHERE TABLE_SCHEMA = DATABASE() 
+      AND TABLE_NAME = 'clicks' 
+      AND COLUMN_NAME = 'validated_view'
+    `);
+    
+    if (columns.length === 0) {
+      console.log('🔄 Running validated_view migration...');
+      
+      // Add validated_view column to clicks table
+      await connection.query(`
+        ALTER TABLE clicks ADD COLUMN validated_view BOOLEAN DEFAULT FALSE
+      `);
+      
+      // Update existing clicks to mark them as validated (for backward compatibility)
+      await connection.query(`
+        UPDATE clicks SET validated_view = TRUE WHERE is_counted = TRUE
+      `);
+      
+      console.log('✅ validated_view migration completed successfully');
+    } else {
+      console.log('📋 validated_view column already exists, skipping migration');
+    }
+  } catch (error) {
+    console.error('❌ Error running validated_view migration:', error);
+    // Don't throw error to prevent app startup failure
+  }
+}
+
 // Initialize the database tables if they don't exist
 async function initializeDatabase() {
   const connection = await pool.getConnection();
@@ -270,6 +306,56 @@ async function initializeDatabase() {
       ) ROW_FORMAT=DYNAMIC
     `);
 
+    // Run migration for validated_view column
+    await runValidatedViewMigration(connection);
+
+    // Add product type and song fields to products table
+    try {
+      // Check if product_type column exists
+      const [typeColumns] = await connection.query(`
+        SHOW COLUMNS FROM products LIKE 'product_type'
+      `);
+      
+      if (typeColumns.length === 0) {
+        await connection.query(`
+          ALTER TABLE products 
+          ADD COLUMN product_type ENUM('product', 'song') DEFAULT 'product' AFTER name
+        `);
+        console.log('Added product_type column to products table');
+      }
+
+      // Add song-specific fields
+      const songFields = [
+        'audio_file VARCHAR(500)',
+        'lyrics TEXT',
+        'genre VARCHAR(100)',
+        'style ENUM("secular", "gospel") DEFAULT "secular"',
+        'duration INT', // duration in seconds
+        'preview_start INT DEFAULT 0', // start time for 35-second preview
+        'cover_image VARCHAR(500)', // auto-generated cover
+        'is_sold BOOLEAN DEFAULT FALSE',
+        'buyer_id INT',
+        'sold_at TIMESTAMP NULL'
+      ];
+
+      for (const field of songFields) {
+        const fieldName = field.split(' ')[0];
+        const [fieldColumns] = await connection.query(`
+          SHOW COLUMNS FROM products LIKE '${fieldName}'
+        `);
+        
+        if (fieldColumns.length === 0) {
+          await connection.query(`
+            ALTER TABLE products ADD COLUMN ${field}
+          `);
+          console.log(`Added ${fieldName} column to products table`);
+        }
+      }
+
+    } catch (err) {
+      console.error('Error adding song fields to products table:', err);
+    }
+
 
 
     // Create users table
@@ -281,6 +367,7 @@ async function initializeDatabase() {
         password VARCHAR(100) NOT NULL,
         role ENUM('admin', 'merchant', 'user') DEFAULT 'user',
         wallet DECIMAL(10,2) DEFAULT 0,
+        balance DECIMAL(10,4) DEFAULT 0.0000,
         earnings DECIMAL(10,2) DEFAULT 0,
         has_lifetime_commission BOOLEAN DEFAULT FALSE,
         business_name VARCHAR(100),
@@ -414,19 +501,212 @@ await connection.query(`
       )
     `);
 
+    // Create banner tables (after users and links tables exist)
+    try {
+      await connection.query(`
+        CREATE TABLE IF NOT EXISTS ad_banners (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          title VARCHAR(255) NOT NULL,
+          image_url VARCHAR(500) NOT NULL,
+          click_url VARCHAR(500) NOT NULL,
+          is_active BOOLEAN DEFAULT TRUE,
+          target_type ENUM('all', 'specific', 'popular') DEFAULT 'all',
+          min_clicks INT DEFAULT 0,
+          created_by INT NOT NULL,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+          FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE CASCADE
+        )
+      `);
+      console.log('✅ Created ad_banners table');
+    } catch (err) {
+      console.error('Error creating ad_banners table:', err);
+    }
+
+    // Create banner target links table (for specific targeting)
+    try {
+      // First check the data types of the referenced columns
+      const [bannersSchema] = await connection.query(`
+        SHOW COLUMNS FROM ad_banners WHERE Field = 'id'
+      `);
+      const [linksSchema] = await connection.query(`
+        SHOW COLUMNS FROM links WHERE Field = 'id'
+      `);
+      
+      console.log('ad_banners.id type:', bannersSchema[0]?.Type);
+      console.log('links.id type:', linksSchema[0]?.Type);
+      
+      await connection.query(`
+        CREATE TABLE IF NOT EXISTS banner_target_links (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          banner_id INT NOT NULL,
+          link_id INT NOT NULL,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (banner_id) REFERENCES ad_banners(id) ON DELETE CASCADE,
+          FOREIGN KEY (link_id) REFERENCES links(id) ON DELETE CASCADE,
+          UNIQUE KEY unique_banner_link (banner_id, link_id)
+        )
+      `);
+      console.log('✅ Created banner_target_links table');
+    } catch (err) {
+      console.error('Error creating banner_target_links table:', err);
+      // If foreign key constraint fails, create without foreign keys first
+      try {
+        await connection.query(`
+          CREATE TABLE IF NOT EXISTS banner_target_links (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            banner_id INT NOT NULL,
+            link_id INT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE KEY unique_banner_link (banner_id, link_id)
+          )
+        `);
+        console.log('✅ Created banner_target_links table without foreign keys');
+        
+        // Try to add foreign keys separately with better error handling
+        try {
+          await connection.query(`
+            ALTER TABLE banner_target_links 
+            ADD CONSTRAINT fk_banner_target_banner 
+            FOREIGN KEY (banner_id) REFERENCES ad_banners(id) ON DELETE CASCADE
+          `);
+          console.log('✅ Added banner_id foreign key to banner_target_links');
+        } catch (fkErr) {
+          console.error('Could not add banner_id foreign key:', fkErr.message);
+          console.error('This might be due to existing data or data type mismatch');
+        }
+        
+        try {
+          await connection.query(`
+            ALTER TABLE banner_target_links 
+            ADD CONSTRAINT fk_banner_target_link 
+            FOREIGN KEY (link_id) REFERENCES links(id) ON DELETE CASCADE
+          `);
+          console.log('✅ Added link_id foreign key to banner_target_links');
+        } catch (fkErr) {
+          console.error('Could not add link_id foreign key:', fkErr.message);
+          console.error('This might be due to existing data or data type mismatch');
+        }
+      } catch (createErr) {
+        console.error('Could not create banner_target_links table at all:', createErr);
+      }
+    }
+
+    // Create banner analytics table
+    try {
+      await connection.query(`
+        CREATE TABLE IF NOT EXISTS banner_analytics (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          banner_id INT NOT NULL,
+          link_id INT,
+          event_type ENUM('impression', 'click') NOT NULL,
+          user_id INT,
+          ip_address VARCHAR(45),
+          user_agent TEXT,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (banner_id) REFERENCES ad_banners(id) ON DELETE CASCADE,
+          FOREIGN KEY (link_id) REFERENCES links(id) ON DELETE SET NULL,
+          FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
+          INDEX idx_banner_event (banner_id, event_type),
+          INDEX idx_created_at (created_at)
+        )
+      `);
+      console.log('✅ Created banner_analytics table');
+    } catch (err) {
+      console.error('Error creating banner_analytics table:', err);
+      // Create without foreign keys if needed
+      try {
+        await connection.query(`
+          CREATE TABLE IF NOT EXISTS banner_analytics (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            banner_id INT NOT NULL,
+            link_id INT,
+            event_type ENUM('impression', 'click') NOT NULL,
+            user_id INT,
+            ip_address VARCHAR(45),
+            user_agent TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            INDEX idx_banner_event (banner_id, event_type),
+            INDEX idx_created_at (created_at)
+          )
+        `);
+        console.log('✅ Created banner_analytics table without foreign keys');
+        
+        // Try to add foreign keys one by one to see which one fails
+        try {
+          await connection.query(`
+            ALTER TABLE banner_analytics 
+            ADD CONSTRAINT fk_banner_analytics_banner 
+            FOREIGN KEY (banner_id) REFERENCES ad_banners(id) ON DELETE CASCADE
+          `);
+          console.log('✅ Added banner_id foreign key to banner_analytics');
+        } catch (fkErr) {
+          console.error('Could not add banner_id foreign key to banner_analytics:', fkErr.message);
+        }
+        
+        try {
+          await connection.query(`
+            ALTER TABLE banner_analytics 
+            ADD CONSTRAINT fk_banner_analytics_link 
+            FOREIGN KEY (link_id) REFERENCES links(id) ON DELETE SET NULL
+          `);
+          console.log('✅ Added link_id foreign key to banner_analytics');
+        } catch (fkErr) {
+          console.error('Could not add link_id foreign key to banner_analytics:', fkErr.message);
+        }
+        
+        try {
+          await connection.query(`
+            ALTER TABLE banner_analytics 
+            ADD CONSTRAINT fk_banner_analytics_user 
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
+          `);
+          console.log('✅ Added user_id foreign key to banner_analytics');
+        } catch (fkErr) {
+          console.error('Could not add user_id foreign key to banner_analytics:', fkErr.message);
+        }
+      } catch (createErr) {
+        console.error('Could not create banner_analytics table at all:', createErr);
+      }
+    }
+
 // Update precision for existing columns if the table already exists
 try {
-  await connection.query(`
-    ALTER TABLE users 
-    MODIFY wallet DECIMAL(10,4) DEFAULT 0.0000,
-    MODIFY earnings DECIMAL(10,4) DEFAULT 0.0000,
-    MODIFY amount_to_pay DECIMAL(10,4) DEFAULT 0.0000,
-    MODIFY paid_balance DECIMAL(10,4) DEFAULT 0.0000
+  // Check which columns exist before modifying them
+  const [columns] = await connection.query(`
+    SHOW COLUMNS FROM users
   `);
+  
+  const columnNames = columns.map(col => col.Field);
+  const columnsToUpdate = [];
+  
+  if (columnNames.includes('wallet')) {
+    columnsToUpdate.push('MODIFY wallet DECIMAL(10,4) DEFAULT 0.0000');
+  }
+  if (columnNames.includes('balance')) {
+    columnsToUpdate.push('MODIFY balance DECIMAL(10,4) DEFAULT 0.0000');
+  }
+  if (columnNames.includes('earnings')) {
+    columnsToUpdate.push('MODIFY earnings DECIMAL(10,4) DEFAULT 0.0000');
+  }
+  if (columnNames.includes('amount_to_pay')) {
+    columnsToUpdate.push('MODIFY amount_to_pay DECIMAL(10,4) DEFAULT 0.0000');
+  }
+  if (columnNames.includes('paid_balance')) {
+    columnsToUpdate.push('MODIFY paid_balance DECIMAL(10,4) DEFAULT 0.0000');
+  }
+  
+  if (columnsToUpdate.length > 0) {
+    await connection.query(`
+      ALTER TABLE users 
+      ${columnsToUpdate.join(',\n      ')}
+    `);
+    console.log('✅ Updated users decimal precision for existing columns');
+  }
 } catch (err) {
   console.error('Error updating users decimal precision:', err);
 }
- // Create transactions table
+  // Create transactions table
     await connection.query(`
       CREATE TABLE IF NOT EXISTS transactions (
         id INT AUTO_INCREMENT PRIMARY KEY,
@@ -1051,7 +1331,9 @@ try {
       ['manual_payment_account_number', '', 'Account number for manual payments'],
       ['manual_payment_swift_code', '', 'SWIFT/BIC code for international transfers (optional)'],
       ['manual_payment_enabled', 'true', 'Enable manual payment option for activations'],
-      ['admin_whatsapp_number', '0783987223', 'Admin WhatsApp number for manual payment notifications']
+      ['admin_whatsapp_number', '0783987223', 'Admin WhatsApp number for manual payment notifications'],
+      ['song_admin_commission_rate', '40', 'Admin commission percentage from song sales (e.g., 40% of song price)'],
+      ['song_user_commission_percentage', '40', 'User commission as percentage of admin commission from songs (e.g., 40% of admin commission)']
     ];
 
     for (const [key, value, description] of configValues) {
@@ -1108,6 +1390,91 @@ try {
         INDEX idx_created_at (created_at)
       )
     `);
+
+    // Create shared_songs table for song sharing functionality
+    try {
+      await connection.query(`
+        CREATE TABLE IF NOT EXISTS shared_songs (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          song_id INT NOT NULL,
+          user_id INT NOT NULL,
+          share_code VARCHAR(10) NOT NULL UNIQUE,
+          clicks INT DEFAULT 0,
+          purchases INT DEFAULT 0,
+          earnings DECIMAL(10, 4) DEFAULT 0.0000,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+          FOREIGN KEY (song_id) REFERENCES products(id) ON DELETE CASCADE,
+          FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+          INDEX idx_share_code (share_code),
+          INDEX idx_song_user (song_id, user_id),
+          UNIQUE KEY unique_song_user (song_id, user_id)
+        )
+      `);
+      console.log('✅ Created shared_songs table');
+    } catch (err) {
+      console.error('Error creating shared_songs table:', err);
+      // Create without foreign keys if needed
+      try {
+        await connection.query(`
+          CREATE TABLE IF NOT EXISTS shared_songs (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            song_id INT NOT NULL,
+            user_id INT NOT NULL,
+            share_code VARCHAR(10) NOT NULL UNIQUE,
+            clicks INT DEFAULT 0,
+            purchases INT DEFAULT 0,
+            earnings DECIMAL(10, 4) DEFAULT 0.0000,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            INDEX idx_share_code (share_code),
+            INDEX idx_song_user (song_id, user_id),
+            UNIQUE KEY unique_song_user (song_id, user_id)
+          )
+        `);
+        console.log('✅ Created shared_songs table without foreign keys');
+      } catch (createErr) {
+        console.error('Could not create shared_songs table at all:', createErr);
+      }
+    }
+
+    // Create song_clicks table for tracking clicks on shared songs
+    try {
+      await connection.query(`
+        CREATE TABLE IF NOT EXISTS song_clicks (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          shared_song_id INT NOT NULL,
+          ip_address VARCHAR(45),
+          device_info TEXT,
+          referrer VARCHAR(500),
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (shared_song_id) REFERENCES shared_songs(id) ON DELETE CASCADE,
+          INDEX idx_shared_song (shared_song_id),
+          INDEX idx_created_at (created_at)
+        )
+      `);
+      console.log('✅ Created song_clicks table');
+    } catch (err) {
+      console.error('Error creating song_clicks table:', err);
+      // Create without foreign keys if needed
+      try {
+        await connection.query(`
+          CREATE TABLE IF NOT EXISTS song_clicks (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            shared_song_id INT NOT NULL,
+            ip_address VARCHAR(45),
+            device_info TEXT,
+            referrer VARCHAR(500),
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            INDEX idx_shared_song (shared_song_id),
+            INDEX idx_created_at (created_at)
+          )
+        `);
+        console.log('✅ Created song_clicks table without foreign keys');
+      } catch (createErr) {
+        console.error('Could not create song_clicks table at all:', createErr);
+      }
+    }
 
     // Add ref_code column to orders table if it doesn't exist
     try {
@@ -1385,7 +1752,7 @@ function isMerchant(req, res, next) {
   res.status(403).render('error', { message: 'Access denied. Merchant privileges required.' });
 }
 
-// Activation middleware - checks if user is logged in AND activated
+// Activation middleware - checks if user is logged in AND activated (only for regular users)
 async function isActivated(req, res, next) {
   if (!req.session.userId) {
     // Store the original URL in session for redirect after login
@@ -1397,7 +1764,7 @@ async function isActivated(req, res, next) {
 
   try {
     const [users] = await pool.query(
-      'SELECT status, activation_paid FROM users WHERE id = ?',
+      'SELECT status, activation_paid, role FROM users WHERE id = ?',
       [req.session.userId]
     );
 
@@ -1407,7 +1774,12 @@ async function isActivated(req, res, next) {
 
     const user = users[0];
     
-    // Check if user is activated (except for activation page itself)
+    // Skip activation check for merchants and admins
+    if (user.role === 'merchant' || user.role === 'admin') {
+      return next();
+    }
+    
+    // Check if regular user is activated (except for activation page itself)
     if (user.status !== 'active' || !user.activation_paid) {
       // Allow access to activation-related pages
       const allowedPaths = [
@@ -1552,7 +1924,8 @@ async function isActivated(req, res, next) {
 //       success: null
 //     });  }
 // });
-// Update the home route to fetch links correctly
+// Update the home route to fetch links correctly - DISABLED (using routes/index.js instead)
+/*
 app.get('/', async (req, res) => {
   try {
     // Get search parameter
@@ -1563,7 +1936,6 @@ app.get('/', async (req, res) => {
     let links = [];
     let products = [];
     let merchants = [];
-    let testimonials = [];
     let stats = {
       userCount: 0,
       totalLinks: 0,
@@ -1578,10 +1950,10 @@ app.get('/', async (req, res) => {
                u.username as merchant_name,
                u.business_name,
                COUNT(DISTINCT sl.id) as total_shares,
-               COALESCE(SUM(sl.clicks), 0) as total_clicks,
+               COUNT(DISTINCT c.id) as total_clicks,
                COALESCE(SUM(sl.earnings), 0) as total_earnings,
                (
-                 COALESCE(SUM(sl.clicks), 0) / 
+                 COUNT(DISTINCT c.id) / 
                  GREATEST(DATEDIFF(NOW(), l.created_at), 1) + 
                  (COUNT(DISTINCT sl.id) * 2) +
                  (CASE 
@@ -1593,6 +1965,7 @@ app.get('/', async (req, res) => {
         FROM links l
         JOIN users u ON l.merchant_id = u.id  
         LEFT JOIN shared_links sl ON l.id = sl.link_id
+        LEFT JOIN clicks c ON sl.id = c.shared_link_id
         WHERE l.is_active = true
       `;
       
@@ -1623,20 +1996,21 @@ app.get('/', async (req, res) => {
           END DESC,
           total_clicks DESC,
           l.created_at DESC
-       LIMIT 100
+       LIMIT 14
       `;
       
       // Fetch active links with search
       const [activeLinks] = await pool.query(linksQuery, queryParams);
       links = activeLinks;
 
-      // Fetch products with popularity ranking
+      // Fetch products with popularity ranking (limited to 14)
       const [activeProducts] = await pool.query(`
         SELECT p.*, u.username as merchant_name 
         FROM products p
         JOIN users u ON p.merchant_id = u.id
         WHERE p.is_active = true
         ORDER BY p.created_at DESC
+        LIMIT 14
       `);
       products = activeProducts;
 
@@ -1677,7 +2051,6 @@ app.get('/', async (req, res) => {
       products: products,
       stats: stats,
       merchants: merchants,
-      testimonials: testimonials,
       error: null,
       success: null,
       page: 'home',
@@ -1697,7 +2070,6 @@ app.get('/', async (req, res) => {
         totalEarnings: 0
       },
       merchants: [],
-      testimonials: [],
       error: 'An error occurred',
       success: null,
       page: 'home',
@@ -1705,7 +2077,248 @@ app.get('/', async (req, res) => {
     });
   }
 });
+*/
+
+// Merchant profile page route
+app.get('/merchants/:username', async (req, res) => {
+  try {
+    const username = req.params.username;
+    
+    // Get merchant info
+    const [merchants] = await pool.query(`
+      SELECT u.*, COUNT(l.id) as total_links, COUNT(p.id) as total_products
+      FROM users u
+      LEFT JOIN links l ON u.id = l.merchant_id AND l.is_active = 1
+      LEFT JOIN products p ON u.id = p.merchant_id AND p.is_active = 1
+      WHERE u.username = ? AND u.role = 'merchant'
+      GROUP BY u.id
+    `, [username]);
+    
+    if (merchants.length === 0) {
+      return res.status(404).render('error', {
+        message: 'Merchant not found',
+        error: { status: 404, stack: '' }
+      });
+    }
+    
+    const merchant = merchants[0];
+    
+    // Get merchant's links
+    const [links] = await pool.query(`
+      SELECT l.*, 
+             COUNT(DISTINCT sl.id) as total_shares,
+             COUNT(DISTINCT c.id) as total_clicks,
+             COALESCE(SUM(sl.earnings), 0) as total_earnings
+      FROM links l
+      LEFT JOIN shared_links sl ON l.id = sl.link_id
+      LEFT JOIN clicks c ON sl.id = c.shared_link_id
+      WHERE l.merchant_id = ? AND l.is_active = 1
+      GROUP BY l.id
+      ORDER BY l.created_at DESC
+    `, [merchant.id]);
+    
+    // Get merchant's products
+    const [products] = await pool.query(`
+      SELECT * FROM products 
+      WHERE merchant_id = ? AND is_active = 1
+      ORDER BY created_at DESC
+    `, [merchant.id]);
+    
+    res.render('merchant-profile', {
+      user: req.session.userId ? {
+        id: req.session.userId,
+        username: req.session.username,
+        role: req.session.role
+      } : null,
+      merchant: merchant,
+      links: links,
+      products: products,
+      page: 'merchant-profile'
+    });
+  } catch (error) {
+    console.error('Merchant profile error:', error);
+    res.status(500).render('error', {
+      message: 'Error loading merchant profile',
+      error: { status: 500, stack: '' }
+    });
+  }
+});
 // Update the home route to fetch links correctly
+
+// API routes for homepage load more functionality
+app.get('/api/links/load-more', async (req, res) => {
+  try {
+    const offset = parseInt(req.query.offset) || 0;
+    const limit = parseInt(req.query.limit) || 14;
+    const search = req.query.search || '';
+    const searchTerm = search.trim();
+    
+    let linksQuery = `
+      SELECT l.*, 
+             u.username as merchant_name,
+             u.business_name,
+             COUNT(DISTINCT sl.id) as total_shares,
+             COUNT(DISTINCT c.id) as total_clicks,
+             COALESCE(SUM(sl.earnings), 0) as total_earnings,
+             (
+               COUNT(DISTINCT c.id) / 
+               GREATEST(DATEDIFF(NOW(), l.created_at), 1) + 
+               (COUNT(DISTINCT sl.id) * 2) +
+               (CASE 
+                 WHEN l.created_at > DATE_SUB(NOW(), INTERVAL 24 HOUR) THEN 50
+                 WHEN l.created_at > DATE_SUB(NOW(), INTERVAL 7 DAY) THEN 20
+                 ELSE 0
+               END)
+             ) as engagement_score
+      FROM links l
+      JOIN users u ON l.merchant_id = u.id  
+      LEFT JOIN shared_links sl ON l.id = sl.link_id
+      LEFT JOIN clicks c ON sl.id = c.shared_link_id
+      WHERE l.is_active = true
+    `;
+    
+    let queryParams = [];
+    
+    if (searchTerm) {
+      linksQuery += ` AND (
+        l.title LIKE ? OR 
+        l.description LIKE ? OR 
+        l.category LIKE ? OR 
+        u.username LIKE ? OR 
+        u.business_name LIKE ?
+      )`;
+      const searchPattern = `%${searchTerm}%`;
+      queryParams.push(searchPattern, searchPattern, searchPattern, searchPattern, searchPattern);
+    }
+    
+    linksQuery += `
+      GROUP BY l.id, u.username, u.business_name
+      ORDER BY 
+        engagement_score DESC,
+        CASE 
+          WHEN l.created_at > DATE_SUB(NOW(), INTERVAL 24 HOUR) THEN 3
+          WHEN l.created_at > DATE_SUB(NOW(), INTERVAL 7 DAY) THEN 2 
+          WHEN l.created_at > DATE_SUB(NOW(), INTERVAL 30 DAY) THEN 1
+          ELSE 0
+        END DESC,
+        total_clicks DESC,
+        l.created_at DESC
+      LIMIT ? OFFSET ?
+    `;
+    
+    queryParams.push(limit, offset);
+    
+    const [links] = await pool.query(linksQuery, queryParams);
+    
+    res.json({
+      success: true,
+      data: links,
+      hasMore: links.length === limit
+    });
+  } catch (error) {
+    console.error('Load more links error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error loading more links'
+    });
+  }
+});
+
+app.get('/api/products/load-more', async (req, res) => {
+  try {
+    const offset = parseInt(req.query.offset) || 0;
+    const limit = parseInt(req.query.limit) || 14;
+    const search = req.query.search || '';
+    const category = req.query.category || '';
+    const min_price = req.query.min_price ? parseFloat(req.query.min_price) : null;
+    const max_price = req.query.max_price ? parseFloat(req.query.max_price) : null;
+    
+    let productsQuery = `
+      SELECT p.*, u.username as merchant_name 
+      FROM products p
+      JOIN users u ON p.merchant_id = u.id
+      WHERE p.is_active = true
+    `;
+    
+    let queryParams = [];
+    
+    if (search.trim()) {
+      productsQuery += ` AND (p.name LIKE ? OR p.description LIKE ?)`;
+      const searchPattern = `%${search.trim()}%`;
+      queryParams.push(searchPattern, searchPattern);
+    }
+    
+    if (category && category !== 'all') {
+      productsQuery += ` AND p.category = ?`;
+      queryParams.push(category);
+    }
+    
+    if (min_price !== null && !isNaN(min_price)) {
+      productsQuery += ` AND p.price >= ?`;
+      queryParams.push(min_price);
+    }
+    
+    if (max_price !== null && !isNaN(max_price)) {
+      productsQuery += ` AND p.price <= ?`;
+      queryParams.push(max_price);
+    }
+    
+    productsQuery += ` ORDER BY p.created_at DESC LIMIT ? OFFSET ?`;
+    queryParams.push(limit, offset);
+    
+    const [products] = await pool.query(productsQuery, queryParams);
+    
+    res.json({
+      success: true,
+      data: products,
+      hasMore: products.length === limit
+    });
+  } catch (error) {
+    console.error('Load more products error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error loading more products'
+    });
+  }
+});
+
+// API route for time ago helper
+app.get('/api/time-ago/:timestamp', (req, res) => {
+  try {
+    const timestamp = new Date(req.params.timestamp);
+    const now = new Date();
+    const diff = now - timestamp;
+    
+    const seconds = Math.floor(diff / 1000);
+    const minutes = Math.floor(seconds / 60);
+    const hours = Math.floor(minutes / 60);
+    const days = Math.floor(hours / 24);
+    const weeks = Math.floor(days / 7);
+    const months = Math.floor(days / 30);
+    const years = Math.floor(days / 365);
+    
+    let timeAgo;
+    if (years > 0) {
+      timeAgo = `${years} year${years > 1 ? 's' : ''} ago`;
+    } else if (months > 0) {
+      timeAgo = `${months} month${months > 1 ? 's' : ''} ago`;
+    } else if (weeks > 0) {
+      timeAgo = `${weeks} week${weeks > 1 ? 's' : ''} ago`;
+    } else if (days > 0) {
+      timeAgo = `${days} day${days > 1 ? 's' : ''} ago`;
+    } else if (hours > 0) {
+      timeAgo = `${hours} hour${hours > 1 ? 's' : ''} ago`;
+    } else if (minutes > 0) {
+      timeAgo = `${minutes} minute${minutes > 1 ? 's' : ''} ago`;
+    } else {
+      timeAgo = 'Just now';
+    }
+    
+    res.json({ timeAgo });
+  } catch (error) {
+    res.json({ timeAgo: 'Unknown' });
+  }
+});
 
 // About Us page route
 app.get('/about', (req, res) => {
@@ -2882,9 +3495,10 @@ app.get('/merchant/links', isAuthenticated, isMerchant, async (req, res) => {
     const [links] = await pool.query(`
       SELECT l.*, 
              COUNT(DISTINCT sl.id) as share_count,
-             COALESCE(SUM(sl.clicks), 0) as total_clicks
+             COUNT(DISTINCT c.id) as total_clicks
       FROM links l
       LEFT JOIN shared_links sl ON l.id = sl.link_id
+      LEFT JOIN clicks c ON sl.id = c.shared_link_id
       WHERE l.merchant_id = ?
       GROUP BY l.id
       ORDER BY l.created_at DESC
@@ -3332,6 +3946,37 @@ app.get('/l/:code', async (req, res) => {
     
     // Find the shared link with this code
     const [sharedLinks] = await pool.query(`
+      SELECT sl.*, l.url, l.title, l.description, l.type, l.merchant_id, l.image_url, l.price,
+             u.business_name as merchant_name, u.username
+      FROM shared_links sl
+      JOIN links l ON sl.link_id = l.id
+      JOIN users u ON sl.user_id = u.id
+      WHERE sl.share_code = ?
+    `, [shareCode]);
+    
+    if (sharedLinks.length === 0) {
+      return res.status(404).render('error', { message: 'Link not found or it may have been removed.' });
+    }
+    
+    const sharedLink = sharedLinks[0];
+    
+    // Redirect to viewer page instead of directly to target URL
+    return res.render('link-viewer', { 
+      sharedLink: sharedLink,
+      title: sharedLink.title + ' - BenixSpace'
+    });
+  } catch (err) {
+    console.error('Shared link error:', err);
+    return res.status(500).render('error', { message: 'Server error. Please try again later.' });
+  }
+});
+// API endpoint for counting clicks after 30-second wait
+app.post('/api/count-click/:code', async (req, res) => {
+  try {
+    const shareCode = req.params.code;
+    
+    // Find the shared link with this code
+    const [sharedLinks] = await pool.query(`
       SELECT sl.*, l.url, l.title, l.description, l.type, l.merchant_id, l.image_url, l.price
       FROM shared_links sl
       JOIN links l ON sl.link_id = l.id
@@ -3339,7 +3984,7 @@ app.get('/l/:code', async (req, res) => {
     `, [shareCode]);
     
     if (sharedLinks.length === 0) {
-      return res.status(404).render('error', { message: 'Link not found or it may have been removed.' });
+      return res.status(404).json({ success: false, message: 'Link not found' });
     }
     
     const sharedLink = sharedLinks[0];
@@ -3368,10 +4013,10 @@ app.get('/l/:code', async (req, res) => {
       countClick = minutesDifference >= 10;
     }
     
-    // Insert click record
+    // Insert click record with 30-second validation
     await pool.query(`
-      INSERT INTO clicks (shared_link_id, ip_address, device_info, referrer, is_counted)
-      VALUES (?, ?, ?, ?, ?)
+      INSERT INTO clicks (shared_link_id, ip_address, device_info, referrer, is_counted, validated_view)
+      VALUES (?, ?, ?, ?, ?, true)
     `, [sharedLink.id, ip, userAgent, referrer, countClick]);
     
     // Only update stats and pay commission if we're counting this click
@@ -3411,34 +4056,184 @@ app.get('/l/:code', async (req, res) => {
       `, [
         sharedLink.user_id,
         commission,
-        `Commission for click on ${link.title}`
+        `Commission for validated 30-second view on ${link.title}`
       ]);
       
       // Increment merchant's amount to pay
       await pool.query(`
         UPDATE users SET amount_to_pay = COALESCE(amount_to_pay, 0) + ? WHERE id = ?
       `, [costPerClick, link.merchant_id]);
+      
+      return res.json({ 
+        success: true, 
+        message: 'Click counted successfully',
+        commission: commission,
+        totalEarnings: commission
+      });
+    } else {
+      return res.json({ 
+        success: true, 
+        message: 'View recorded but not counted (duplicate within 10 minutes)',
+        commission: 0,
+        totalEarnings: 0
+      });
     }
     
-    // Redirect to the destination URL
-    if (sharedLink.type === 'product') {
-      return res.redirect(`/products/${sharedLink.link_id}?ref=${sharedLink.share_code}`);
-    } else {
-      return res.redirect(sharedLink.url);
-    }
   } catch (err) {
-    console.error('Shared link error:', err);
-    return res.status(500).render('error', { message: 'Server error. Please try again later.' });
+    console.error('Click counting error:', err);
+    return res.status(500).json({ success: false, message: 'Server error' });
   }
 });
+
+// API endpoint for getting banners for a specific link
+app.get('/api/banners/:shareCode', async (req, res) => {
+  try {
+    const shareCode = req.params.shareCode;
+    
+    // Get the shared link info
+    const [sharedLinks] = await pool.query(`
+      SELECT sl.*, l.clicks_count, l.id as actual_link_id
+      FROM shared_links sl
+      JOIN links l ON sl.link_id = l.id
+      WHERE sl.share_code = ?
+    `, [shareCode]);
+    
+    if (sharedLinks.length === 0) {
+      return res.status(404).json([]);
+    }
+    
+    const sharedLink = sharedLinks[0];
+    
+    // Get active banners based on targeting
+    let bannerQuery = `
+      SELECT DISTINCT b.id, b.title, b.image_url, b.click_url
+      FROM ad_banners b
+      WHERE b.is_active = true
+    `;
+    const params = [];
+    
+    // Add targeting conditions
+    bannerQuery += ` AND (
+      b.target_type = 'all'
+      OR (b.target_type = 'popular' AND ? >= b.min_clicks)
+      OR (b.target_type = 'specific' AND EXISTS (
+        SELECT 1 FROM banner_target_links btl 
+        WHERE btl.banner_id = b.id AND btl.link_id = ?
+      ))
+    )`;
+    
+    params.push(sharedLink.clicks_count, sharedLink.actual_link_id);
+    
+    bannerQuery += ` ORDER BY b.created_at DESC LIMIT 5`;
+    
+    const [banners] = await pool.query(bannerQuery, params);
+    
+    res.json(banners);
+  } catch (err) {
+    console.error('Banner API error:', err);
+    res.status(500).json([]);
+  }
+});
+
+// API endpoint for tracking banner analytics
+app.post('/api/banner-analytics', async (req, res) => {
+  try {
+    const { banner_id, link_id, event_type } = req.body;
+    
+    if (!banner_id || !event_type || !['impression', 'click'].includes(event_type)) {
+      return res.status(400).json({ success: false, message: 'Invalid parameters' });
+    }
+    
+    const ip = req.ip || req.connection.remoteAddress;
+    const userAgent = req.headers['user-agent'] || '';
+    const userId = req.session.userId || null;
+    
+    // For impressions, check if we've already tracked this recently to avoid spam
+    if (event_type === 'impression') {
+      const [recentImpression] = await pool.query(`
+        SELECT created_at FROM banner_analytics
+        WHERE banner_id = ? AND link_id = ? AND ip_address = ? AND event_type = 'impression'
+        AND created_at > DATE_SUB(NOW(), INTERVAL 1 HOUR)
+      `, [banner_id, link_id, ip]);
+      
+      // Don't track if same IP viewed this banner on this link within 1 hour
+      if (recentImpression.length > 0) {
+        return res.json({ success: true, message: 'Already tracked' });
+      }
+    }
+    
+    // Record the analytics event
+    await pool.query(`
+      INSERT INTO banner_analytics (banner_id, link_id, event_type, user_id, ip_address, user_agent)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `, [banner_id, link_id, event_type, userId, ip, userAgent]);
+    
+    res.json({ success: true, message: 'Event tracked successfully' });
+  } catch (err) {
+    console.error('Banner analytics error:', err);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+// User Routes (must be before indexRoutes to avoid /user/:username conflict)
+app.use('/', userRoutes);
+
+// Index Routes (Homepage)
+app.use('/', indexRoutes);
 
 //Product Routes
 app.use('/', productRoutes);
 
 // Admin Routes
 app.use('/', adminRoutes);
-//userRoutes
-app.use('/', userRoutes);
+
+// API endpoint for tracking banner analytics
+app.post('/api/banner/track', async (req, res) => {
+  try {
+    const { bannerId, eventType, linkId } = req.body;
+    const userId = req.session?.userId || null;
+    const ip = req.ip || req.connection.remoteAddress;
+    const userAgent = req.get('User-Agent') || '';
+
+    // Validate event type
+    if (!['impression', 'click'].includes(eventType)) {
+      return res.status(400).json({ success: false, message: 'Invalid event type' });
+    }
+
+    // Record the event
+    await pool.query(`
+      INSERT INTO banner_analytics (banner_id, link_id, event_type, user_id, ip_address, user_agent)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `, [bannerId, linkId || null, eventType, userId, ip, userAgent]);
+
+    res.json({ success: true, message: 'Event tracked successfully' });
+  } catch (err) {
+    console.error('Banner tracking error:', err);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+// API endpoint for banner click handling
+app.post('/api/banner/click', async (req, res) => {
+  try {
+    const { bannerId, targetUrl, linkId } = req.body;
+    const userId = req.session?.userId || null;
+    const ip = req.ip || req.connection.remoteAddress;
+    const userAgent = req.get('User-Agent') || '';
+
+    // Track the click
+    await pool.query(`
+      INSERT INTO banner_analytics (banner_id, link_id, event_type, user_id, ip_address, user_agent)
+      VALUES (?, ?, 'click', ?, ?, ?)
+    `, [bannerId, linkId || null, userId, ip, userAgent]);
+
+    // Return the target URL for redirect
+    res.json({ success: true, targetUrl: targetUrl });
+  } catch (err) {
+    console.error('Banner click tracking error:', err);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
 
 // Cart route
 app.get('/cart', async (req, res) => {
@@ -4425,6 +5220,513 @@ app.delete('/merchant/products/:id/delete', isAuthenticated, isMerchant, async (
   }
 });
 
+// Song upload routes
+app.get('/merchant/upload-song', isAuthenticated, isMerchant, async (req, res) => {
+  try {
+    res.render('merchant/song-upload', {
+      user: {
+        id: req.session.userId,
+        username: req.session.username,
+        role: req.session.role
+      },
+      successMessage: req.query.success,
+      errorMessage: req.query.error
+    });
+  } catch (err) {
+    console.error('Song upload page error:', err);
+    res.status(500).render('error', { message: 'Server error. Please try again later.' });
+  }
+});
+
+// Configure multer for song uploads
+const songUpload = multer({
+  dest: path.join(__dirname, 'public', 'uploads'),
+  limits: {
+    fileSize: 50 * 1024 * 1024, // 50MB limit for audio files
+  },
+  fileFilter: function (req, file, cb) {
+    if (file.fieldname === 'audio_file') {
+      const allowedAudioTypes = ['audio/mpeg', 'audio/wav', 'audio/mp4', 'audio/flac', 'audio/x-wav'];
+      if (!allowedAudioTypes.includes(file.mimetype)) {
+        return cb(new Error('Only MP3, WAV, M4A, and FLAC audio files are allowed'));
+      }
+    }
+    cb(null, true);
+  }
+});
+
+app.post('/merchant/upload-song', isAuthenticated, isMerchant, songUpload.single('audio_file'), async (req, res) => {
+  try {
+    const { title, description, price, style, genre, lyrics } = req.body;
+    const merchantId = req.session.userId;
+    
+    // Validate required fields
+    if (!title || !price || !style || !genre || !req.file) {
+      if (req.file && req.file.path) {
+        fs.unlinkSync(req.file.path); // Clean up uploaded file
+      }
+      return res.redirect('/merchant/upload-song?error=Title, price, style, genre, and audio file are required');
+    }
+    
+    // Validate price
+    const numericPrice = parseFloat(price);
+    if (isNaN(numericPrice) || numericPrice < 0.99) {
+      if (req.file && req.file.path) {
+        fs.unlinkSync(req.file.path);
+      }
+      return res.redirect('/merchant/upload-song?error=Price must be at least $0.99');
+    }
+    
+    // Generate unique filename for audio
+    const audioExt = path.extname(req.file.originalname);
+    const audioFilename = `song_${Date.now()}_${Math.random().toString(36).substr(2, 9)}${audioExt}`;
+    const audioPath = path.join(__dirname, 'public', 'uploads', audioFilename);
+    
+    // Move uploaded file to final location
+    fs.renameSync(req.file.path, audioPath);
+    
+    // Get audio duration (simplified - in production you'd use a library like node-ffmpeg)
+    const audioUrl = `/uploads/${audioFilename}`;
+    
+    // Generate a random preview start time (will be set properly later with audio processing)
+    const previewStart = Math.floor(Math.random() * 60); // Random start within first 60 seconds
+    
+    // Generate cover image using Canvas (simplified version)
+    const coverFilename = `cover_${Date.now()}_${Math.random().toString(36).substr(2, 9)}.png`;
+    const coverUrl = `/uploads/${coverFilename}`;
+    
+    // Insert song into products table
+    const [result] = await pool.query(`
+      INSERT INTO products (
+        name, product_type, description, price, stock, 
+        merchant_id, audio_file, lyrics, genre, style, 
+        preview_start, cover_image, is_active
+      ) VALUES (?, 'song', ?, ?, 1, ?, ?, ?, ?, ?, ?, ?, true)
+    `, [
+      title, description, numericPrice, merchantId, 
+      audioUrl, lyrics || '', genre, style, previewStart, coverUrl
+    ]);
+    
+    // Generate cover image server-side using a simple approach
+    // In production, you could use libraries like node-canvas
+    generateSongCover(title, genre, style, path.join(__dirname, 'public', 'uploads', coverFilename));
+    
+    res.redirect('/merchant/products?success=Song uploaded successfully!');
+  } catch (err) {
+    console.error('Song upload error:', err);
+    // Clean up uploaded file on error
+    if (req.file && req.file.path && fs.existsSync(req.file.path)) {
+      fs.unlinkSync(req.file.path);
+    }
+    res.redirect('/merchant/upload-song?error=Failed to upload song. Please try again.');
+  }
+});
+
+// Simple cover generation function (placeholder)
+function generateSongCover(title, genre, style, outputPath) {
+  try {
+    // For now, create a simple text file as placeholder
+    // In production, you'd use canvas or image processing library
+    const coverData = {
+      title: title,
+      genre: genre,
+      style: style,
+      timestamp: new Date().toISOString()
+    };
+    
+    // Create a simple placeholder image info file
+    fs.writeFileSync(outputPath + '.json', JSON.stringify(coverData, null, 2));
+    
+    // You could use libraries like 'canvas' or 'sharp' to generate actual images
+    console.log(`Cover generated for song: ${title}`);
+  } catch (err) {
+    console.error('Error generating cover:', err);
+  }
+}
+
+// Song purchase route
+app.post('/purchase-song/:id', isAuthenticated, async (req, res) => {
+  try {
+    const songId = req.params.id;
+    const userId = req.session.userId;
+    const refCode = req.query.ref; // Get referral code from URL
+    
+    // Check if song exists and is not sold
+    const [song] = await pool.query(
+      'SELECT * FROM products WHERE id = ? AND product_type = "song" AND is_sold = false AND is_active = true',
+      [songId]
+    );
+    
+    if (song.length === 0) {
+      return res.status(404).json({ error: 'Song not found or already sold' });
+    }
+    
+    const songData = song[0];
+    
+    // Check if user is trying to buy their own song
+    if (songData.merchant_id === userId) {
+      return res.status(400).json({ error: 'You cannot purchase your own song' });
+    }
+    
+    // Check user balance (assuming you have a balance system)
+    const [userBalance] = await pool.query('SELECT balance FROM users WHERE id = ?', [userId]);
+    
+    if (userBalance.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    if (userBalance[0].balance < songData.price) {
+      return res.status(400).json({ error: 'Insufficient balance' });
+    }
+    
+    // Get commission settings
+    const songAdminCommissionRate = parseFloat(await getConfig('song_admin_commission_rate') || '40');
+    const songUserCommissionPercentage = parseFloat(await getConfig('song_user_commission_percentage') || '40');
+    
+    // Calculate commissions
+    const adminCommission = songData.price * (songAdminCommissionRate / 100);
+    const sellerEarnings = songData.price - adminCommission;
+    
+    let userCommission = 0;
+    let referrerUserId = null;
+    
+    // Check if there's a referral code and find the referrer
+    if (refCode) {
+      const [sharedSong] = await pool.query(
+        'SELECT * FROM shared_songs WHERE share_code = ? AND song_id = ?',
+        [refCode, songId]
+      );
+      
+      if (sharedSong.length > 0) {
+        referrerUserId = sharedSong[0].user_id;
+        // User gets a percentage of admin commission
+        userCommission = adminCommission * (songUserCommissionPercentage / 100);
+        
+        // Update shared song stats
+        await pool.query(
+          'UPDATE shared_songs SET purchases = purchases + 1, earnings = earnings + ? WHERE id = ?',
+          [userCommission, sharedSong[0].id]
+        );
+      }
+    }
+    
+    // Final admin earnings after user commission
+    const finalAdminEarnings = adminCommission - userCommission;
+    
+    // Process the purchase transaction
+    await pool.query('START TRANSACTION');
+    
+    try {
+      // Deduct from buyer's balance
+      await pool.query(
+        'UPDATE users SET balance = balance - ? WHERE id = ?',
+        [songData.price, userId]
+      );
+      
+      // Add to seller's balance
+      await pool.query(
+        'UPDATE users SET balance = balance + ? WHERE id = ?',
+        [sellerEarnings, songData.merchant_id]
+      );
+      
+      // Add commission to referrer if applicable
+      if (referrerUserId && userCommission > 0) {
+        await pool.query(
+          'UPDATE users SET balance = balance + ? WHERE id = ?',
+          [userCommission, referrerUserId]
+        );
+      }
+      
+      // Mark song as sold
+      await pool.query(
+        'UPDATE products SET is_sold = true, sold_at = NOW(), buyer_id = ? WHERE id = ?',
+        [userId, songId]
+      );
+      
+      // Create transaction record for buyer
+      await pool.query(`
+        INSERT INTO transactions (user_id, product_id, amount, type, status, created_at)
+        VALUES (?, ?, ?, 'song_purchase', 'completed', NOW())
+      `, [userId, songId, songData.price]);
+      
+      // Create transaction record for seller
+      await pool.query(`
+        INSERT INTO transactions (user_id, product_id, amount, type, status, details, created_at)
+        VALUES (?, ?, ?, 'song_sale', 'completed', 'Song sale earnings', NOW())
+      `, [songData.merchant_id, songId, sellerEarnings]);
+      
+      // Create commission record for referrer if applicable
+      if (referrerUserId && userCommission > 0) {
+        await pool.query(`
+          INSERT INTO transactions (user_id, product_id, amount, type, status, details, created_at)
+          VALUES (?, ?, ?, 'commission', 'completed', 'Song sharing commission', NOW())
+        `, [referrerUserId, songId, userCommission]);
+      }
+      
+      // Create admin commission record
+      await pool.query(`
+        INSERT INTO transactions (user_id, product_id, amount, type, status, details, created_at)
+        VALUES (1, ?, ?, 'admin_commission', 'completed', 'Song sale admin commission', NOW())
+      `, [songId, finalAdminEarnings]);
+      
+      await pool.query('COMMIT');
+      
+      res.json({ 
+        success: true, 
+        message: 'Song purchased successfully!',
+        download_url: songData.audio_file,
+        commission_paid: userCommission > 0 ? userCommission : null
+      });
+      
+    } catch (transactionError) {
+      await pool.query('ROLLBACK');
+      throw transactionError;
+    }
+    
+  } catch (err) {
+    console.error('Song purchase error:', err);
+    res.status(500).json({ error: 'Failed to purchase song. Please try again.' });
+  }
+});
+
+// Song preview route (for 35-second previews)
+app.get('/song-preview/:id', async (req, res) => {
+  try {
+    const songId = req.params.id;
+    
+    const [song] = await pool.query(
+      'SELECT audio_file, preview_start, duration FROM products WHERE id = ? AND product_type = "song" AND is_active = true',
+      [songId]
+    );
+    
+    if (song.length === 0) {
+      return res.status(404).json({ error: 'Song not found' });
+    }
+    
+    const songData = song[0];
+    
+    res.json({
+      audio_url: songData.audio_file,
+      preview_start: songData.preview_start || 0,
+      preview_duration: 35 // 35-second preview
+    });
+    
+  } catch (err) {
+    console.error('Song preview error:', err);
+    res.status(500).json({ error: 'Failed to load song preview' });
+  }
+});
+
+// Share song route
+app.post('/share-song/:id', isAuthenticated, async (req, res) => {
+  try {
+    const songId = req.params.id;
+    const userId = req.session.userId;
+    
+    // Check if song exists and is not sold
+    const [song] = await pool.query(
+      'SELECT * FROM products WHERE id = ? AND product_type = "song" AND is_sold = false AND is_active = true',
+      [songId]
+    );
+    
+    if (song.length === 0) {
+      return res.status(404).json({ error: 'Song not found or already sold' });
+    }
+    
+    // Check if user already has a share for this song
+    const [existingShare] = await pool.query(
+      'SELECT * FROM shared_songs WHERE song_id = ? AND user_id = ?',
+      [songId, userId]
+    );
+    
+    if (existingShare.length > 0) {
+      return res.json({
+        success: true,
+        share_code: existingShare[0].share_code,
+        share_url: `${req.protocol}://${req.get('host')}/song/${songId}?ref=${existingShare[0].share_code}`
+      });
+    }
+    
+    // Generate unique share code
+    let shareCode;
+    let isUnique = false;
+    while (!isUnique) {
+      shareCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+      const [existing] = await pool.query('SELECT id FROM shared_songs WHERE share_code = ?', [shareCode]);
+      isUnique = existing.length === 0;
+    }
+    
+    // Create shared song record
+    await pool.query(
+      'INSERT INTO shared_songs (song_id, user_id, share_code) VALUES (?, ?, ?)',
+      [songId, userId, shareCode]
+    );
+    
+    res.json({
+      success: true,
+      share_code: shareCode,
+      share_url: `${req.protocol}://${req.get('host')}/song/${songId}?ref=${shareCode}`
+    });
+    
+  } catch (err) {
+    console.error('Share song error:', err);
+    res.status(500).json({ error: 'Failed to create share link' });
+  }
+});
+
+// Song detail page with referral tracking
+app.get('/song/:id', async (req, res) => {
+  try {
+    const songId = req.params.id;
+    const refCode = req.query.ref;
+    
+    // Get song details
+    const [song] = await pool.query(`
+      SELECT p.*, u.username as artist_name, u.business_name
+      FROM products p
+      JOIN users u ON p.merchant_id = u.id
+      WHERE p.id = ? AND p.product_type = 'song' AND p.is_sold = false AND p.is_active = true
+    `, [songId]);
+    
+    if (song.length === 0) {
+      return res.status(404).render('error', { message: 'Song not found or no longer available' });
+    }
+    
+    const songData = song[0];
+    
+    // Track click if there's a referral code
+    if (refCode) {
+      const [sharedSong] = await pool.query(
+        'SELECT * FROM shared_songs WHERE share_code = ? AND song_id = ?',
+        [refCode, songId]
+      );
+      
+      if (sharedSong.length > 0) {
+        // Update click count
+        await pool.query(
+          'UPDATE shared_songs SET clicks = clicks + 1 WHERE id = ?',
+          [sharedSong[0].id]
+        );
+        
+        // Log the click
+        await pool.query(
+          'INSERT INTO song_clicks (shared_song_id, ip_address, device_info, referrer) VALUES (?, ?, ?, ?)',
+          [
+            sharedSong[0].id,
+            req.ip,
+            req.get('User-Agent'),
+            req.get('Referer') || null
+          ]
+        );
+      }
+    }
+    
+    res.render('song-detail', {
+      song: songData,
+      ref_code: refCode,
+      user: req.session.userId ? {
+        id: req.session.userId,
+        username: req.session.username,
+        role: req.session.role
+      } : null
+    });
+    
+  } catch (err) {
+    console.error('Song detail page error:', err);
+    res.status(500).render('error', { message: 'Server error. Please try again later.' });
+  }
+});
+
+// Get user's shared songs
+app.get('/my-shared-songs', isAuthenticated, async (req, res) => {
+  try {
+    const userId = req.session.userId;
+    
+    const [sharedSongs] = await pool.query(`
+      SELECT ss.*, p.name as song_name, p.price, p.cover_image, u.username as artist_name
+      FROM shared_songs ss
+      JOIN products p ON ss.song_id = p.id
+      JOIN users u ON p.merchant_id = u.id
+      WHERE ss.user_id = ? AND p.is_sold = false
+      ORDER BY ss.created_at DESC
+    `, [userId]);
+    
+    res.render('user/shared-songs', {
+      sharedSongs: sharedSongs,
+      user: {
+        id: req.session.userId,
+        username: req.session.username,
+        role: req.session.role
+      },
+      baseUrl: `${req.protocol}://${req.get('host')}`
+    });
+    
+  } catch (err) {
+    console.error('My shared songs error:', err);
+    res.status(500).render('error', { message: 'Server error. Please try again later.' });
+  }
+});
+
+// Get available songs (not sold)
+app.get('/api/songs', async (req, res) => {
+  try {
+    const { genre, style, search, limit = 20, offset = 0 } = req.query;
+    
+    let query = `
+      SELECT p.*, u.username as artist_name
+      FROM products p
+      JOIN users u ON p.merchant_id = u.id
+      WHERE p.product_type = 'song' 
+        AND p.is_sold = false 
+        AND p.is_active = true
+    `;
+    const params = [];
+    
+    if (genre && genre !== 'all') {
+      query += ' AND p.genre = ?';
+      params.push(genre);
+    }
+    
+    if (style && style !== 'all') {
+      query += ' AND p.style = ?';
+      params.push(style);
+    }
+    
+    if (search) {
+      query += ' AND (p.name LIKE ? OR p.description LIKE ? OR u.username LIKE ?)';
+      const searchTerm = `%${search}%`;
+      params.push(searchTerm, searchTerm, searchTerm);
+    }
+    
+    query += ' ORDER BY p.created_at DESC LIMIT ? OFFSET ?';
+    params.push(parseInt(limit), parseInt(offset));
+    
+    const [songs] = await pool.query(query, params);
+    
+    res.json(songs);
+    
+  } catch (err) {
+    console.error('Get songs error:', err);
+    res.status(500).json({ error: 'Failed to fetch songs' });
+  }
+});
+
+// Songs marketplace page
+app.get('/songs', async (req, res) => {
+  try {
+    res.render('songs', {
+      user: req.session.userId ? {
+        id: req.session.userId,
+        username: req.session.username,
+        role: req.session.role
+      } : null
+    });
+  } catch (err) {
+    console.error('Songs page error:', err);
+    res.status(500).render('error', { message: 'Server error. Please try again later.' });
+  }
+});
+
 // Profile page route
 
 
@@ -4465,6 +5767,41 @@ app.get('/links/:id/share', isAuthenticated, async (req, res) => {
       );
     }
     
+    // Get active banners for this link
+    let banners = [];
+    try {
+      const [allBanners] = await pool.query(`
+        SELECT b.* FROM ad_banners b
+        WHERE b.is_active = TRUE 
+        ORDER BY b.created_at DESC
+      `);
+
+      // Filter banners based on target type
+      for (const banner of allBanners) {
+        if (banner.target_type === 'all') {
+          banners.push(banner);
+        } else if (banner.target_type === 'specific') {
+          // Check if this specific link is targeted
+          const [specificLink] = await pool.query(`
+            SELECT 1 FROM banner_target_links btl 
+            WHERE btl.banner_id = ? AND btl.link_id = ?
+          `, [banner.id, linkId]);
+          
+          if (specificLink.length > 0) {
+            banners.push(banner);
+          }
+        } else if (banner.target_type === 'popular') {
+          // Check if this link meets the popularity threshold
+          if (link.clicks_count >= banner.min_clicks) {
+            banners.push(banner);
+          }
+        }
+      }
+    } catch (bannerErr) {
+      console.error('Error fetching banners:', bannerErr);
+      // Continue without banners if there's an error
+    }
+
     res.render('user/share', {
       user: {
         id: req.session.userId,
@@ -4473,7 +5810,8 @@ app.get('/links/:id/share', isAuthenticated, async (req, res) => {
       },
       link: link,
       shareCode: shareCode,
-      shareUrl: `${req.protocol}://${req.get('host')}/l/${shareCode}`
+      shareUrl: `${req.protocol}://${req.get('host')}/l/${shareCode}`,
+      banners: banners
     });
   } catch (err) {
     console.error('Link sharing error:', err);
