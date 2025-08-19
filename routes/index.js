@@ -16,24 +16,49 @@ const pool = mysql.createPool({
 // Homepage route with proper stats calculation
 router.get('/', async (req, res) => {
   try {
-    // Get top 3 most viewed links (any type) based on views
-    const popularVideos = await pool.query(`
+    const userId = req.session.userId;
+    
+    // Get links recently shared by the current user (last 24 hours) to exclude them
+    let recentlySharedLinkIds = [];
+    if (userId) {
+      try {
+        const [recentShares] = await pool.query(`
+          SELECT DISTINCT link_id 
+          FROM shared_links 
+          WHERE user_id = ? AND created_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR)
+        `, [userId]);
+        recentlySharedLinkIds = recentShares.map(share => share.link_id);
+      } catch (err) {
+        console.log('Error fetching recently shared links:', err);
+        // Continue without filtering if table doesn't exist
+      }
+    }
+
+    // Build exclusion condition for recently shared links
+    const excludeRecentShares = recentlySharedLinkIds.length > 0 
+      ? `AND l.id NOT IN (${recentlySharedLinkIds.map(() => '?').join(',')})` 
+      : '';
+
+    // Get top 3 most viewed links (any type) based on views, excluding recently shared by user
+    const popularVideosQuery = `
       SELECT l.*, l.clicks_count AS total_clicks, u.business_name as merchant_name, u.username
       FROM links l 
       JOIN users u ON l.merchant_id = u.id 
-      WHERE l.is_active = true
+      WHERE l.is_active = true ${excludeRecentShares}
       ORDER BY l.clicks_count DESC, l.created_at DESC
       LIMIT 3
-    `);
+    `;
+    const popularVideos = await pool.query(popularVideosQuery, recentlySharedLinkIds);
 
-    // Get all links to filter out the popular ones for recent links
-    const allLinksForFiltering = await pool.query(`
+    // Get all links to filter out the popular ones for recent links, excluding recently shared by user
+    const allLinksQuery = `
       SELECT l.*, l.clicks_count AS total_clicks, u.business_name as merchant_name, u.username
       FROM links l 
       JOIN users u ON l.merchant_id = u.id 
-      WHERE l.is_active = true
+      WHERE l.is_active = true ${excludeRecentShares}
       ORDER BY l.created_at DESC
-    `);
+    `;
+    const allLinksForFiltering = await pool.query(allLinksQuery, recentlySharedLinkIds);
 
     // Filter out the popular links from all links to get recent ones
     const popularIds = (popularVideos[0] || []).map(link => link.id);
@@ -127,15 +152,40 @@ router.get('/api/links/load-more', async (req, res) => {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 14;
     const offset = (page - 1) * limit;
+    const userId = req.session.userId;
 
-    const links = await pool.query(`
+    // Get links recently shared by the current user (last 24 hours) to exclude them
+    let recentlySharedLinkIds = [];
+    if (userId) {
+      try {
+        const [recentShares] = await pool.query(`
+          SELECT DISTINCT link_id 
+          FROM shared_links 
+          WHERE user_id = ? AND created_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR)
+        `, [userId]);
+        recentlySharedLinkIds = recentShares.map(share => share.link_id);
+      } catch (err) {
+        console.log('Error fetching recently shared links for load-more:', err);
+        // Continue without filtering if table doesn't exist
+      }
+    }
+
+    // Build exclusion condition for recently shared links
+    const excludeRecentShares = recentlySharedLinkIds.length > 0 
+      ? `AND l.id NOT IN (${recentlySharedLinkIds.map(() => '?').join(',')})` 
+      : '';
+
+    const queryParams = [...recentlySharedLinkIds, limit, offset];
+    const linksQuery = `
       SELECT l.*, l.clicks_count AS total_clicks, u.business_name as merchant_name, u.username
       FROM links l 
       JOIN users u ON l.merchant_id = u.id 
-      WHERE l.is_active = true 
+      WHERE l.is_active = true ${excludeRecentShares}
       ORDER BY l.created_at DESC 
       LIMIT ? OFFSET ?
-    `, [limit, offset]);
+    `;
+
+    const links = await pool.query(linksQuery, queryParams);
 
     res.json({
       success: true,
