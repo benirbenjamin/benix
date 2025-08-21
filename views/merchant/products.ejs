@@ -1,17 +1,23 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <%- include('../partials/navbar') %>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Manage Products - BenixSpace</title>
     <link rel="icon" href="/static/img/favicon.png" type="image/png">
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- AdSense and Analytics -->
+    <%- include('../partials/adsense') %>
 </head>
 <body class="bg-light">
+    <%- include('../partials/navbar') %>
+    
     <div class="container mt-4">
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h2>My Products</h2>
             <div>
-                <a href="/merchant/products/create" class="btn btn-primary me-2">Add New Product</a>
+                <a href="/merchant-user/products/create" class="btn btn-primary me-2">Add New Product</a>
                 <a href="/merchant/upload-song" class="btn btn-success">
                     <i class="fas fa-music"></i> Upload Song
                 </a>
@@ -85,7 +91,7 @@
                                         <small class="text-muted">Sold: <%= new Date(product.sold_at).toLocaleDateString() %></small>
                                     <% } %>
                                 <% } else { %>
-                                    <a href="/merchant/products/<%= product.id %>/edit" class="btn btn-outline-primary">Edit</a>
+                                    <a href="/merchant-user/products/<%= product.id %>/edit" class="btn btn-outline-primary">Edit</a>
                                     <button onclick="toggleProduct(<%= product.id %>, <%= !product.is_active %>)" 
                                             class="btn btn-outline-<%= product.is_active ? 'warning' : 'success' %>">
                                         <%= product.is_active ? 'Disable' : 'Enable' %>
@@ -102,7 +108,7 @@
     <script>
         async function toggleProduct(productId, newState) {
             try {
-                const response = await fetch(`/merchant/products/${productId}/toggle`, {
+                const response = await fetch(`/merchant-user/products/${productId}/toggle`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'

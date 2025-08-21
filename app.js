@@ -4874,7 +4874,7 @@ app.post('/merchant/orders/:id/update-status', isAuthenticated, isMerchant, asyn
   }
 });
 // Merchant product management routes
-app.get('/merchant/products', isAuthenticated, isMerchant, async (req, res) => {
+app.get('/merchant-user/products', isAuthenticated, isMerchant, async (req, res) => {
   try {
     const merchantId = req.session.userId;
     
@@ -4911,7 +4911,7 @@ app.get('/merchant/products', isAuthenticated, isMerchant, async (req, res) => {
 // Form to create a new product
 // Form to create a new product
 // Create a new product - Updated to use image URL instead of file upload
-app.post('/merchant/products/create', isAuthenticated, isMerchant, async (req, res) => {
+app.post('/merchant-user/products/create', isAuthenticated, isMerchant, async (req, res) => {
   try {
     const merchantId = req.session.userId;
     const {
@@ -4926,7 +4926,7 @@ app.post('/merchant/products/create', isAuthenticated, isMerchant, async (req, r
     
     // Validate required fields
     if (!name || !price || !stock) {
-      return res.redirect('/merchant/products/create?error=Name, price, and stock are required fields');
+      return res.redirect('/merchant-user/products/create?error=Name, price, and stock are required fields');
     }
     
     // Insert the new product with image URL directly
@@ -4953,15 +4953,15 @@ app.post('/merchant/products/create', isAuthenticated, isMerchant, async (req, r
       parseFloat(commission_rate) || 5.00  // Default to 5% if not specified
     ]);
     
-    res.redirect('/merchant/products?success=Product created successfully');
+    res.redirect('/merchant-user/products?success=Product created successfully');
   } catch (err) {
     console.error('Product creation error:', err);
-    res.redirect('/merchant/products/create?error=Failed to create product. Please try again.');
+    res.redirect('/merchant-user/products/create?error=Failed to create product. Please try again.');
   }
 });
 
 // Update a product - Also modified to use image URL
-app.post('/merchant/products/:id/edit', isAuthenticated, isMerchant, async (req, res) => {
+app.post('/merchant-user/products/:id/edit', isAuthenticated, isMerchant, async (req, res) => {
   try {
     const productId = req.params.id;
     const merchantId = req.session.userId;
@@ -5012,13 +5012,13 @@ app.post('/merchant/products/:id/edit', isAuthenticated, isMerchant, async (req,
       merchantId
     ]);
     
-    res.redirect(`/merchant/products?success=Product updated successfully`);
+    res.redirect(`/merchant-user/products?success=Product updated successfully`);
   } catch (err) {
     console.error('Product update error:', err);
-    res.redirect(`/merchant/products/${req.params.id}/edit?error=Failed to update product. Please try again.`);
+    res.redirect(`/merchant-user/products/${req.params.id}/edit?error=Failed to update product. Please try again.`);
   }
 });
-app.get('/merchant/products/create', isAuthenticated, isMerchant, async (req, res) => {
+app.get('/merchant-user/products/create', isAuthenticated, isMerchant, async (req, res) => {
   try {
     // Get default commission rate from config
     const commissionRate = await getConfig('commission_rate');
@@ -5045,7 +5045,7 @@ app.get('/merchant/products/create', isAuthenticated, isMerchant, async (req, re
 
 // Edit a product
 
-app.get('/merchant/products/:id/edit', isAuthenticated, isMerchant, async (req, res) => {
+app.get('/merchant-user/products/:id/edit', isAuthenticated, isMerchant, async (req, res) => {
   try {
     const productId = req.params.id;
     const merchantId = req.session.userId;
@@ -5082,7 +5082,7 @@ app.get('/merchant/products/:id/edit', isAuthenticated, isMerchant, async (req, 
 
 
 // View product details
-app.get('/merchant/products/:id', isAuthenticated, isMerchant, async (req, res) => {
+app.get('/merchant-user/products/:id', isAuthenticated, isMerchant, async (req, res) => {
   try {
     const productId = req.params.id;
     const merchantId = req.session.userId;
@@ -5153,7 +5153,7 @@ app.get('/merchant/products/:id', isAuthenticated, isMerchant, async (req, res) 
 });
 
 // Delete a product
-app.delete('/merchant/products/:id/delete', isAuthenticated, isMerchant, async (req, res) => {
+app.delete('/merchant-user/products/:id/delete', isAuthenticated, isMerchant, async (req, res) => {
   try {
     const productId = req.params.id;
     const merchantId = req.session.userId;
@@ -5311,7 +5311,7 @@ app.post('/merchant/upload-song', isAuthenticated, isMerchant, songUpload.single
     // In production, you could use libraries like node-canvas
     generateSongCover(title, genre, style, path.join(__dirname, 'public', 'uploads', coverFilename));
     
-    res.redirect('/merchant/products?success=Song uploaded successfully!');
+    res.redirect('/merchant-user/products?success=Song uploaded successfully!');
   } catch (err) {
     console.error('Song upload error:', err);
     // Clean up uploaded file on error

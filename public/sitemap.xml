@@ -65,7 +65,7 @@
    
    <!-- Merchant Pages -->
    <url>
-      <loc>https://benix.space/merchant/products</loc>
+      <loc>https://benix.space/merchant-user/products</loc>
       <lastmod>2025-05-22</lastmod>
       <changefreq>weekly</changefreq>
       <priority>0.7</priority>

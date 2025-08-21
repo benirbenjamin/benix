@@ -24,7 +24,7 @@
                             <div class="alert alert-success"><%= success %></div>
                         <% } %>
                         
-                        <form action="<%= product ? `/merchant/products/${product.id}/edit` : '/merchant/products/create' %>" 
+                        <form action="<%= product ? `/merchant-user/products/${product.id}/edit` : '/merchant-user/products/create' %>" 
                               method="POST">
                             
                             <div class="mb-3">
@@ -112,7 +112,7 @@
                                 <button type="submit" class="btn btn-primary">
                                     <%= product ? 'Update' : 'Create' %> Product
                                 </button>
-                                <a href="/merchant/products" class="btn btn-outline-secondary">Cancel</a>
+                                <a href="/merchant-user/products" class="btn btn-outline-secondary">Cancel</a>
                             </div>
                         </form>
                     </div>
