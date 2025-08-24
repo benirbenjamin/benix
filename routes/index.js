@@ -66,7 +66,7 @@ router.get('/', async (req, res) => {
     const recentLinks = [filteredRecentLinks.slice(0, 3)];
 
     // Get remaining links (skip first 6: 3 popular + 3 recent)
-    const remainingLinks = filteredRecentLinks.slice(3, 12); // Get 9 more links
+    const remainingLinks = filteredRecentLinks.slice(3, 103); // Get 100 more links
     const mainLinks = [remainingLinks];
 
     // Get all products
