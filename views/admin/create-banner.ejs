@@ -1,0 +1,134 @@
+<%- include('../partials/header') %>
+<%- include('../partials/navbar') %>
+
+<div class="container-fluid">
+  <div class="row">
+    <!-- Sidebar -->
+    <div class="col-md-2 bg-dark text-white min-vh-100 p-3">
+      <h5><i class="fas fa-shield-alt me-2"></i>Admin Panel</h5>
+      <ul class="nav flex-column mt-4">
+        <li class="nav-item">
+          <a class="nav-link text-white" href="/admin/dashboard">
+            <i class="fas fa-tachometer-alt me-2"></i>Dashboard
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link text-white" href="/admin/users">
+            <i class="fas fa-users me-2"></i>Users
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link text-white" href="/admin/banners">
+            <i class="fas fa-ad me-2"></i>Banners
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link text-white" href="/admin/settings">
+            <i class="fas fa-cog me-2"></i>Settings
+          </a>
+        </li>
+      </ul>
+    </div>
+
+    <!-- Main Content -->
+    <div class="col-md-10">
+      <div class="container py-4">
+        <div class="row justify-content-center">
+          <div class="col-md-8">
+            <!-- Page Header -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+              <div>
+                <h2><i class="fas fa-plus-circle me-2"></i>Create New Banner</h2>
+                <p class="text-muted mb-0">Create a new advertisement banner and assign it to a merchant</p>
+              </div>
+              <a href="/admin/banners" class="btn btn-secondary">
+                <i class="fas fa-arrow-left me-2"></i>Back to Banners
+              </a>
+            </div>
+
+            <!-- Create Banner Form -->
+            <div class="card">
+              <div class="card-body">
+                <form action="/admin/banners/create" method="POST" enctype="multipart/form-data">
+                  <div class="mb-3">
+                    <label class="form-label">Assign to Merchant</label>
+                    <select name="merchantId" class="form-select" required>
+                      <option value="">Select a merchant...</option>
+                      <% merchants.forEach(merchant => { %>
+                        <option value="<%= merchant.id %>">
+                          <%= merchant.business_name || merchant.username %> (<%= merchant.email %>)
+                        </option>
+                      <% }); %>
+                    </select>
+                    <small class="text-muted">Select the merchant who will own this banner</small>
+                  </div>
+
+                  <div class="mb-3">
+                    <label class="form-label">Banner Title</label>
+                    <input type="text" name="title" class="form-control" required>
+                    <small class="text-muted">A descriptive name for the banner</small>
+                  </div>
+
+                  <div class="mb-3">
+                    <label class="form-label">Banner Image</label>
+                    <input type="file" name="bannerImage" class="form-control" accept="image/*" required>
+                    <small class="text-muted">Recommended size: 728x90px (desktop) or 300x250px (mobile)</small>
+                  </div>
+
+                  <div class="mb-3">
+                    <label class="form-label">Target URL</label>
+                    <input type="url" name="targetUrl" class="form-control" required>
+                    <small class="text-muted">The URL where users will be directed when clicking the banner</small>
+                  </div>
+
+                  <div class="mb-3">
+                    <label class="form-label">Click Target</label>
+                    <input type="number" name="minClicks" class="form-control" value="0" min="0">
+                    <small class="text-muted">Number of clicks needed before banner becomes inactive (0 = no limit)</small>
+                  </div>
+
+                  <div class="mb-3">
+                    <label class="form-label">Display Order</label>
+                    <input type="number" name="displayOrder" class="form-control" value="0" min="0">
+                    <small class="text-muted">Higher numbers appear first (0 = default)</small>
+                  </div>
+
+                  <div class="mb-3">
+                    <label class="form-label">Status</label>
+                    <select name="status" class="form-select" required>
+                      <option value="pending">Pending Review</option>
+                      <option value="approved">Approved</option>
+                      <option value="rejected">Rejected</option>
+                    </select>
+                  </div>
+
+                  <div class="mb-3">
+                    <div class="form-check">
+                      <input type="checkbox" name="isActive" class="form-check-input" id="isActive">
+                      <label class="form-check-label" for="isActive">Active (Display on site)</label>
+                    </div>
+                    <small class="text-muted">Only approved banners can be active</small>
+                  </div>
+
+                  <div class="mb-3">
+                    <label class="form-label">Admin Notes</label>
+                    <textarea name="adminNotes" class="form-control" rows="3"></textarea>
+                    <small class="text-muted">Optional notes about this banner (visible to admin only)</small>
+                  </div>
+
+                  <div class="text-end">
+                    <button type="submit" class="btn btn-primary">
+                      <i class="fas fa-save me-2"></i>Create Banner
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<%- include('../partials/footer') %>

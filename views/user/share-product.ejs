@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Share Product - <%= product.name %> - BenixSpace</title>
+  <link rel="icon" href="/favicon.png" type="image/x-icon" />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <meta property="og:title" content="<%= product.name %>">
+  <meta property="og:description" content="<%= product.description %>">
+  <% if (product.image_url) { %>
+    <meta property="og:image" content="<%= product.image_url %>">
+  <% } %>
+   <%- include('../partials/auto-ads') %>
+  <%- include('../partials/adsense') %>
+  <style>
+    .product-card {
+      transition: transform 0.3s ease;
+    }
+    .product-card:hover {
+      transform: translateY(-5px);
+    }
+    .share-stats {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+    .commission-info {
+      background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+      color: white;
+    }
+  </style>
+</head>
+<body class="bg-light">
+  <%- include('../partials/navbar') %>
+
+  <div class="container mt-4">
+    <div class="row justify-content-center">
+      <div class="col-md-8">
+        <div class="card shadow-sm">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+              <h2 class="card-title mb-0">Share Product</h2>
+              <a href="/shop" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-2"></i>Back to Products
+              </a>
+            </div>
+            
+            <!-- Product Preview -->
+            <div class="card product-card mb-4">
+              <div class="row g-0">
+                <% if (product.image_url) { %>
+                  <div class="col-md-4">
+                    <img src="<%= product.image_url %>" alt="<%= product.name %>" 
+                         class="img-fluid rounded-start h-100" style="object-fit: cover;">
+                  </div>
+                <% } %>
+                <div class="<%= product.image_url ? 'col-md-8' : 'col-12' %>">
+                  <div class="card-body">
+                    <h5 class="card-title"><%= product.name %></h5>
+                    <p class="card-text text-muted"><%= product.description || 'No description available' %></p>
+                    <div class="d-flex justify-content-between align-items-center">
+                      <span class="h4 text-primary mb-0">$<%= parseFloat(product.price).toFixed(4) %></span>
+                      <div>
+                        <span class="badge bg-success me-2">
+                          <i class="fas fa-percentage me-1"></i>
+                          <%= parseFloat(product.commission_rate || 5).toFixed(1) %>% Commission
+                        </span>
+                        <span class="badge bg-info">
+                          <i class="fas fa-store me-1"></i>
+                          by <%= product.merchant_name %>
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Commission Info -->
+            <div class="card commission-info mb-4">
+              <div class="card-body text-center">
+                <h5 class="card-title">
+                  <i class="fas fa-coins me-2"></i>
+                  Your Commission
+                </h5>
+                <p class="h3 mb-2">
+                  <%
+                    const adminCommissionRateValue = typeof adminCommissionRate !== 'undefined' ? adminCommissionRate : 10;
+                    const userCommissionPercentageValue = typeof userCommissionPercentage !== 'undefined' ? userCommissionPercentage : 30;
+                    const adminCommission = parseFloat(product.price) * parseFloat(adminCommissionRateValue) / 100;
+                    const userCommission = adminCommission * parseFloat(userCommissionPercentageValue) / 100;
+                  %>
+                  $<%= userCommission.toFixed(4) %>
+                </p>
+                <p class="mb-0">
+                  You earn <%= userCommissionPercentageValue %>% of admin commission ($<%= adminCommission.toFixed(4) %>) for every sale!
+                </p>
+              </div>
+            </div>
+
+            <!-- Share Link -->
+            <div class="card bg-light mb-4">
+              <div class="card-body">
+                <h5 class="card-title">
+                  <i class="fas fa-share-alt me-2"></i>
+                  Your Share Link
+                </h5>
+                <div class="input-group">
+                  <input type="text" class="form-control" id="shareUrl" value="<%= shareUrl %>" readonly>
+                  <button class="btn btn-outline-primary" type="button" id="copyBtn">
+                    <i class="fas fa-copy"></i> Copy
+                  </button>
+                </div>
+                <small class="text-muted mt-2 d-block">
+                  Share this link with your audience to earn commissions on every sale!
+                </small>
+              </div>
+            </div>
+
+            <!-- Social Share Buttons -->
+            <div class="text-center mb-4">
+              <h6 class="mb-3">Share on Social Media</h6>
+              <div class="d-flex justify-content-center gap-3 flex-wrap">
+                <button class="btn btn-outline-primary share-btn" data-platform="facebook">
+                  <i class="fab fa-facebook me-2"></i>Facebook
+                </button>
+                <button class="btn btn-outline-info share-btn" data-platform="twitter">
+                  <i class="fab fa-twitter me-2"></i>Twitter
+                </button>
+                <button class="btn btn-outline-success share-btn" data-platform="whatsapp">
+                  <i class="fab fa-whatsapp me-2"></i>WhatsApp
+                </button>
+                <button class="btn btn-outline-danger share-btn" data-platform="telegram">
+                  <i class="fab fa-telegram me-2"></i>Telegram
+                </button>
+              </div>
+            </div>
+
+            <!-- How it Works -->
+            <div class="alert alert-info">
+              <h6 class="alert-heading">
+                <i class="fas fa-lightbulb me-2"></i>How it Works
+              </h6>
+              <ol class="mb-0">
+                <li>Copy your unique share link above</li>
+                <li>Share it with your audience on social media, website, or directly</li>
+                <li>When someone clicks your link and makes a purchase, you earn a commission</li>
+                <li>Commissions are added to your wallet once the order is marked as delivered</li>
+                <li>Withdraw your earnings anytime from your wallet</li>
+              </ol>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="d-flex justify-content-center gap-3 mt-4">
+              <a href="/products/<%= product.id %>" class="btn btn-outline-secondary">
+                <i class="fas fa-eye me-2"></i>View Product
+              </a>
+              <a href="/wallet" class="btn btn-outline-success">
+                <i class="fas fa-wallet me-2"></i>Check Wallet
+              </a>
+              <a href="/user/shared-products" class="btn btn-outline-info">
+                <i class="fas fa-chart-line me-2"></i>My Shared Products
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    // Copy to clipboard functionality
+    document.getElementById('copyBtn').addEventListener('click', function() {
+      const shareUrl = document.getElementById('shareUrl');
+      shareUrl.select();
+      shareUrl.setSelectionRange(0, 99999);
+      document.execCommand('copy');
+      
+      // Show feedback
+      const btn = this;
+      const originalText = btn.innerHTML;
+      btn.innerHTML = '<i class="fas fa-check"></i> Copied!';
+      btn.classList.remove('btn-outline-primary');
+      btn.classList.add('btn-success');
+      
+      setTimeout(function() {
+        btn.innerHTML = originalText;
+        btn.classList.remove('btn-success');
+        btn.classList.add('btn-outline-primary');
+      }, 2000);
+    });
+
+    // Social media sharing
+    document.querySelectorAll('.share-btn').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        const platform = this.dataset.platform;
+        const shareUrl = document.getElementById('shareUrl').value;
+        const productName = '<%= product.name.replace(/'/g, "\\'") %>';
+        <%
+          const adminRateForJS = typeof adminCommissionRate !== 'undefined' ? adminCommissionRate : 10;
+          const userPercentForJS = typeof userCommissionPercentage !== 'undefined' ? userCommissionPercentage : 30;
+          const adminCommissionForJS = parseFloat(product.price) * parseFloat(adminRateForJS) / 100;
+          const userCommissionForJS = adminCommissionForJS * parseFloat(userPercentForJS) / 100;
+        %>
+        const commission = '<%= userCommissionForJS.toFixed(4) %>';
+        
+        let shareMessage = `Check out this amazing product: ${productName}! Get it now and help me earn $${commission} commission.`;
+        let finalUrl;
+        
+        switch(platform) {
+          case 'facebook':
+            finalUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`;
+            break;
+          case 'twitter':
+            finalUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareMessage)}&url=${encodeURIComponent(shareUrl)}`;
+            break;
+          case 'whatsapp':
+            finalUrl = `https://wa.me/?text=${encodeURIComponent(shareMessage + ' ' + shareUrl)}`;
+            break;
+          case 'telegram':
+            finalUrl = `https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(shareMessage)}`;
+            break;
+        }
+        
+        window.open(finalUrl, '_blank', 'width=600,height=400');
+      });
+    });
+  </script>
+</body>
+</html>

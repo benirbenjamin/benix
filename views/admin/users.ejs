@@ -1,0 +1,1034 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>User Management | Admin - BenixSpace</title>
+  <link rel="icon" href="/static/img/favicon.png" type="image/png" />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    .role-badge {
+      font-size: 0.8em;
+    }
+    .search-form {
+      max-width: 500px;
+    }  </style>
+</head>
+<body class="bg-light">
+  <!-- Navbar -->
+  <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <div class="container-fluid">
+      <a class="navbar-brand" href="/">BenixSpace</a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav me-auto">
+          <li class="nav-item">
+            <a class="nav-link" href="/admin/dashboard">Dashboard</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link active" href="/admin/users">Users</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="/admin/products">Products</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="/admin/links">Links</a>
+          </li>
+        </ul>
+        <ul class="navbar-nav">
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+              <%= user.username %>
+            </a>
+            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdown">
+              <li><a class="dropdown-item" href="/admin/profile">My Profile</a></li>
+              <li><hr class="dropdown-divider"></li>
+              <li><a class="dropdown-item" href="/logout">Logout</a></li>
+            </ul>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </nav>
+  
+  <div class="container-fluid py-4">
+    <div class="row mb-4">
+      <div class="col-lg-12">
+        <nav aria-label="breadcrumb">
+          <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="/admin/dashboard">Dashboard</a></li>
+            <li class="breadcrumb-item active" aria-current="page">User Management</li>
+          </ol>
+        </nav>
+        
+        <div class="d-flex justify-content-between align-items-center mb-4">
+          <h2>User Management</h2>
+          <div class="btn-group">
+            <button type="button" class="btn btn-warning" onclick="testEmailConfig()">
+              <i class="bi bi-gear"></i> Test Email
+            </button>
+            <button type="button" class="btn btn-info" onclick="contactAllUsers()">
+              <i class="bi bi-envelope"></i> Contact All Users
+            </button>
+            <button type="button" class="btn btn-secondary" onclick="contactAllMerchants()">
+              <i class="bi bi-shop"></i> Contact All Merchants
+            </button>
+            <button type="button" class="btn btn-success" onclick="exportUsers()">
+              <i class="bi bi-download"></i> Export Users
+            </button>
+            <a href="/admin/register" class="btn btn-primary">
+              <i class="bi bi-person-plus"></i> Add New User
+            </a>
+          </div>
+        </div>
+        
+        <!-- Filters and Search -->
+        <div class="card shadow-sm mb-4">
+          <div class="card-body">
+            <form action="/admin/users" method="GET" class="row g-3">
+              <div class="col-md-3">
+                <label for="role" class="form-label">Filter by Role</label>
+                <select class="form-select" id="role" name="role">
+                  <option value="" <%= !selectedRole ? 'selected' : '' %>>All Roles</option>
+                  <option value="admin" <%= selectedRole === 'admin' ? 'selected' : '' %>>Admin</option>
+                  <option value="merchant" <%= selectedRole === 'merchant' ? 'selected' : '' %>>Merchant</option>
+                  <option value="user" <%= selectedRole === 'user' ? 'selected' : '' %>>User</option>
+                </select>
+              </div>
+              <div class="col-md-3">
+                <label for="status" class="form-label">Filter by Status</label>
+                <select class="form-select" id="status" name="status">
+                  <option value="" <%= !selectedStatus ? 'selected' : '' %>>All Status</option>
+                  <option value="verified" <%= selectedStatus === 'verified' ? 'selected' : '' %>>Verified</option>
+                  <option value="pending" <%= selectedStatus === 'pending' ? 'selected' : '' %>>Pending</option>
+                </select>
+              </div>
+              <div class="col-md-3">
+                <label for="search" class="form-label">Search Users</label>
+                <input type="text" class="form-control" id="search" name="search" placeholder="Username or email" value="<%= searchQuery %>">
+              </div>
+              <div class="col-md-3">
+                <label for="minWallet" class="form-label">Wallet Range ($)</label>
+                <div class="input-group">
+                  <input type="number" class="form-control" id="minWallet" name="minWallet" placeholder="Min" value="<%= filters.minWallet || '' %>" step="0.01">
+                  <span class="input-group-text">-</span>
+                  <input type="number" class="form-control" id="maxWallet" name="maxWallet" placeholder="Max" value="<%= filters.maxWallet || '' %>" step="0.01">
+                </div>
+              </div>
+              <div class="col-md-3">
+                <label for="minReferrals" class="form-label">Referrals Range</label>
+                <div class="input-group">
+                  <input type="number" class="form-control" id="minReferrals" name="minReferrals" placeholder="Min" value="<%= filters.minReferrals || '' %>" min="0">
+                  <span class="input-group-text">-</span>
+                  <input type="number" class="form-control" id="maxReferrals" name="maxReferrals" placeholder="Max" value="<%= filters.maxReferrals || '' %>" min="0">
+                </div>
+              </div>
+              <div class="col-12">
+                <div class="d-flex gap-2">
+                  <button class="btn btn-primary" type="submit">
+                    <i class="bi bi-search"></i> Apply Filters
+                  </button>
+                  <a href="/admin/users" class="btn btn-outline-secondary">Clear Filters</a>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+        
+        <!-- Users Table -->
+        <div class="card shadow-sm">
+          <div class="card-body">
+            <div class="table-responsive">
+              <table class="table table-hover">
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Username</th>
+                    <th>Email</th>
+                    <th>Role</th>
+                    <th>Status</th>
+                    <th>Referrals</th>
+                    <th>Shared Links</th>
+                    <th>Orders</th>
+                    <th>Wallet</th>
+                    <th>Joined</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <% users.forEach(function(u) { %>
+                    <tr>
+                      <td><%= u.id %></td>
+                      <td>
+                        <div class="d-flex align-items-center">
+                          <div style="width: 32px; height: 32px; background-color: #<%= u.id.toString().slice(-6) %>; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-right: 8px;">
+                            <%= u.username.charAt(0).toUpperCase() %>
+                          </div>
+                          <%= u.username %>
+                          <% if (u.has_lifetime_commission) { %>
+                            <span class="badge bg-warning text-dark ms-1">Premium</span>
+                          <% } %>
+                        </div>
+                      </td>
+                      <td><%= u.email %></td>
+                      <td>
+                        <span class="badge <%= 
+                          u.role === 'admin' ? 'bg-danger' : 
+                          u.role === 'merchant' ? 'bg-primary' : 'bg-success' 
+                        %> role-badge">
+                          <%= u.role %>
+                        </span>
+                      </td>
+                      <td>
+                        <% 
+                          // Use computed status from the database query for reliability
+                          const computedStatus = u.computed_status || 'pending';
+                          const isVerified = computedStatus === 'verified';
+                          const statusText = isVerified ? 'Verified' : 'Pending';
+                          const statusClass = isVerified ? 'bg-success' : 'bg-warning';
+                        %>
+                        <span class="badge <%= statusClass %>">
+                          <%= statusText %>
+                        </span>
+                      </td>
+                      <td>
+                        <span class="badge bg-info">
+                          <%= u.referral_count || 0 %>
+                        </span>
+                      </td>
+                      <td><%= u.total_shared_links || 0 %></td>
+                      <td><%= u.total_orders || 0 %></td>
+                      <td>$<%= parseFloat(u.wallet || 0).toFixed(4) %></td>
+                      <td><%= new Date(u.created_at).toLocaleDateString() %></td>
+                      <td>
+                        <div class="btn-group btn-group-sm">
+                          <a href="/admin/users/<%= u.id %>" class="btn btn-outline-primary">
+                            <i class="bi bi-eye"></i> View
+                          </a>
+                          <button type="button" class="btn btn-outline-secondary dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown" aria-expanded="false">
+                            <span class="visually-hidden">Toggle Dropdown</span>
+                          </button>
+                          <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="/admin/users/<%= u.id %>">View Details</a></li>
+                            <li><a class="dropdown-item" href="#" onclick="contactUser('<%= u.id %>', '<%= u.email %>', '<%= u.username %>')">Contact User</a></li>
+                            <li><a class="dropdown-item" href="#" onclick="showEditModal('<%= u.id %>')">Edit User</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item text-danger" href="#" onclick="confirmDelete('<%= u.id %>', '<%= u.username %>')">Delete</a></li>
+                            <li><a class="dropdown-item" href="#" onclick="showResetPasswordModal('<%= u.id %>', '<%= u.username %>')">Reset Password</a></li>
+                          </ul>
+                        </div>
+                      </td>
+                    </tr>
+                  <% }); %>
+                </tbody>
+              </table>
+            </div>
+            
+            <% if (users.length === 0) { %>
+              <div class="text-center py-5">
+                <i class="bi bi-person-x" style="font-size: 3rem; color: #adb5bd;"></i>
+                <p class="mt-3">No users found matching your criteria.</p>
+              </div>
+            <% } %>
+            
+            <!-- Pagination -->
+            <% if (totalPages > 1) { %>
+              <% 
+                // Helper function to build URL with all filters
+                function buildPageUrl(page) {
+                  let url = `/admin/users?page=${page}`;
+                  if (selectedRole) url += `&role=${selectedRole}`;
+                  if (searchQuery) url += `&search=${encodeURIComponent(searchQuery)}`;
+                  if (filters.minWallet) url += `&minWallet=${filters.minWallet}`;
+                  if (filters.maxWallet) url += `&maxWallet=${filters.maxWallet}`;
+                  if (filters.minReferrals) url += `&minReferrals=${filters.minReferrals}`;
+                  if (filters.maxReferrals) url += `&maxReferrals=${filters.maxReferrals}`;
+                  return url;
+                }
+              %>
+              <nav aria-label="User pagination" class="mt-4">
+                <ul class="pagination justify-content-center">
+                  <li class="page-item <%= currentPage === 1 ? 'disabled' : '' %>">
+                    <a class="page-link" href="<%= buildPageUrl(currentPage - 1) %>" tabindex="-1" aria-disabled="<%= currentPage === 1 ? 'true' : 'false' %>">Previous</a>
+                  </li>
+                  
+                  <% for (let i = 1; i <= totalPages; i++) { %>
+                    <li class="page-item <%= currentPage === i ? 'active' : '' %>">
+                      <a class="page-link" href="<%= buildPageUrl(i) %>"><%= i %></a>
+                    </li>
+                  <% } %>
+                  
+                  <li class="page-item <%= currentPage === totalPages ? 'disabled' : '' %>">
+                    <a class="page-link" href="<%= buildPageUrl(currentPage + 1) %>">Next</a>
+                  </li>
+                </ul>
+                <div class="text-center mt-2">
+                  <small class="text-muted">
+                    Showing <%= users.length %> of <%= totalUsers %> users
+                    (Page <%= currentPage %> of <%= totalPages %>)
+                  </small>
+                </div>
+              </nav>
+            <% } %>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Delete Confirmation Modal -->
+  <div class="modal fade" id="deleteModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Confirm User Deletion</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <p>Are you sure you want to delete user <strong id="deleteUserName"></strong>?</p>
+          <p class="text-danger">This action cannot be undone. All user data including orders, shared links, and wallet information will be permanently deleted.</p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-danger" id="confirmDeleteBtn">Delete User</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Contact User Modal -->
+  <div class="modal fade" id="contactUserModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="contactModalTitle">Contact User</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <form id="individualContactForm">
+            <div class="mb-3">
+              <label for="individualEmailTo" class="form-label">To:</label>
+              <input type="text" class="form-control" id="individualEmailTo" readonly>
+            </div>
+            <div class="mb-3">
+              <label for="individualEmailSubject" class="form-label">Subject:</label>
+              <input type="text" class="form-control" id="individualEmailSubject" placeholder="Enter email subject" required>
+            </div>
+            <div class="mb-3">
+              <label for="individualEmailMessage" class="form-label">Message:</label>
+              <textarea class="form-control" id="individualEmailMessage" rows="8" placeholder="Enter your message" required></textarea>
+            </div>
+          </form>
+          
+          <!-- Individual error/success messages -->
+          <div id="individualContactError" class="alert alert-danger d-none"></div>
+          <div id="individualContactSuccess" class="alert alert-success d-none"></div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-primary" id="sendEmailBtn">
+            <i class="bi bi-send"></i> Send Email
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Contact All Users Modal -->
+  <div class="modal fade" id="contactAllModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Contact All Users</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="alert alert-info">
+            <i class="bi bi-info-circle"></i>
+            This will send an email to all users currently displayed (<%= users.length %> users).
+          </div>
+          <form id="contactAllForm">
+            <div class="mb-3">
+              <label for="massEmailSubject" class="form-label">Subject:</label>
+              <input type="text" class="form-control" id="massEmailSubject" placeholder="Enter email subject" required>
+            </div>
+            <div class="mb-3">
+              <label for="massEmailMessage" class="form-label">Message:</label>
+              <textarea class="form-control" id="massEmailMessage" rows="8" placeholder="Enter your message" required></textarea>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-primary" id="sendMassEmailBtn">
+            <i class="bi bi-send"></i> Send to All Users
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Contact Users Modal -->
+  <div class="modal fade" id="contactModal" tabindex="-1" aria-labelledby="contactModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="contactModalLabel">Contact Users</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <!-- Error display area -->
+          <div id="contactError" class="alert alert-danger d-none mb-3">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i>
+            <span id="contactErrorMessage"></span>
+          </div>
+          
+          <!-- Success display area -->
+          <div id="contactSuccess" class="alert alert-success d-none mb-3">
+            <i class="bi bi-check-circle-fill me-2"></i>
+            <span id="contactSuccessMessage"></span>
+          </div>
+          
+          <form id="contactForm">
+            <div class="mb-3">
+              <label for="emailSubject" class="form-label">Subject *</label>
+              <input type="text" class="form-control" id="emailSubject" placeholder="Enter email subject" required>
+            </div>
+            <div class="mb-3">
+              <label for="emailMessage" class="form-label">Message *</label>
+              <textarea class="form-control" id="emailMessage" rows="6" placeholder="Enter your message..." required></textarea>
+            </div>
+            <div class="mb-3">
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="sendCopy">
+                <label class="form-check-label" for="sendCopy">
+                  Send a copy to myself
+                </label>
+              </div>
+            </div>
+            <div id="contactFilters" class="alert alert-info">
+              <strong>Targeting:</strong> <span id="targetInfo"></span>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-primary" id="sendContactBtn">
+            <i class="bi bi-send"></i> Send Message
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Reset Password Modal -->
+  <div class="modal fade" id="resetPasswordModal" tabindex="-1" aria-labelledby="resetPasswordModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="resetPasswordModalLabel">Reset User Password</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <!-- Error display area -->
+          <div id="resetPasswordError" class="alert alert-danger d-none mb-3">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i>
+            <span id="resetPasswordErrorMessage"></span>
+          </div>
+          
+          <!-- Success display area -->
+          <div id="resetPasswordSuccess" class="alert alert-success d-none mb-3">
+            <i class="bi bi-check-circle-fill me-2"></i>
+            <span id="resetPasswordSuccessMessage"></span>
+          </div>
+          
+          <div class="mb-3">
+            <label class="form-label">User:</label>
+            <p><strong id="resetUserInfo"></strong></p>
+          </div>
+          <div class="mb-3">
+            <label for="reset_new_password" class="form-label">New Password *</label>
+            <input type="password" class="form-control" id="reset_new_password" minlength="8" required>
+            <div class="form-text">Password must be at least 8 characters long</div>
+          </div>
+          <div class="mb-3">
+            <label for="reset_confirm_password" class="form-label">Confirm Password *</label>
+            <input type="password" class="form-control" id="reset_confirm_password" minlength="8" required>
+            <div class="form-text">Re-enter the password to confirm</div>
+          </div>
+          <div class="alert alert-warning">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i> This action will reset the user's password. The new password will be effective immediately.
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-primary" id="confirmResetPassword">Reset Password</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <script>
+    // Delete user confirmation
+    function confirmDelete(userId, username) {
+      document.getElementById('deleteUserName').textContent = username;
+      const deleteBtn = document.getElementById('confirmDeleteBtn');
+      deleteBtn.onclick = function() {
+        window.location.href = `/admin/users/${userId}/delete`;
+      };
+      new bootstrap.Modal(document.getElementById('deleteModal')).show();
+    }
+    
+    // Show edit modal
+    function showEditModal(userId) {
+      window.location.href = `/admin/users/${userId}/edit`;
+    }
+
+    // Contact individual user
+    function contactUser(userId, email, username) {
+      document.getElementById('contactModalTitle').textContent = `Contact ${username}`;
+      document.getElementById('individualEmailTo').value = `${username} <${email}>`;
+      document.getElementById('individualEmailSubject').value = '';
+      document.getElementById('individualEmailMessage').value = '';
+      
+      // Hide any previous messages
+      hideIndividualContactMessages();
+      
+      const sendBtn = document.getElementById('sendEmailBtn');
+      sendBtn.onclick = function() {
+        sendEmailToUser(userId, email);
+      };
+      
+      new bootstrap.Modal(document.getElementById('contactUserModal')).show();
+    }
+
+    // Contact all users
+    function contactAllUsers() {
+      console.log('contactAllUsers called');
+      
+      // Get current filters for targeting info
+      const currentRole = document.getElementById('role').value || '';
+      const currentSearch = document.getElementById('search').value || '';
+      
+      let targetInfo = 'All users';
+      if (currentRole) {
+        targetInfo = `All ${currentRole}s`;
+      }
+      if (currentSearch) {
+        targetInfo += ` matching "${currentSearch}"`;
+      }
+      
+      console.log('Target info:', targetInfo);
+      document.getElementById('targetInfo').textContent = targetInfo;
+      
+      // Show the modal first
+      const modalElement = document.getElementById('contactModal');
+      if (!modalElement) {
+        console.error('Contact modal element not found');
+        alert('Contact modal not found. Please refresh the page and try again.');
+        return;
+      }
+      
+      const modal = new bootstrap.Modal(modalElement);
+      
+      // Wait for modal to be shown, then set up the form
+      modalElement.addEventListener('shown.bs.modal', function onModalShown() {
+        console.log('Modal fully shown, setting up form');
+        
+        // Remove this event listener to prevent multiple bindings
+        modalElement.removeEventListener('shown.bs.modal', onModalShown);
+        
+        // Hide any previous messages but don't reset form
+        hideContactMessages();
+        
+        // Set up form submission for filtered users
+        const sendBtn = document.getElementById('sendContactBtn');
+        if (sendBtn) {
+          sendBtn.onclick = function() {
+            console.log('Send button clicked');
+            sendContactMessage('/admin/users/contact-all', { role: currentRole, search: currentSearch });
+          };
+          console.log('Button handler set successfully');
+        } else {
+          console.error('Send contact button not found');
+        }
+      });
+      
+      modal.show();
+    }
+
+    // Send email to individual user
+    function sendEmailToUser(userId, email) {
+      const subject = document.getElementById('individualEmailSubject').value;
+      const message = document.getElementById('individualEmailMessage').value;
+      
+      console.log('Individual contact form values:', {
+        subject: subject,
+        message: message,
+        subjectLength: subject.length,
+        messageLength: message.length,
+        userId: userId,
+        email: email
+      });
+      
+      // Hide previous messages
+      hideIndividualContactMessages();
+      
+      if (!subject || !message) {
+        console.log('Individual contact validation failed');
+        showIndividualContactError('Please fill in all fields');
+        return;
+      }
+
+      // Show loading state
+      const sendBtn = document.getElementById('sendEmailBtn');
+      sendBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Sending...';
+      sendBtn.disabled = true;
+
+      const requestBody = {
+        userId: userId,
+        email: email,
+        subject: subject,
+        message: message
+      };
+      
+      console.log('Individual contact request body:', requestBody);
+
+      // Send POST request to backend
+      fetch('/admin/users/contact-individual', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody)
+      })
+      .then(response => response.json())
+      .then(data => {
+        console.log('Individual contact response:', data);
+        if (data.success) {
+          showIndividualContactSuccess('Email sent successfully!');
+          // Reset form after successful send
+          document.getElementById('individualEmailSubject').value = '';
+          document.getElementById('individualEmailMessage').value = '';
+          // Close modal after 3 seconds
+          setTimeout(() => {
+            bootstrap.Modal.getInstance(document.getElementById('contactUserModal')).hide();
+          }, 3000);
+        } else {
+          showIndividualContactError('Failed to send email: ' + data.message);
+        }
+      })
+      .catch(error => {
+        console.error('Individual contact error:', error);
+        showIndividualContactError('An error occurred while sending the email');
+      })
+      .finally(() => {
+        sendBtn.innerHTML = '<i class="bi bi-send"></i> Send Email';
+        sendBtn.disabled = false;
+      });
+    }
+
+    // Export users
+    function exportUsers() {
+      const exportBtn = event.target;
+      exportBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Exporting...';
+      exportBtn.disabled = true;
+
+      // Get current filters from the page  
+      const currentRole = document.getElementById('role').value || '';
+      const currentSearch = document.getElementById('search').value || '';
+
+      // Create export URL with current filters - navigate to export page
+      const params = new URLSearchParams({
+        role: currentRole,
+        search: currentSearch
+      });
+
+      // Navigate to export page
+      window.location.href = `/admin/users/export?${params.toString()}`;
+    }
+
+    // Contact all merchants
+    function contactAllMerchants() {
+      // Set targeting info
+      document.getElementById('targetInfo').textContent = 'All merchants';
+      
+      // Show modal
+      const modal = new bootstrap.Modal(document.getElementById('contactModal'));
+      modal.show();
+      
+      // Set up form submission for merchants
+      document.getElementById('sendContactBtn').onclick = function() {
+        sendContactMessage('/admin/users/contact-merchants');
+      };
+    }
+
+    // Individual contact modal message functions
+    function showIndividualContactError(message) {
+      const errorElement = document.getElementById('individualContactError');
+      if (errorElement) {
+        errorElement.textContent = message;
+        errorElement.classList.remove('d-none');
+      }
+      const successElement = document.getElementById('individualContactSuccess');
+      if (successElement) {
+        successElement.classList.add('d-none');
+      }
+    }
+
+    function showIndividualContactSuccess(message) {
+      const successElement = document.getElementById('individualContactSuccess');
+      if (successElement) {
+        successElement.textContent = message;
+        successElement.classList.remove('d-none');
+      }
+      const errorElement = document.getElementById('individualContactError');
+      if (errorElement) {
+        errorElement.classList.add('d-none');
+      }
+    }
+
+    function hideIndividualContactMessages() {
+      const errorElement = document.getElementById('individualContactError');
+      const successElement = document.getElementById('individualContactSuccess');
+      if (errorElement) errorElement.classList.add('d-none');
+      if (successElement) successElement.classList.add('d-none');
+    }
+
+    // Contact all users modal message functions
+    function showContactError(message) {
+      const errorDiv = document.getElementById('contactError');
+      const errorMessage = document.getElementById('contactErrorMessage');
+      errorMessage.textContent = message;
+      errorDiv.classList.remove('d-none');
+      // Hide success message
+      document.getElementById('contactSuccess').classList.add('d-none');
+    }
+
+    function showContactSuccess(message) {
+      const successDiv = document.getElementById('contactSuccess');
+      const successMessage = document.getElementById('contactSuccessMessage');
+      successMessage.textContent = message;
+      successDiv.classList.remove('d-none');
+      // Hide error message
+      document.getElementById('contactError').classList.add('d-none');
+    }
+
+    function hideContactMessages() {
+      document.getElementById('contactError').classList.add('d-none');
+      document.getElementById('contactSuccess').classList.add('d-none');
+    }
+
+    async function sendContactMessage(endpoint, filters = {}) {
+      console.log('sendContactMessage called with:', { endpoint, filters });
+      
+      const subjectElement = document.getElementById('emailSubject');
+      const messageElement = document.getElementById('emailMessage');
+      const sendCopyElement = document.getElementById('sendCopy');
+      
+      console.log('Form elements found:', { 
+        subjectElement: !!subjectElement, 
+        messageElement: !!messageElement, 
+        sendCopyElement: !!sendCopyElement 
+      });
+      
+      if (!subjectElement || !messageElement) {
+        showContactError('Form elements not found. Please refresh the page and try again.');
+        return;
+      }
+      
+      const subject = subjectElement.value.trim();
+      const message = messageElement.value.trim();
+      const sendCopy = sendCopyElement ? sendCopyElement.checked : false;
+      
+      console.log('Contact form validation:', { 
+        subject, 
+        message, 
+        subjectLength: subject.length, 
+        messageLength: message.length,
+        subjectEmpty: !subject,
+        messageEmpty: !message
+      });
+      
+      // Hide previous messages
+      hideContactMessages();
+      
+      if (!subject || !message) {
+        console.log('Validation failed - showing error');
+        showContactError('Please fill in all required fields');
+        return;
+      }
+
+      const sendBtn = document.getElementById('sendContactBtn');
+      const originalText = sendBtn.innerHTML;
+      sendBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Sending...';
+      sendBtn.disabled = true;
+
+      const requestBody = {
+        subject,
+        message,
+        sendCopy,
+        ...filters
+      };
+      
+      console.log('Sending request to:', endpoint);
+      console.log('Request body:', requestBody);
+      console.log('Request body JSON:', JSON.stringify(requestBody));
+
+      try {
+        const response = await fetch(endpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(requestBody)
+        });
+
+        const result = await response.json();
+        console.log('Server response:', result);
+        
+        if (result.success) {
+          showContactSuccess(`Message sent successfully to ${result.count} users!`);
+          // Reset form
+          document.getElementById('contactForm').reset();
+          // Close modal after 3 seconds
+          setTimeout(() => {
+            bootstrap.Modal.getInstance(document.getElementById('contactModal')).hide();
+          }, 3000);
+        } else {
+          showContactError('Failed to send message: ' + result.message);
+        }
+      } catch (error) {
+        console.error('Error sending message:', error);
+        showContactError('Error sending message. Please try again.');
+      } finally {
+        sendBtn.innerHTML = originalText;
+        sendBtn.disabled = false;
+      }
+    }
+
+    // Test email configuration
+    async function testEmailConfig() {
+      const testBtn = event.target;
+      const originalContent = testBtn.innerHTML;
+      
+      testBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Testing...';
+      testBtn.disabled = true;
+
+      try {
+        const response = await fetch('/admin/test-email');
+        const result = await response.json();
+        
+        if (result.success) {
+          alert(`✅ Email test successful!\n\nTest email sent to: ${result.sentTo}\n\nPlease check your inbox.`);
+        } else {
+          let message = `❌ Email test failed!\n\nError: ${result.message}`;
+          if (result.config) {
+            message += `\n\nCurrent configuration:\nHost: ${result.config.host}\nPort: ${result.config.port}\nUser: ${result.config.user}`;
+          }
+          if (result.help) {
+            message += `\n\nSuggestion: ${result.help}`;
+          }
+          alert(message);
+        }
+      } catch (error) {
+        alert(`❌ Email test failed!\n\nError: ${error.message}\n\nPlease check your email configuration in the .env file.`);
+      } finally {
+        testBtn.innerHTML = originalContent;
+        testBtn.disabled = false;
+      }
+    }
+
+    // Show reset password modal
+    function showResetPasswordModal(userId, username) {
+      document.getElementById('resetUserInfo').textContent = `${username} (ID: ${userId})`;
+      document.getElementById('reset_new_password').value = '';
+      document.getElementById('reset_confirm_password').value = '';
+      
+      // Hide any previous error/success messages
+      hideResetPasswordMessages();
+
+      const resetBtn = document.getElementById('confirmResetPassword');
+      resetBtn.onclick = function() {
+        resetUserPassword(userId);
+      };
+
+      new bootstrap.Modal(document.getElementById('resetPasswordModal')).show();
+    }
+
+    // Helper functions for showing/hiding messages in modal
+    function showResetPasswordError(message) {
+      const errorDiv = document.getElementById('resetPasswordError');
+      const errorMessage = document.getElementById('resetPasswordErrorMessage');
+      errorMessage.textContent = message;
+      errorDiv.classList.remove('d-none');
+      // Hide success message
+      document.getElementById('resetPasswordSuccess').classList.add('d-none');
+    }
+
+    function showResetPasswordSuccess(message) {
+      const successDiv = document.getElementById('resetPasswordSuccess');
+      const successMessage = document.getElementById('resetPasswordSuccessMessage');
+      successMessage.textContent = message;
+      successDiv.classList.remove('d-none');
+      // Hide error message
+      document.getElementById('resetPasswordError').classList.add('d-none');
+    }
+
+    function hideResetPasswordMessages() {
+      document.getElementById('resetPasswordError').classList.add('d-none');
+      document.getElementById('resetPasswordSuccess').classList.add('d-none');
+    }
+
+    // Reset user password
+    function resetUserPassword(userId) {
+      const newPassword = document.getElementById('reset_new_password').value;
+      const confirmPassword = document.getElementById('reset_confirm_password').value;
+
+      // Hide previous messages
+      hideResetPasswordMessages();
+
+      if (!newPassword || !confirmPassword) {
+        showResetPasswordError('Please fill in all fields');
+        return;
+      }
+
+      // Validate password length
+      if (newPassword.length < 8) {
+        showResetPasswordError('Password must be at least 8 characters long');
+        return;
+      }
+
+      if (newPassword !== confirmPassword) {
+        showResetPasswordError('Passwords do not match');
+        return;
+      }
+
+      // Show loading state
+      const resetBtn = document.getElementById('confirmResetPassword');
+      const originalText = resetBtn.innerHTML;
+      resetBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Resetting...';
+      resetBtn.disabled = true;
+
+      // Send POST request to backend
+      fetch(`/admin/users/${userId}/set-password`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: JSON.stringify({
+          new_password: newPassword
+        })
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) {
+          showResetPasswordSuccess('Password reset successfully!');
+          // Clear form
+          document.getElementById('reset_new_password').value = '';
+          document.getElementById('reset_confirm_password').value = '';
+          // Close modal after 2 seconds
+          setTimeout(() => {
+            bootstrap.Modal.getInstance(document.getElementById('resetPasswordModal')).hide();
+          }, 2000);
+        } else {
+          showResetPasswordError(data.message || 'Failed to reset password');
+        }
+      })
+      .catch(error => {
+        console.error('Error:', error);
+        showResetPasswordError('An error occurred while resetting the password');
+      })
+      .finally(() => {
+        resetBtn.innerHTML = originalText;
+        resetBtn.disabled = false;
+      });
+    }
+
+    // Reset user password from list
+    let currentResetUserId = null;
+    
+    function resetUserPassword(userId, username, email) {
+      currentResetUserId = userId;
+      document.getElementById('resetUserInfo').textContent = `${username} (${email})`;
+      document.getElementById('reset_new_password').value = '';
+      document.getElementById('reset_confirm_password').value = '';
+      
+      // Hide any previous error/success messages
+      hideResetPasswordMessages();
+      
+      const modal = new bootstrap.Modal(document.getElementById('resetPasswordModal'));
+      modal.show();
+    }
+    
+    document.getElementById('confirmResetPassword').addEventListener('click', function() {
+      const newPassword = document.getElementById('reset_new_password').value;
+      const confirmPassword = document.getElementById('reset_confirm_password').value;
+      
+      // Hide previous messages
+      hideResetPasswordMessages();
+      
+      if (!newPassword || !confirmPassword) {
+        showResetPasswordError('Please fill in all fields');
+        return;
+      }
+      
+      // Validate password length
+      if (newPassword.length < 8) {
+        showResetPasswordError('Password must be at least 8 characters long');
+        return;
+      }
+      
+      // Validate passwords match
+      if (newPassword !== confirmPassword) {
+        showResetPasswordError('Passwords do not match');
+        return;
+      }
+      
+      // Show loading state
+      const resetBtn = this;
+      const originalText = resetBtn.innerHTML;
+      resetBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Resetting...';
+      resetBtn.disabled = true;
+      
+      fetch(`/admin/users/${currentResetUserId}/set-password`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: JSON.stringify({ new_password: newPassword }),
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) {
+          showResetPasswordSuccess('Password has been reset successfully!');
+          // Clear form
+          document.getElementById('reset_new_password').value = '';
+          document.getElementById('reset_confirm_password').value = '';
+          // Close modal after 2 seconds
+          setTimeout(() => {
+            bootstrap.Modal.getInstance(document.getElementById('resetPasswordModal')).hide();
+          }, 2000);
+        } else {
+          showResetPasswordError(data.message || 'Failed to reset password');
+        }
+      })
+      .catch(error => {
+        console.error('Error:', error);
+        showResetPasswordError('An error occurred while resetting password. Please try again.');
+      })
+      .finally(() => {
+        // Restore button state
+        resetBtn.innerHTML = originalText;
+        resetBtn.disabled = false;
+      });
+    });
+  </script>
+  
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

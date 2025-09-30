@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Export Results - Admin Panel</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body class="bg-light">
+  <%- include('../partials/navbar') %>
+
+  <div class="container-fluid py-4">
+    <div class="row">
+      <div class="col-md-12">
+        <div class="card">
+          <div class="card-header d-flex justify-content-between align-items-center">
+            <h4 class="mb-0">
+              <i class="fas fa-download"></i> Export Results
+            </h4>
+            <a href="/admin/users" class="btn btn-secondary">
+              <i class="fas fa-arrow-left"></i> Back to Users
+            </a>
+          </div>
+          
+          <div class="card-body">
+            <% if (success) { %>
+              <div class="alert alert-success">
+                <i class="fas fa-check-circle"></i>
+                Successfully exported <%= count %> users!
+              </div>
+              
+              <div class="export-actions mb-4">
+                <h5>Download Options:</h5>
+                <div class="d-flex gap-2">
+                  <button onclick="downloadCSV()" class="btn btn-primary">
+                    <i class="fas fa-file-csv"></i> Download CSV
+                  </button>
+                  <button onclick="viewJSON()" class="btn btn-outline-primary">
+                    <i class="fas fa-code"></i> View JSON
+                  </button>
+                </div>
+              </div>
+
+              <div class="export-summary">
+                <h5>Export Summary:</h5>
+                <ul class="list-group">
+                  <li class="list-group-item d-flex justify-content-between">
+                    <span>Total Users Exported:</span>
+                    <span class="badge bg-primary rounded-pill"><%= count %></span>
+                  </li>
+                  <li class="list-group-item d-flex justify-content-between">
+                    <span>Export Date:</span>
+                    <span><%= new Date().toLocaleString() %></span>
+                  </li>
+                  <% if (filters.role) { %>
+                  <li class="list-group-item d-flex justify-content-between">
+                    <span>Role Filter:</span>
+                    <span class="badge bg-info rounded-pill"><%= filters.role %></span>
+                  </li>
+                  <% } %>
+                  <% if (filters.search) { %>
+                  <li class="list-group-item d-flex justify-content-between">
+                    <span>Search Filter:</span>
+                    <span class="badge bg-secondary rounded-pill"><%= filters.search %></span>
+                  </li>
+                  <% } %>
+                </ul>
+              </div>
+
+              <% if (count > 0) { %>
+              <div class="mt-4">
+                <h5>Preview (First 5 users):</h5>
+                <div class="table-responsive">
+                  <table class="table table-striped table-sm">
+                    <thead class="table-dark">
+                      <tr>
+                        <th>ID</th>
+                        <th>Username</th>
+                        <th>Email</th>
+                        <th>Role</th>
+                        <th>Wallet</th>
+                        <th>Created At</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <% data.slice(0, 5).forEach(user => { %>
+                      <tr>
+                        <td><%= user.id %></td>
+                        <td><%= user.username %></td>
+                        <td><%= user.email %></td>
+                        <td><span class="badge bg-<%= user.role === 'admin' ? 'danger' : user.role === 'merchant' ? 'warning' : 'primary' %>"><%= user.role %></span></td>
+                        <td>$<%= parseFloat(user.wallet || 0).toFixed(4) %></td>
+                        <td><%= new Date(user.created_at).toLocaleDateString() %></td>
+                      </tr>
+                      <% }) %>
+                    </tbody>
+                  </table>
+                  <% if (count > 5) { %>
+                  <p class="text-muted">... and <%= count - 5 %> more users</p>
+                  <% } %>
+                </div>
+              </div>
+              <% } %>
+            <% } else { %>
+              <div class="alert alert-danger">
+                <i class="fas fa-exclamation-circle"></i>
+                Export failed: <%= message %>
+              </div>
+              
+              <div class="text-center">
+                <button onclick="history.back()" class="btn btn-secondary">
+                  <i class="fas fa-arrow-left"></i> Go Back
+                </button>
+              </div>
+            <% } %>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- JSON Modal -->
+  <div class="modal fade" id="jsonModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Export Data (JSON)</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <pre id="jsonContent" class="bg-light p-3" style="max-height: 500px; overflow-y: auto;"></pre>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+          <button type="button" class="btn btn-primary" onclick="copyJSON()">Copy to Clipboard</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    const exportData = <%- JSON.stringify(data || []) %>;
+    const filters = <%- JSON.stringify(filters || {}) %>;
+
+    function downloadCSV() {
+      const params = new URLSearchParams({
+        format: 'csv',
+        ...filters
+      });
+      window.location.href = `/admin/users/export?${params.toString()}`;
+    }
+
+    function viewJSON() {
+      document.getElementById('jsonContent').textContent = JSON.stringify(exportData, null, 2);
+      new bootstrap.Modal(document.getElementById('jsonModal')).show();
+    }
+
+    function copyJSON() {
+      const jsonText = JSON.stringify(exportData, null, 2);
+      navigator.clipboard.writeText(jsonText).then(() => {
+        alert('JSON copied to clipboard!');
+      }).catch(err => {
+        console.error('Failed to copy: ', err);
+        alert('Failed to copy JSON');
+      });
+    }
+  </script>
+</body>
+</html>

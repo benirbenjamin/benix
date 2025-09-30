@@ -1,0 +1,933 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Unilevel System Settings - BenixSpace</title>
+  <link rel="icon" href="/static/img/favicon.png" type="image/png" />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-light">
+  <%- include('../partials/navbar') %>
+
+  <div class="container mt-4">
+    <div class="row">
+      <div class="col-md-10 mx-auto">
+        <% if (locals.successMessage) { %>
+          <div class="alert alert-success alert-dismissible fade show">
+            <%= successMessage %>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+          </div>
+        <% } %>
+        <% if (locals.errorMessage) { %>
+          <div class="alert alert-danger alert-dismissible fade show">
+            <%= errorMessage %>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+          </div>
+        <% } %>
+
+        <!-- Statistics Dashboard -->
+        <div class="row mb-4">
+          <div class="col-md-3">
+            <div class="card bg-primary text-white">
+              <div class="card-body">
+                <h5><i class="fas fa-users"></i> Total Users</h5>
+                <h3><%= userStats.total_users || 0 %></h3>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-3">
+            <div class="card bg-success text-white">
+              <div class="card-body">
+                <h5><i class="fas fa-user-check"></i> Active Users</h5>
+                <h3><%= userStats.active_users || 0 %></h3>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-3">
+            <div class="card bg-warning text-white">
+              <div class="card-body">
+                <h5><i class="fas fa-clock"></i> Pending</h5>
+                <h3><%= userStats.pending_users || 0 %></h3>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-3">
+            <div class="card bg-info text-white">
+              <div class="card-body">
+                <h5><i class="fas fa-credit-card"></i> Paid Activations</h5>
+                <h3><%= userStats.paid_activations || 0 %></h3>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- General System Settings -->
+        <div class="card shadow">
+          <div class="card-header bg-primary text-white">
+            <h4 class="mb-0"><i class="fas fa-cogs"></i> General System Settings</h4>
+          </div>
+          <div class="card-body">
+            <% const essentialSettings = ['admin_commission_rate', 'user_commission_percentage', 'commission_rate', 'cost_per_click', 'min_payout', 'lifetime_commission_fee']; %>
+            <% if (configs && configs.length > 0) { %>
+              <% configs.filter(config => essentialSettings.includes(config.key_name)).forEach(config => { %>
+                <form action="/admin/settings/update" method="POST" class="mb-4">
+                  <input type="hidden" name="key_name" value="<%= config.key_name %>">
+                  <div class="row align-items-end">
+                    <div class="col">
+                      <label for="<%= config.key_name %>" class="form-label">
+                        <%= config.key_name.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ') %>
+                      </label>
+                      <div class="input-group">
+                        <% if (config.key_name.includes('fee') || config.key_name.includes('cost') || config.key_name.includes('amount') || config.key_name === 'min_payout') { %>
+                          <span class="input-group-text">$</span>
+                        <% } else if (config.key_name.includes('rate') || config.key_name.includes('percentage')) { %>
+                          <span class="input-group-text">%</span>
+                        <% } %>
+                        <input type="<%= 
+                          config.key_name.includes('password') ? 'password' : 
+                          config.key_name.includes('fee') || config.key_name.includes('cost') || config.key_name.includes('amount') || config.key_name.includes('rate') || config.key_name.includes('percentage') || config.key_name === 'min_payout' ? 'number' : 
+                          config.value === 'true' || config.value === 'false' ? 'checkbox' : 
+                          'text'
+                        %>" 
+                        class="form-control" 
+                        id="<%= config.key_name %>" 
+                        name="value" 
+                        value="<%= config.value %>"
+                        <%= config.value === 'true' ? 'checked' : '' %>
+                        <%= config.key_name.includes('fee') || config.key_name.includes('cost') || config.key_name.includes('amount') || config.key_name.includes('rate') || config.key_name.includes('percentage') || config.key_name === 'min_payout' ? 'step="0.01" min="0"' : '' %>>
+                      </div>
+                      <small class="text-muted">
+                        <% if (config.key_name === 'admin_commission_rate') { %>Commission rate for admin from link clicks<% } %>
+                        <% if (config.key_name === 'user_commission_percentage') { %>User commission percentage from referrals<% } %>
+                        <% if (config.key_name === 'commission_rate') { %>General commission rate for the system<% } %>
+                        <% if (config.key_name === 'cost_per_click') { %>Cost per click for monetized links<% } %>
+                        <% if (config.key_name === 'min_payout') { %>Minimum amount for withdrawals<% } %>
+                        <% if (config.key_name === 'lifetime_commission_fee') { %>Fee for lifetime commission upgrade<% } %>
+                      </small>
+                    </div>
+                    <div class="col-auto">
+                      <button type="submit" class="btn btn-outline-primary">
+                        <i class="fas fa-save"></i> Update
+                      </button>
+                    </div>
+                  </div>
+                </form>
+              <% }); %>
+            <% } else { %>
+              <div class="alert alert-info">
+                <i class="fas fa-info-circle me-2"></i>
+                <strong>General System Settings:</strong> These settings control the core functionality of the platform including commissions, payouts, and fees. They will appear here once configured in the database.
+              </div>
+              
+              <div class="row">
+                <div class="col-md-6">
+                  <h6><i class="fas fa-percentage text-primary"></i> Commission Settings</h6>
+                  <ul class="list-group list-group-flush">
+                    <li class="list-group-item d-flex justify-content-between">
+                      <span>Admin Commission Rate</span>
+                      <span class="badge bg-secondary">Not Set</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between">
+                      <span>User Commission Percentage</span>
+                      <span class="badge bg-secondary">Not Set</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between">
+                      <span>General Commission Rate</span>
+                      <span class="badge bg-secondary">Not Set</span>
+                    </li>
+                  </ul>
+                </div>
+                
+                <div class="col-md-6">
+                  <h6><i class="fas fa-dollar-sign text-success"></i> Payment Settings</h6>
+                  <ul class="list-group list-group-flush">
+                    <li class="list-group-item d-flex justify-content-between">
+                      <span>Cost Per Click</span>
+                      <span class="badge bg-secondary">Not Set</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between">
+                      <span>Minimum Payout</span>
+                      <span class="badge bg-secondary">Not Set</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between">
+                      <span>Lifetime Commission Fee</span>
+                      <span class="badge bg-secondary">Not Set</span>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+              
+              <div class="mt-3">
+                <div class="alert alert-warning">
+                  <i class="fas fa-tools me-2"></i>
+                  <strong>Note:</strong> To configure these settings, add them to the config table in the database or contact the system administrator.
+                </div>
+              </div>
+            <% } %>
+          </div>
+        </div>
+
+        <!-- Account Activation System Settings -->
+        <div class="card shadow mt-4">
+          <div class="card-header bg-warning text-dark d-flex justify-content-between align-items-center">
+            <h4 class="mb-0"><i class="fas fa-user-check"></i> Account Activation System Settings</h4>
+            <a href="/admin/activation-settings" class="btn btn-dark">
+              <i class="fas fa-cog me-1"></i> Manage Wallet Requirements
+            </a>
+          </div>
+          <div class="card-body">
+            <div class="alert alert-info">
+              <i class="fas fa-info-circle me-2"></i>
+              <strong>Note:</strong> For wallet activation requirements (shared links, clicks, and login days), please use the 
+              <a href="/admin/activation-settings" class="alert-link">Wallet Requirements Settings page</a>.
+            </div>
+            <% const activationSettings = configs.filter(c => c.key_name.startsWith('activation_')); %>
+            <div class="row">
+              <div class="col-md-6">
+                <h5 class="mb-3">General Activation Settings</h5>
+
+                <!-- Enable/Disable Activation System -->
+                <% const activationEnabled = configs.find(c => c.key_name === 'activation_system_enabled') %>
+                <form action="/admin/settings/update" method="POST" class="mb-3">
+                  <input type="hidden" name="key_name" value="activation_system_enabled">
+                  <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" role="switch" id="activation_system_enabled" 
+                           name="value" <%= activationEnabled && activationEnabled.value === 'true' ? 'checked' : '' %>>
+                    <label class="form-check-label" for="activation_system_enabled">
+                      Enable Account Activation System
+                    </label>
+                  </div>
+                  <small class="text-muted">Turn the account activation system on/off</small>
+                </form>
+
+                <!-- Other activation related settings can go here -->
+
+                <!-- Minimum Required Blog Posts -->
+                <% const minBlogPosts = configs.find(c => c.key_name === 'min_required_blog_posts') %>
+                <form action="/admin/settings/update" method="POST" class="mb-3">
+                  <input type="hidden" name="key_name" value="min_required_blog_posts">
+                  <div class="row g-2 align-items-end">
+                    <div class="col">
+                      <label for="min_required_blog_posts" class="form-label">Minimum Required Blog Posts</label>
+                      <input type="number" class="form-control" id="min_required_blog_posts" name="value" 
+                             value="<%= minBlogPosts ? minBlogPosts.value : '5' %>" min="0">
+                      <small class="text-muted">Number of blog posts needed for activation</small>
+                    </div>
+                    <div class="col-auto">
+                      <button type="submit" class="btn btn-outline-primary">Update</button>
+                    </div>
+                  </div>
+                </form>
+              </div>
+
+              <div class="col-md-6">
+                <h5 class="mb-3">Additional Requirements</h5>
+
+                <!-- Weekly Login Requirement -->
+                <% const weeklyLogin = configs.find(c => c.key_name === 'weekly_login_requirement') %>
+                <form action="/admin/settings/update" method="POST" class="mb-3">
+                  <input type="hidden" name="key_name" value="weekly_login_requirement">
+                  <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" role="switch" id="weekly_login_requirement" 
+                           name="value" <%= weeklyLogin && weeklyLogin.value === 'true' ? 'checked' : '' %>>
+                    <label class="form-check-label" for="weekly_login_requirement">
+                      Require Weekly Login
+                    </label>
+                  </div>
+                  <small class="text-muted">Users must log in at least once per week to maintain active status</small>
+                </form>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Analytics Settings -->
+        <div class="card shadow mt-4">
+          <div class="card-header bg-info text-white">
+            <h4 class="mb-0"><i class="fas fa-chart-bar"></i> Analytics Settings</h4>
+          </div>
+          <div class="card-body">
+            <div class="row">
+              <div class="col-md-6">
+                <!-- Default Analytics Period -->
+                <% const analyticsPeriod = configs.find(c => c.key_name === 'analytics_period_default') %>
+                <form action="/admin/settings/update" method="POST" class="mb-3">
+                  <input type="hidden" name="key_name" value="analytics_period_default">
+                  <div class="row g-2 align-items-end">
+                    <div class="col">
+                      <label for="analytics_period_default" class="form-label">Default Analytics Period</label>
+                      <select class="form-select" id="analytics_period_default" name="value">
+                        <option value="today" <%= analyticsPeriod && analyticsPeriod.value === 'today' ? 'selected' : '' %>>Today</option>
+                        <option value="week" <%= analyticsPeriod && analyticsPeriod.value === 'week' ? 'selected' : '' %>>This Week</option>
+                        <option value="month" <%= analyticsPeriod && analyticsPeriod.value === 'month' ? 'selected' : '' %>>This Month</option>
+                        <option value="year" <%= analyticsPeriod && analyticsPeriod.value === 'year' ? 'selected' : '' %>>This Year</option>
+                      </select>
+                      <small class="text-muted">Default time period for analytics display</small>
+                    </div>
+                    <div class="col-auto">
+                      <button type="submit" class="btn btn-outline-primary">Update</button>
+                    </div>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Banner Advertising Settings -->
+        <div class="card shadow-sm mb-4">
+          <div class="card-body">
+            <h4 class="mb-0"><i class="fas fa-ad"></i> Banner Advertising Settings</h4>
+            <hr>
+            <form method="POST" action="/admin/settings" class="mb-3">
+              <!-- Hidden inputs for unilevel settings -->
+              <input type="hidden" name="activation_fee_rwf" value="<%= settings.activation_fee_rwf ? settings.activation_fee_rwf.value : 3000 %>">
+              <input type="hidden" name="level1_commission_rwf" value="<%= settings.level1_commission_rwf ? settings.level1_commission_rwf.value : 1500 %>">
+              <input type="hidden" name="level2_commission_rwf" value="<%= settings.level2_commission_rwf ? settings.level2_commission_rwf.value : 500 %>">
+              <input type="hidden" name="max_commission_levels" value="<%= settings.max_commission_levels ? settings.max_commission_levels.value : 2 %>">
+              <input type="hidden" name="auto_activate_existing_users" value="<%= (settings.auto_activate_existing_users && settings.auto_activate_existing_users.value) ? 'true' : 'false' %>">
+              <div class="row g-3">
+                <div class="col-md-6">
+                  <label class="form-label">Cost Per Click (CPC) in USD</label>
+                  <div class="input-group">
+                    <span class="input-group-text">$</span>
+                    <input type="number" 
+                           name="banner_cpc_usd" 
+                           class="form-control" 
+                           value="<%= settings['banner_cpc_usd']?.value || '0' %>"
+                           step="0.0001"
+                           min="0">
+                  </div>
+                  <small class="text-muted">Amount paid per banner click in USD</small>
+                </div>
+                
+                <div class="col-md-6">
+                  <label class="form-label">Cost Per Mille (CPM) in USD</label>
+                  <div class="input-group">
+                    <span class="input-group-text">$</span>
+                    <input type="number" 
+                           name="banner_cpm_usd" 
+                           class="form-control" 
+                           value="<%= settings['banner_cpm_usd']?.value || '0' %>"
+                           step="0.0001"
+                           min="0">
+                  </div>
+                  <small class="text-muted">Amount paid per 1000 banner views in USD</small>
+                </div>
+              </div>
+
+              <div class="mt-3">
+                <button type="submit" class="btn btn-primary">
+                  <i class="fas fa-save"></i> Save Banner Settings
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <!-- Unilevel System Settings -->
+        <div class="card shadow mt-4">
+          <div class="card-header bg-success text-white">
+            <h4 class="mb-0"><i class="fas fa-sitemap"></i> Unilevel Commission System Settings</h4>
+          </div>
+          <div class="card-body">
+            <% if (settings) { %>
+              <form action="/admin/settings" method="POST">
+                <!-- Hidden inputs for banner settings -->
+                <input type="hidden" name="banner_cpc_usd" value="<%= settings['banner_cpc_usd']?.value || '0' %>">
+                <input type="hidden" name="banner_cpm_usd" value="<%= settings['banner_cpm_usd']?.value || '0' %>">
+                <div class="row">
+                  <div class="col-md-6">
+                    <h5 class="mb-3">Activation & Commission Fees (RWF)</h5>
+                    
+                    <div class="mb-3">
+                      <label for="activation_fee_rwf" class="form-label">User Activation Fee</label>
+                      <div class="input-group">
+                        <span class="input-group-text">RWF</span>
+                        <input type="number" class="form-control" id="activation_fee_rwf" name="activation_fee_rwf" 
+                               value="<%= settings.activation_fee_rwf ? settings.activation_fee_rwf.value : 3000 %>" 
+                               min="0" step="100" required>
+                      </div>
+                      <small class="text-muted">Amount new users must pay to activate their account</small>
+                    </div>
+
+                    <div class="mb-3">
+                      <label for="level1_commission_rwf" class="form-label">Level 1 Commission</label>
+                      <div class="input-group">
+                        <span class="input-group-text">RWF</span>
+                        <input type="number" class="form-control" id="level1_commission_rwf" name="level1_commission_rwf" 
+                               value="<%= settings.level1_commission_rwf ? settings.level1_commission_rwf.value : 1500 %>" 
+                               min="0" step="100" required>
+                      </div>
+                      <small class="text-muted">Commission paid to direct referrer (Level 1)</small>
+                    </div>
+
+                    <div class="mb-3">
+                      <label for="level2_commission_rwf" class="form-label">Level 2 Commission</label>
+                      <div class="input-group">
+                        <span class="input-group-text">RWF</span>
+                        <input type="number" class="form-control" id="level2_commission_rwf" name="level2_commission_rwf" 
+                               value="<%= settings.level2_commission_rwf ? settings.level2_commission_rwf.value : 500 %>" 
+                               min="0" step="100" required>
+                      </div>
+                      <small class="text-muted">Commission paid to 2nd level referrer</small>
+                    </div>
+
+                    <div class="mb-3">
+                      <label for="max_commission_levels" class="form-label">Maximum Commission Levels</label>
+                      <select class="form-select" id="max_commission_levels" name="max_commission_levels" required>
+                        <option value="1" <%= (settings.max_commission_levels && settings.max_commission_levels.value == 1) ? 'selected' : '' %>>1 Level</option>
+                        <option value="2" <%= (!settings.max_commission_levels || settings.max_commission_levels.value == 2) ? 'selected' : '' %>>2 Levels</option>
+                        <option value="3" <%= (settings.max_commission_levels && settings.max_commission_levels.value == 3) ? 'selected' : '' %>>3 Levels</option>
+                        <option value="4" <%= (settings.max_commission_levels && settings.max_commission_levels.value == 4) ? 'selected' : '' %>>4 Levels</option>
+                        <option value="5" <%= (settings.max_commission_levels && settings.max_commission_levels.value == 5) ? 'selected' : '' %>>5 Levels</option>
+                      </select>
+                      <small class="text-muted">Number of levels for commission distribution</small>
+                    </div>
+                  </div>
+
+                  <div class="col-md-6">
+                    <h5 class="mb-3">Payment Configuration</h5>
+                    
+                    <div class="mb-3">
+                      <label class="form-label">Supported Payment Currencies</label>
+                      <% 
+                        let supportedCurrencies = [];
+                        if (settings.supported_currencies && settings.supported_currencies.value) {
+                          try {
+                            if (typeof settings.supported_currencies.value === 'string') {
+                              supportedCurrencies = JSON.parse(settings.supported_currencies.value);
+                            } else if (Array.isArray(settings.supported_currencies.value)) {
+                              supportedCurrencies = settings.supported_currencies.value;
+                            }
+                          } catch (e) {
+                            console.error('Error parsing supported currencies:', e);
+                            supportedCurrencies = ['RWF', 'USD', 'UGX', 'KES'];
+                          }
+                        } else {
+                          supportedCurrencies = ['RWF', 'USD', 'UGX', 'KES'];
+                        }
+                        if (!Array.isArray(supportedCurrencies) || supportedCurrencies.length === 0) {
+                          supportedCurrencies = ['RWF', 'USD', 'UGX', 'KES'];
+                        }
+                        const allCurrencies = ['RWF', 'USD', 'UGX', 'KES', 'TZS', 'EUR', 'GBP', 'CAD', 'AUD'];
+                      %>
+                      <!-- Hidden default currency inputs -->
+                      <input type="hidden" name="supported_currencies[]" value="RWF">
+                      <input type="hidden" name="supported_currencies[]" value="USD">
+                      <div id="currencyCheckboxes">
+                        <% allCurrencies.forEach(currency => { %>
+                          <div class="form-check">
+                            <input class="form-check-input currency-checkbox" type="checkbox" 
+                                   value="<%= currency %>" id="currency_<%= currency %>"
+                                   <%= currency === 'RWF' || currency === 'USD' || (Array.isArray(supportedCurrencies) && supportedCurrencies.includes(currency)) ? 'checked' : '' %>
+                                   <%= currency === 'RWF' || currency === 'USD' ? 'readonly onclick="return false;"' : '' %>
+                                   onchange="updateCurrencies(this)">
+                            <label class="form-check-label" for="currency_<%= currency %>">
+                            <%= currency %> - 
+                            <% if (currency === 'RWF') { %>Rwandan Franc<% } %>
+                            <% if (currency === 'USD') { %>US Dollar<% } %>
+                            <% if (currency === 'UGX') { %>Ugandan Shilling<% } %>
+                            <% if (currency === 'KES') { %>Kenyan Shilling<% } %>
+                            <% if (currency === 'TZS') { %>Tanzanian Shilling<% } %>
+                            <% if (currency === 'EUR') { %>Euro<% } %>
+                            <% if (currency === 'GBP') { %>British Pound<% } %>
+                            <% if (currency === 'CAD') { %>Canadian Dollar<% } %>
+                            <% if (currency === 'AUD') { %>Australian Dollar<% } %>
+                          </label>
+                        </div>
+                      <% }); %>
+                      <small class="text-muted">Currencies available for activation payments</small>
+                    </div>
+
+                    <div class="mb-3">
+                      <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" role="switch" id="auto_activate_existing_users" 
+                               name="auto_activate_existing_users" 
+                               <%= (settings.auto_activate_existing_users && settings.auto_activate_existing_users.value) ? 'checked' : '' %>>
+                        <label class="form-check-label" for="auto_activate_existing_users">
+                          Auto-activate existing users
+                        </label>
+                      </div>
+                      <small class="text-muted">Automatically activate users created before this system was implemented</small>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="row mt-4">
+                  <div class="col-12">
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                      <button type="submit" class="btn btn-success btn-lg">
+                        <i class="fas fa-save"></i> Save Unilevel Settings
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </form>
+            <% } else { %>
+              <div class="alert alert-warning">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                Unilevel settings not loaded. Please ensure the system is properly configured.
+              </div>
+            <% } %>
+          </div>
+        </div>
+
+        <!-- Manual Activation Payment Settings -->
+        <div class="card mt-4 shadow">
+          <div class="card-header bg-primary text-white">
+            <h4 class="mb-0"><i class="fas fa-credit-card"></i> Manual Activation Payment Settings</h4>
+          </div>
+          <div class="card-body">
+            <p class="mb-4">Configure manual payment options for user activation. These details will be shown to users when they choose manual payment.</p>
+            
+            <% if (configs && configs.length > 0) { %>
+              <div class="row">
+                <div class="col-md-6">
+                  <h5 class="mb-3"><i class="fas fa-university text-primary"></i> Bank Account Details</h5>
+                  
+                  <!-- Bank Name -->
+                  <% const manualBankName = configs.find(c => c.key_name === 'manual_activation_bank_name') %>
+                  <form action="/admin/settings/update" method="POST" class="mb-3">
+                    <input type="hidden" name="key_name" value="manual_activation_bank_name">
+                    <div class="row g-2 align-items-end">
+                      <div class="col">
+                        <label for="manual_activation_bank_name" class="form-label">Bank Name</label>
+                        <input type="text" class="form-control" id="manual_activation_bank_name" name="value" 
+                               value="<%= manualBankName ? manualBankName.value : '' %>" 
+                               placeholder="e.g., Bank of Kigali">
+                      </div>
+                      <div class="col-auto">
+                        <button type="submit" class="btn btn-outline-primary">
+                          <i class="fas fa-save"></i> Update
+                        </button>
+                      </div>
+                    </div>
+                  </form>
+                  
+                  <!-- Account Name -->
+                  <% const manualAccountName = configs.find(c => c.key_name === 'manual_activation_account_name') %>
+                  <form action="/admin/settings/update" method="POST" class="mb-3">
+                    <input type="hidden" name="key_name" value="manual_activation_account_name">
+                    <div class="row g-2 align-items-end">
+                      <div class="col">
+                        <label for="manual_activation_account_name" class="form-label">Account Holder Name</label>
+                        <input type="text" class="form-control" id="manual_activation_account_name" name="value" 
+                               value="<%= manualAccountName ? manualAccountName.value : '' %>" 
+                               placeholder="Full name on account">
+                      </div>
+                      <div class="col-auto">
+                        <button type="submit" class="btn btn-outline-primary">
+                          <i class="fas fa-save"></i> Update
+                        </button>
+                      </div>
+                    </div>
+                  </form>
+                  
+                  <!-- Account Number -->
+                  <% const manualAccountNumber = configs.find(c => c.key_name === 'manual_activation_account_number') %>
+                  <form action="/admin/settings/update" method="POST" class="mb-3">
+                    <input type="hidden" name="key_name" value="manual_activation_account_number">
+                    <div class="row g-2 align-items-end">
+                      <div class="col">
+                        <label for="manual_activation_account_number" class="form-label">Account Number</label>
+                        <input type="text" class="form-control" id="manual_activation_account_number" name="value" 
+                               value="<%= manualAccountNumber ? manualAccountNumber.value : '' %>" 
+                               placeholder="Bank account number">
+                      </div>
+                      <div class="col-auto">
+                        <button type="submit" class="btn btn-outline-primary">
+                          <i class="fas fa-save"></i> Update
+                        </button>
+                      </div>
+                    </div>
+                  </form>
+                </div>
+                
+                <div class="col-md-6">
+                  <h5 class="mb-3"><i class="fas fa-mobile-alt text-success"></i> Mobile Money & Contact</h5>
+                  
+                  <!-- Mobile Money Number -->
+                  <% const manualMomoNumber = configs.find(c => c.key_name === 'manual_activation_momo_number') %>
+                  <form action="/admin/settings/update" method="POST" class="mb-3">
+                    <input type="hidden" name="key_name" value="manual_activation_momo_number">
+                    <div class="row g-2 align-items-end">
+                      <div class="col">
+                        <label for="manual_activation_momo_number" class="form-label">Mobile Money Number</label>
+                        <input type="text" class="form-control" id="manual_activation_momo_number" name="value" 
+                               value="<%= manualMomoNumber ? manualMomoNumber.value : '' %>" 
+                               placeholder="e.g., 250783987223">
+                      </div>
+                      <div class="col-auto">
+                        <button type="submit" class="btn btn-outline-primary">
+                          <i class="fas fa-save"></i> Update
+                        </button>
+                      </div>
+                    </div>
+                  </form>
+                  
+                  <!-- Mobile Money Name -->
+                  <% const manualMomoName = configs.find(c => c.key_name === 'manual_activation_momo_name') %>
+                  <form action="/admin/settings/update" method="POST" class="mb-3">
+                    <input type="hidden" name="key_name" value="manual_activation_momo_name">
+                    <div class="row g-2 align-items-end">
+                      <div class="col">
+                        <label for="manual_activation_momo_name" class="form-label">Mobile Money Account Name</label>
+                        <input type="text" class="form-control" id="manual_activation_momo_name" name="value" 
+                               value="<%= manualMomoName ? manualMomoName.value : '' %>" 
+                               placeholder="Name on mobile money account">
+                      </div>
+                      <div class="col-auto">
+                        <button type="submit" class="btn btn-outline-primary">
+                          <i class="fas fa-save"></i> Update
+                        </button>
+                      </div>
+                    </div>
+                  </form>
+                  
+                  <!-- Admin WhatsApp Number -->
+                  <% const adminWhatsappNumber = configs.find(c => c.key_name === 'admin_whatsapp_number') %>
+                  <form action="/admin/settings/update" method="POST">
+                    <input type="hidden" name="key_name" value="admin_whatsapp_number">
+                    <div class="row g-2 align-items-end">
+                      <div class="col">
+                        <label for="admin_whatsapp_number" class="form-label">Admin WhatsApp Number</label>
+                        <input type="text" class="form-control" id="admin_whatsapp_number" name="value" 
+                               value="<%= adminWhatsappNumber ? adminWhatsappNumber.value : '250783987223' %>" 
+                               placeholder="250783987223">
+                        <small class="text-muted">Number to receive payment confirmations</small>
+                      </div>
+                      <div class="col-auto">
+                        <button type="submit" class="btn btn-outline-primary">
+                          <i class="fas fa-save"></i> Update
+                        </button>
+                      </div>
+                    </div>
+                  </form>
+                </div>
+              </div>
+              
+              <div class="row mt-4">
+                <div class="col-12">
+                  <h5 class="mb-3"><i class="fas fa-info-circle text-info"></i> Payment Instructions</h5>
+                  
+                  <!-- Payment Instructions -->
+                  <% const paymentInstructions = configs.find(c => c.key_name === 'manual_activation_instructions') %>
+                  <form action="/admin/settings/update" method="POST">
+                    <input type="hidden" name="key_name" value="manual_activation_instructions">
+                    <div class="mb-3">
+                      <label for="manual_activation_instructions" class="form-label">Instructions for Manual Payment</label>
+                      <textarea class="form-control" id="manual_activation_instructions" name="value" rows="4" 
+                                placeholder="Enter detailed instructions for users on how to make manual payments..."><%= paymentInstructions ? paymentInstructions.value : 'Please transfer the activation fee to the account details provided above. After payment, upload your payment receipt and fill in your payment details. We will verify and activate your account within 24 hours.' %></textarea>
+                      <small class="text-muted">These instructions will be shown to users when they select manual payment</small>
+                    </div>
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                      <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> Update Instructions
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+              
+              <!-- Manual Payment Instructions Screenshot -->
+              <div class="row mt-4">
+                <div class="col-12">
+                  <h5 class="mb-3"><i class="fas fa-image text-warning"></i> Payment Instructions Screenshot</h5>
+                  
+                  <!-- Current Screenshot Display -->
+                  <% const paymentScreenshot = configs.find(c => c.key_name === 'manual_payment_screenshot') %>
+                  <% if (paymentScreenshot && paymentScreenshot.value) { %>
+                    <div class="mb-3">
+                      <label class="form-label">Current Instructions Screenshot:</label>
+                      <div class="border rounded p-3 bg-light">
+                        <img src="<%= paymentScreenshot.value %>" alt="Manual Payment Instructions" 
+                             class="img-fluid rounded shadow-sm" style="max-height: 400px;">
+                        <p class="mb-0 mt-2 text-muted">
+                          <small><i class="fas fa-info-circle"></i> This screenshot is shown to users when they select manual payment.</small>
+                        </p>
+                      </div>
+                    </div>
+                  <% } %>
+                  
+                  <!-- Screenshot Upload Form -->
+                  <form action="/admin/settings/manual-payment" method="POST" enctype="multipart/form-data">
+                    <div class="mb-3">
+                      <label for="manual_payment_screenshot" class="form-label">
+                        <%= paymentScreenshot && paymentScreenshot.value ? 'Update' : 'Upload' %> Instructions Screenshot
+                      </label>
+                      <input type="file" class="form-control" id="manual_payment_screenshot" 
+                             name="manual_payment_screenshot" accept="image/*">
+                      <small class="text-muted">
+                        Upload an image showing bank account details, mobile money instructions, or payment steps. 
+                        This will be displayed to users alongside the text instructions. (JPG, PNG, GIF - Max 5MB)
+                      </small>
+                    </div>
+                    
+                    <!-- Hidden fields to preserve existing settings -->
+                    <% const manualPaymentEnabled = configs.find(c => c.key_name === 'manual_payment_enabled') %>
+                    <% const manualPaymentInstructions = configs.find(c => c.key_name === 'manual_payment_instructions') %>
+                    <% const manualPaymentBankName = configs.find(c => c.key_name === 'manual_payment_bank_name') %>
+                    <% const manualPaymentAccountName = configs.find(c => c.key_name === 'manual_payment_account_name') %>
+                    <% const manualPaymentAccountNumber = configs.find(c => c.key_name === 'manual_payment_account_number') %>
+                    <% const manualPaymentSwiftCode = configs.find(c => c.key_name === 'manual_payment_swift_code') %>
+                    <% const adminWhatsApp = configs.find(c => c.key_name === 'admin_whatsapp_number') %>
+                    
+                    <input type="hidden" name="manual_payment_enabled" value="<%= manualPaymentEnabled && manualPaymentEnabled.value === 'true' ? 'on' : '' %>">
+                    <input type="hidden" name="manual_payment_instructions" value="<%= manualPaymentInstructions ? manualPaymentInstructions.value : '' %>">
+                    <input type="hidden" name="manual_payment_bank_name" value="<%= manualPaymentBankName ? manualPaymentBankName.value : '' %>">
+                    <input type="hidden" name="manual_payment_account_name" value="<%= manualPaymentAccountName ? manualPaymentAccountName.value : '' %>">
+                    <input type="hidden" name="manual_payment_account_number" value="<%= manualPaymentAccountNumber ? manualPaymentAccountNumber.value : '' %>">
+                    <input type="hidden" name="manual_payment_swift_code" value="<%= manualPaymentSwiftCode ? manualPaymentSwiftCode.value : '' %>">
+                    <input type="hidden" name="admin_whatsapp_number" value="<%= adminWhatsApp ? adminWhatsApp.value : '250783987223' %>">
+                    
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                      <button type="submit" class="btn btn-warning">
+                        <i class="fas fa-upload"></i> <%= paymentScreenshot && paymentScreenshot.value ? 'Update' : 'Upload' %> Screenshot
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+              
+              <div class="alert alert-info mt-3">
+                <i class="fas fa-lightbulb me-2"></i>
+                <strong>How Manual Payments Work:</strong>
+                <ol class="mb-0 mt-2">
+                  <li>User selects manual payment option during activation</li>
+                  <li>System shows the configured bank/mobile money details above</li>
+                  <li>User makes payment and uploads receipt with details</li>
+                  <li>Payment confirmation is sent to admin WhatsApp number</li>
+                  <li>Admin reviews and approves/rejects from activation payments page</li>
+                </ol>
+              </div>
+            <% } else { %>
+              <div class="alert alert-warning">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                Manual payment configuration not available. Please ensure system settings are properly loaded.
+              </div>
+            <% } %>
+          </div>
+        </div>
+
+        <!-- Payment Account Details -->
+        <div class="card mt-4 shadow">
+          <div class="card-header bg-info text-white">
+            <h4 class="mb-0"><i class="fas fa-university"></i> Payment Account Details</h4>
+          </div>
+          <div class="card-body">
+            <h5 class="mb-3">Bank Account Details for Manual Withdrawals</h5>
+            
+            <% if (configs && configs.length > 0) { %>
+              <% const bankName = configs.find(c => c.key_name === 'manual_payment_bank_name') %>
+              <form action="/admin/settings/update" method="POST" class="mb-3">
+                <input type="hidden" name="key_name" value="manual_payment_bank_name">
+                <div class="row g-2 align-items-end">
+                  <div class="col">
+                    <label for="manual_payment_bank_name" class="form-label">Bank Name</label>
+                    <input type="text" class="form-control" id="manual_payment_bank_name" name="value" value="<%= bankName ? bankName.value : '' %>">
+                  </div>
+                  <div class="col-auto">
+                    <button type="submit" class="btn btn-outline-primary">
+                      <i class="fas fa-save"></i> Update
+                    </button>
+                  </div>
+                </div>
+              </form>
+              
+              <% const accountName = configs.find(c => c.key_name === 'manual_payment_account_name') %>
+              <form action="/admin/settings/update" method="POST" class="mb-3">
+                <input type="hidden" name="key_name" value="manual_payment_account_name">
+                <div class="row g-2 align-items-end">
+                  <div class="col">
+                    <label for="manual_payment_account_name" class="form-label">Account Name</label>
+                    <input type="text" class="form-control" id="manual_payment_account_name" name="value" value="<%= accountName ? accountName.value : '' %>">
+                  </div>
+                  <div class="col-auto">
+                    <button type="submit" class="btn btn-outline-primary">
+                      <i class="fas fa-save"></i> Update
+                    </button>
+                  </div>
+                </div>
+              </form>
+              
+              <% const accountNumber = configs.find(c => c.key_name === 'manual_payment_account_number') %>
+              <form action="/admin/settings/update" method="POST" class="mb-3">
+                <input type="hidden" name="key_name" value="manual_payment_account_number">
+                <div class="row g-2 align-items-end">
+                  <div class="col">
+                    <label for="manual_payment_account_number" class="form-label">Account Number</label>
+                    <input type="text" class="form-control" id="manual_payment_account_number" name="value" value="<%= accountNumber ? accountNumber.value : '' %>">
+                  </div>
+                  <div class="col-auto">
+                    <button type="submit" class="btn btn-outline-primary">
+                      <i class="fas fa-save"></i> Update
+                    </button>
+                  </div>
+                </div>
+              </form>
+              
+              <% const swiftCode = configs.find(c => c.key_name === 'manual_payment_swift_code') %>
+              <form action="/admin/settings/update" method="POST">
+                <input type="hidden" name="key_name" value="manual_payment_swift_code">
+                <div class="row g-2 align-items-end">
+                  <div class="col">
+                    <label for="manual_payment_swift_code" class="form-label">SWIFT/BIC Code (Optional)</label>
+                    <input type="text" class="form-control" id="manual_payment_swift_code" name="value" value="<%= swiftCode ? swiftCode.value : '' %>">
+                  </div>
+                  <div class="col-auto">
+                    <button type="submit" class="btn btn-outline-primary">
+                      <i class="fas fa-save"></i> Update
+                    </button>
+                  </div>
+                </div>
+              </form>
+            <% } else { %>
+              <div class="alert alert-warning">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                Payment configuration not available. Please ensure system settings are properly loaded.
+              </div>
+            <% } %>
+          </div>
+        </div>
+
+        <!-- Commission Statistics -->
+        <div class="card mt-4 shadow">
+          <div class="card-header bg-success text-white">
+            <h4 class="mb-0"><i class="fas fa-chart-line"></i> Commission Statistics</h4>
+          </div>
+          <div class="card-body">
+            <% if (commissionStats) { %>
+              <div class="row">
+                <div class="col-md-4">
+                  <div class="text-center">
+                    <h5>Total Commissions</h5>
+                    <h3 class="text-primary"><%= commissionStats.total_commissions || 0 %></h3>
+                  </div>
+                </div>
+                <div class="col-md-4">
+                  <div class="text-center">
+                    <h5>Total Paid (USD)</h5>
+                    <h3 class="text-success">$<%= parseFloat(commissionStats.total_paid || 0).toFixed(4) %></h3>
+                  </div>
+                </div>
+                <div class="col-md-4">
+                  <div class="text-center">
+                    <h5>Pending (USD)</h5>
+                    <h3 class="text-warning">$<%= parseFloat(commissionStats.total_pending || 0).toFixed(4) %></h3>
+                  </div>
+                </div>
+              </div>
+            <% } else { %>
+              <div class="alert alert-info">
+                <i class="fas fa-info-circle me-2"></i>
+                Commission statistics will be displayed here once data is available.
+              </div>
+            <% } %>
+            <div class="mt-3">
+              <a href="/admin/commissions" class="btn btn-outline-primary">
+                <i class="fas fa-list"></i> View All Commissions
+              </a>
+              <a href="/admin/activation-payments" class="btn btn-outline-success">
+                <i class="fas fa-credit-card"></i> View Activation Payments
+              </a>
+              <a href="/admin/users" class="btn btn-outline-info">
+                <i class="fas fa-users"></i> Manage Users
+              </a>
+            </div>
+          </div>
+        </div>
+
+        <!-- Help Information -->
+        <div class="card mt-4 shadow">
+          <div class="card-header bg-warning text-dark">
+            <h5 class="mb-0"><i class="fas fa-question-circle"></i> System Configuration Guide</h5>
+          </div>
+          <div class="card-body">
+            <div class="row">
+              <div class="col-md-6">
+                <h6><i class="fas fa-cog text-primary"></i> General Settings:</h6>
+                <ul class="small">
+                  <li><strong>Admin Commission Rate:</strong> Percentage commission for admin from link activities</li>
+                  <li><strong>User Commission Percentage:</strong> Commission users earn from referrals</li>
+                  <li><strong>Cost Per Click:</strong> Amount charged/earned per link click</li>
+                  <li><strong>Min Payout:</strong> Minimum withdrawal amount users can request</li>
+                  <li><strong>Lifetime Commission Fee:</strong> One-time upgrade fee for lifetime earnings</li>
+                </ul>
+              </div>
+              <div class="col-md-6">
+                <h6><i class="fas fa-sitemap text-success"></i> Unilevel System:</h6>
+                <ul class="small">
+                  <li><strong>Activation Fee:</strong> Amount new users pay to activate account</li>
+                  <li><strong>Level 1 & 2 Commissions:</strong> Multi-level referral rewards</li>
+                  <li><strong>Supported Currencies:</strong> Payment options for activations</li>
+                  <li><strong>Auto-activation:</strong> Automatically activate existing users</li>
+                </ul>
+                
+                <h6><i class="fas fa-credit-card text-primary"></i> Manual Payments:</h6>
+                <ul class="small">
+                  <li><strong>Bank Details:</strong> Account details for manual transfers</li>
+                  <li><strong>Mobile Money:</strong> Mobile money account for payments</li>
+                  <li><strong>WhatsApp Number:</strong> Admin contact for payment confirmations</li>
+                  <li><strong>Instructions:</strong> User guidance for manual payments</li>
+                </ul>
+              </div>
+            </div>
+            <div class="row mt-3">
+              <div class="col-12">
+                <div class="alert alert-info mb-0">
+                  <h6><i class="fas fa-lightbulb"></i> How It Works:</h6>
+                  <p class="mb-2"><strong>New User Flow:</strong> Register → Pay Activation Fee → Account Activated → Access Platform</p>
+                  <p class="mb-0"><strong>Commission Flow:</strong> User Activates → Level 1 Referrer Gets Commission → Level 2 Referrer Gets Commission → Automatic Distribution</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <%- include('../partials/footer') %>
+
+<!-- Add JavaScript for currency handling -->
+<script>
+function updateCurrencies(checkbox) {
+    // Remove any existing dynamic hidden inputs
+    const existingInputs = document.querySelectorAll('.dynamic-currency-input');
+    existingInputs.forEach(input => input.remove());
+
+    // Get all checked checkboxes
+    const checkedBoxes = document.querySelectorAll('.currency-checkbox:checked');
+    
+    // Create hidden inputs for each checked currency
+    checkedBoxes.forEach(box => {
+        if (box.value !== 'RWF' && box.value !== 'USD') { // RWF and USD are handled by permanent hidden inputs
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'supported_currencies[]';
+            input.value = box.value;
+            input.className = 'dynamic-currency-input';
+            document.getElementById('currencyCheckboxes').appendChild(input);
+        }
+    });
+}
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+    const checkboxes = document.querySelectorAll('.currency-checkbox:checked');
+    checkboxes.forEach(checkbox => updateCurrencies(checkbox));
+});
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    // Handle checkbox inputs
+    document.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+      checkbox.addEventListener('change', function() {
+        this.value = this.checked ? 'true' : 'false';
+      });
+    });
+  </script>
+</body>
+</html>

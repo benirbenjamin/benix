@@ -1,0 +1,73 @@
+<!-- Activation Status Modal -->
+<div class="modal fade" id="activationStatusModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Activation Status</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <% if (activationProgress) { %>
+          <% if (!activationProgress.isActivationRequired) { %>
+            <div class="alert alert-info">
+              <i class="fas fa-info-circle me-2"></i>
+              Account activation is currently not required by admin settings.
+            </div>
+          <% } else { %>
+            <div class="alert <%= activationProgress.status === 'active' ? 'alert-success' : 'alert-warning' %>">
+              <i class="fas <%= activationProgress.status === 'active' ? 'fa-check-circle' : 'fa-exclamation-circle' %> me-2"></i>
+              Account Status: <strong><%= activationProgress.status.toUpperCase() %></strong>
+            </div>
+
+            <h6>Progress towards activation:</h6>
+            
+            <div class="mb-3">
+              <label class="form-label">
+                Shared Links: <%= activationProgress.progress.links.current %>/<%= activationProgress.progress.links.required %>
+              </label>
+              <div class="progress">
+                <div class="progress-bar" role="progressbar" 
+                     style="width: <%= (activationProgress.progress.links.current / activationProgress.progress.links.required * 100) %>%">
+                </div>
+              </div>
+              <small class="text-muted">
+                <%= activationProgress.progress.links.remaining %> more links needed
+              </small>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label">
+                Weekly Logins: <%= activationProgress.progress.logins.current %>/<%= activationProgress.progress.logins.required %>
+              </label>
+              <div class="progress">
+                <div class="progress-bar" role="progressbar" 
+                     style="width: <%= (activationProgress.progress.logins.current / activationProgress.progress.logins.required * 100) %>%">
+                </div>
+              </div>
+              <small class="text-muted">
+                <%= activationProgress.progress.logins.remaining %> more days needed
+              </small>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label">
+                Clicks Before Withdraw: <%= activationProgress.progress.clicks.current %>/<%= activationProgress.progress.clicks.required %>
+              </label>
+              <div class="progress">
+                <div class="progress-bar" role="progressbar" 
+                     style="width: <%= (activationProgress.progress.clicks.current / activationProgress.progress.clicks.required * 100) %>%">
+                </div>
+              </div>
+              <small class="text-muted">
+                <%= activationProgress.progress.clicks.remaining %> more clicks needed
+              </small>
+            </div>
+          <% } %>
+        <% } %>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>

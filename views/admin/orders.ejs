@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage All Orders - BenixSpace Admin</title>
+    <link rel="icon" href="/static/img/favicon.png" type="image/png">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-datepicker@1.9.0/dist/css/bootstrap-datepicker.min.css">
+    <style>
+        .status-badge {
+            min-width: 100px;
+            text-align: center;
+        }
+        .order-card {
+            transition: all 0.2s ease;
+        }
+        .order-card:hover {
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            transform: translateY(-2px);
+        }
+        .merchant-badge {
+            background-color: #6f42c1;
+        }
+    </style>
+</head>
+<body class="bg-light">
+    <%- include('../partials/navbar') %>
+
+    <div class="container mt-4">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2>All Orders Management</h2>
+            <div>
+                <button class="btn btn-outline-primary me-2" type="button" data-bs-toggle="modal" data-bs-target="#filterModal">
+                    <i class="fas fa-filter me-1"></i> Filter
+                </button>
+                <button class="btn btn-outline-success" id="exportBtn">
+                    <i class="fas fa-file-export me-1"></i> Export Orders
+                </button>
+            </div>
+        </div>
+
+        <!-- Order Statistics -->
+        <div class="row mb-4">
+            <div class="col-md-3 mb-3">
+                <div class="card bg-primary text-white">
+                    <div class="card-body text-center">
+                        <h3><%= stats.total_orders || 0 %></h3>
+                        <h6>Total Orders</h6>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="card bg-success text-white">
+                    <div class="card-body text-center">
+                        <h3><%= stats.completed_orders || 0 %></h3>
+                        <h6>Completed Orders</h6>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="card bg-warning text-white">
+                    <div class="card-body text-center">
+                        <h3><%= stats.pending_orders || 0 %></h3>
+                        <h6>Pending Orders</h6>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="card bg-info text-white">
+                    <div class="card-body text-center">
+                        <h3 id="total-revenue">$<%= parseFloat(stats.total_revenue || 0).toFixed(4) %></h3>
+                        <h6>Total Revenue</h6>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Search & Filter UI (Quick Filters) -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="searchInput" placeholder="Search by order ID, customer...">
+                            <button class="btn btn-outline-secondary" type="button" id="searchBtn">
+                                <i class="fas fa-search"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <select class="form-select" id="status-filter">
+                            <option value="all">All Statuses</option>
+                            <option value="pending">Pending</option>
+                            <option value="processing">Processing</option>
+                            <option value="shipped">Shipped</option>
+                            <option value="delivered">Delivered</option>
+                            <option value="cancelled">Cancelled</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <select class="form-select" id="merchant-filter">
+                            <option value="all">All Merchants</option>
+                            <% if (merchants && merchants.length > 0) { %>
+                                <% merchants.forEach(merchant => { %>
+                                    <option value="<%= merchant.id %>"><%= merchant.business_name || merchant.username %></option>
+                                <% }); %>
+                            <% } %>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <select class="form-select" id="sortOrder">
+                            <option value="newest">Newest First</option>
+                            <option value="oldest">Oldest First</option>
+                            <option value="highest">Highest Amount</option>
+                            <option value="lowest">Lowest Amount</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Orders List -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Orders List</h5>
+                <span class="badge bg-primary"><span id="visible-count"><%= orders ? orders.length : 0 %></span> of <span id="total-count"><%= orders ? orders.length : 0 %></span> orders</span>
+            </div>
+            <div class="card-body">
+                <% if (orders && orders.length > 0) { %>
+                    <div class="table-responsive">
+                        <table class="table table-hover" id="ordersTable">
+                            <thead>
+                                <tr>
+                                    <th>Order ID</th>
+                                    <th>Customer</th>
+                                    <th>Merchant</th>
+                                    <th>Items</th>
+                                    <th>Total</th>
+                                    <th>Date</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <% orders.forEach(order => { %>
+                                    <tr class="order-row" 
+                                        data-order-id="<%= order.id %>" 
+                                        data-merchants="<%= order.merchant_ids %>"
+                                        data-status="<%= order.status %>"
+                                        data-date="<%= new Date(order.created_at).toISOString().split('T')[0] %>"
+                                        data-amount="<%= parseFloat(order.total_amount) %>">
+                                        <td>#<%= order.id %></td>
+                                        <td>
+                                            <div>
+                                                <strong><%= order.customer_name %></strong>
+                                                <small class="d-block text-muted"><%= order.customer_email %></small>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <span class="badge merchant-badge">
+                                                <%= order.merchant_name || 'Multiple Merchants' %>
+                                            </span>
+                                        </td>
+                                        <td><%= order.item_count %></td>
+                                        <td>$<%= parseFloat(order.total_amount).toFixed(4) %></td>
+                                        <td><%= new Date(order.created_at).toLocaleDateString() %></td>
+                                        <td>
+                                            <span class="badge status-badge bg-<%= 
+                                                order.status === 'delivered' ? 'success' :
+                                                order.status === 'processing' ? 'info' :
+                                                order.status === 'shipped' ? 'primary' :
+                                                order.status === 'cancelled' ? 'danger' : 'warning' %> order-status">
+                                                <%= order.status.toUpperCase() %>
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <div class="btn-group">
+                                                <button class="btn btn-sm btn-info view-order-btn" 
+                                                        data-order-id="<%= order.id %>"
+                                                        title="View Details">
+                                                    <i class="fas fa-eye"></i>
+                                                </button>
+                                                <button class="btn btn-sm btn-primary update-status-btn" 
+                                                        data-order-id="<%= order.id %>"
+                                                        data-current-status="<%= order.status %>"
+                                                        title="Update Status">
+                                                    <i class="fas fa-edit"></i>
+                                                </button>
+                                                <button class="btn btn-sm btn-warning contact-customer-btn"
+                                                        data-order-id="<%= order.id %>"
+                                                        data-customer-email="<%= order.customer_email %>"
+                                                        title="Contact Customer">
+                                                    <i class="fas fa-envelope"></i>
+                                                </button>
+                                                <% if (order.status !== 'delivered' && order.status !== 'cancelled') { %>
+                                                    <button class="btn btn-sm btn-danger cancel-order-btn"
+                                                            data-order-id="<%= order.id %>"
+                                                            title="Cancel Order">
+                                                        <i class="fas fa-times"></i>
+                                                    </button>
+                                                <% } %>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                <% }); %>
+                            </tbody>
+                        </table>
+                    </div>
+                <% } else { %>
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i> No orders available.
+                    </div>
+                <% } %>
+            </div>
+        </div>
+    </div>
+
+    <!-- Order Details Modal -->
+    <div class="modal fade" id="orderDetailsModal" tabindex="-1" aria-labelledby="orderDetailsModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="orderDetailsModalLabel">Order Details</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="orderDetailsContent">
+                        <div class="text-center py-5">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <p class="mt-2">Loading order details...</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary" id="updateStatusFromDetailsBtn">Update Status</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Update Status Modal -->
+    <div class="modal fade" id="updateStatusModal" tabindex="-1" aria-labelledby="updateStatusModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="updateStatusModalLabel">Update Order Status</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="updateStatusForm">
+                        <input type="hidden" id="updateOrderId">
+                        <div class="mb-3">
+                            <label for="orderStatus" class="form-label">Status</label>
+                            <select class="form-select" id="orderStatus">
+                                <option value="pending">Pending</option>
+                                <option value="processing">Processing</option>
+                                <option value="shipped">Shipped</option>
+                                <option value="delivered">Delivered</option>
+                                <option value="cancelled">Cancelled</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="statusNotes" class="form-label">Notes (Optional)</label>
+                            <textarea class="form-control" id="statusNotes" rows="3" placeholder="Add any notes about this status change"></textarea>
+                        </div>
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="checkbox" id="notifyCustomer" checked>
+                            <label class="form-check-label" for="notifyCustomer">
+                                Notify customer about this update
+                            </label>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="saveStatusBtn">Update Status</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Contact Customer Modal -->
+    <div class="modal fade" id="contactCustomerModal" tabindex="-1" aria-labelledby="contactCustomerModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="contactCustomerModalLabel">Contact Customer</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="contactCustomerForm">
+                        <input type="hidden" id="contactOrderId">
+                        <div class="mb-3">
+                            <label for="customerEmail" class="form-label">Customer Email</label>
+                            <input type="email" class="form-control" id="customerEmail" readonly>
+                        </div>
+                        <div class="mb-3">
+                            <label for="messageSubject" class="form-label">Subject</label>
+                            <input type="text" class="form-control" id="messageSubject" placeholder="Re: Your Order #[Order ID]">
+                        </div>
+                        <div class="mb-3">
+                            <label for="messageContent" class="form-label">Message</label>
+                            <textarea class="form-control" id="messageContent" rows="5" placeholder="Type your message to the customer here..."></textarea>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="sendMessageBtn">Send Message</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filter Modal -->
+    <div class="modal fade" id="filterModal" tabindex="-1" aria-labelledby="filterModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="filterModalLabel">Advanced Filters</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="filter-form">
+                        <div class="mb-3">
+                            <label class="form-label">Date Range</label>
+                            <div class="row g-2">
+                                <div class="col">
+                                    <input type="date" class="form-control datepicker" id="date-from">
+                                    <div class="form-text">From</div>
+                                </div>
+                                <div class="col">
+                                    <input type="date" class="form-control datepicker" id="date-to">
+                                    <div class="form-text">To</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Amount Range</label>
+                            <div class="row g-2">
+                                <div class="col">
+                                    <input type="number" class="form-control" id="min-amount" min="0" step="0.01" placeholder="Min">
+                                </div>
+                                <div class="col">
+                                    <input type="number" class="form-control" id="max-amount" min="0" step="0.01" placeholder="Max">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Status</label>
+                            <div class="row">
+                                <div class="col">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="statusPending" checked>
+                                        <label class="form-check-label" for="statusPending">Pending</label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="statusProcessing" checked>
+                                        <label class="form-check-label" for="statusProcessing">Processing</label>
+                                    </div>
+                                </div>
+                                <div class="col">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="statusShipped" checked>
+                                        <label class="form-check-label" for="statusShipped">Shipped</label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="statusDelivered" checked>
+                                        <label class="form-check-label" for="statusDelivered">Delivered</label>
+                                    </div>
+                                </div>
+                                <div class="col">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="statusCancelled" checked>
+                                        <label class="form-check-label" for="statusCancelled">Cancelled</label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-danger" id="clear-filters">Reset Filters</button>
+                    <button type="button" class="btn btn-primary" id="applyFiltersBtn">Apply Filters</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap-datepicker@1.9.0/dist/js/bootstrap-datepicker.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            // Initialize datepickers
+            $('.datepicker').datepicker({
+                format: 'yyyy-mm-dd',
+                autoclose: true
+            });
+            
+            // Filter function
+            function filterOrders() {
+                const status = $('#status-filter').val();
+                const merchant = $('#merchant-filter').val();
+                const dateFrom = $('#date-from').val();
+                const dateTo = $('#date-to').val();
+                const minAmount = parseFloat($('#min-amount').val()) || 0;
+                const maxAmount = parseFloat($('#max-amount').val()) || Number.MAX_SAFE_INTEGER;
+                const searchText = $('#searchInput').val().toLowerCase();
+                
+                $('.order-row').each(function() {
+                    const $row = $(this);
+                    const rowStatus = $row.data('status');
+                    const rowMerchants = $row.data('merchants').toString().split(',');
+                    const rowDate = $row.data('date');
+                    const rowAmount = parseFloat($row.data('amount'));
+                    const orderId = $row.find('td:first-child').text().toLowerCase();
+                    const customerName = $row.find('td:nth-child(2) strong').text().toLowerCase();
+                    const customerEmail = $row.find('td:nth-child(2) small').text().toLowerCase();
+                    
+                    // Check status filter
+                    const statusMatch = status === 'all' || rowStatus === status;
+                    
+                    // Check merchant filter
+                    const merchantMatch = merchant === 'all' || 
+                                         (merchant && rowMerchants && rowMerchants.includes(merchant));
+                    
+                    // Check date range
+                    let dateMatch = true;
+                    if (dateFrom && rowDate < dateFrom) dateMatch = false;
+                    if (dateTo && rowDate > dateTo) dateMatch = false;
+                    
+                    // Check amount range
+                    const amountMatch = rowAmount >= minAmount && rowAmount <= maxAmount;
+                    
+                    // Check search text
+                    const searchMatch = !searchText || 
+                                      orderId.includes(searchText) || 
+                                      customerName.includes(searchText) || 
+                                      customerEmail.includes(searchText);
+                    
+                    // Check status checkboxes 
+                    let statusCheckboxMatch = true;
+                    if (rowStatus === 'pending' && !$('#statusPending').prop('checked')) statusCheckboxMatch = false;
+                    if (rowStatus === 'processing' && !$('#statusProcessing').prop('checked')) statusCheckboxMatch = false;
+                    if (rowStatus === 'shipped' && !$('#statusShipped').prop('checked')) statusCheckboxMatch = false;
+                    if (rowStatus === 'delivered' && !$('#statusDelivered').prop('checked')) statusCheckboxMatch = false;
+                    if (rowStatus === 'cancelled' && !$('#statusCancelled').prop('checked')) statusCheckboxMatch = false;
+                    
+                    // Show/hide row based on all filters
+                    if (statusMatch && merchantMatch && dateMatch && amountMatch && searchMatch && statusCheckboxMatch) {
+                        $row.show();
+                    } else {
+                        $row.hide();
+                    }
+                });
+                
+                // Update visible count
+                updateVisibleCount();
+            }
+            
+            // Update count of visible orders
+            function updateVisibleCount() {
+                const visibleCount = $('.order-row:visible').length;
+                const totalCount = $('.order-row').length;
+                $('#visible-count').text(visibleCount);
+                $('#total-count').text(totalCount);
+            }
+            
+            // Bind filter events
+            $('#status-filter, #merchant-filter').on('change', filterOrders);
+            $('#filter-form').on('submit', function(e) {
+                e.preventDefault();
+                filterOrders();
+            });
+            
+            // Search button action
+            $('#searchBtn').on('click', function() {
+                filterOrders();
+            });
+            
+            // Search on Enter key
+            $('#searchInput').on('keyup', function(e) {
+                if (e.key === 'Enter') {
+                    filterOrders();
+                }
+            });
+            
+            // Clear filters
+            $('#clear-filters').on('click', function() {
+                $('#status-filter').val('all');
+                $('#merchant-filter').val('all');
+                $('#date-from, #date-to, #min-amount, #max-amount').val('');
+                $('#statusPending, #statusProcessing, #statusShipped, #statusDelivered, #statusCancelled').prop('checked', true);
+                $('#searchInput').val('');
+                filterOrders();
+            });
+            
+            // Apply filters button
+            $('#applyFiltersBtn').on('click', function() {
+                $('.modal').modal('hide');
+                filterOrders();
+            });
+            
+            // Handle order cancellation
+            $('.cancel-order-btn').on('click', function() {
+                const orderId = $(this).data('order-id');
+                const $row = $(this).closest('tr');
+                
+                if (confirm('Are you sure you want to cancel this order? This action cannot be undone.')) {
+                    $.ajax({
+                        url: `/admin/orders/${orderId}/cancel`,
+                        type: 'POST',
+                        success: function(response) {
+                            if (response.success) {
+                                // Update row status
+                                $row.find('.order-status').text('CANCELLED').removeClass().addClass('badge status-badge bg-danger order-status');
+                                $row.data('status', 'cancelled');
+                                
+                                // Recalculate stats (subtract from total revenue)
+                                const orderAmount = parseFloat($row.data('amount'));
+                                const currentRevenue = parseFloat($('#total-revenue').text().replace('$', ''));
+                                const newRevenue = currentRevenue - orderAmount;
+                                $('#total-revenue').text('$' + newRevenue.toFixed(4));
+                                
+                                // Remove the cancel button
+                                $row.find('.cancel-order-btn').remove();
+                                
+                                // Show success message
+                                alert('Order cancelled successfully');
+                                
+                                // Reapply filters
+                                filterOrders();
+                            } else {
+                                alert(response.message || 'Failed to cancel order.');
+                            }
+                        },
+                        error: function() {
+                            alert('Server error. Please try again later.');
+                        }
+                    });
+                }
+            });
+            
+            // View Order Details
+            $('.view-order-btn').on('click', function() {
+                const orderId = $(this).data('order-id');
+                const modal = new bootstrap.Modal(document.getElementById('orderDetailsModal'));
+                modal.show();
+                
+                $.ajax({
+                    url: `/admin/orders/${orderId}/details`,
+                    type: 'GET',
+                    success: function(data) {
+                        // Format and display order details
+                        let detailsHTML = `
+                            <div class="row mb-4">
+                                <div class="col-md-6">
+                                    <h5>Order Information</h5>
+                                    <p class="mb-1"><strong>Order ID:</strong> #${data.order.id}</p>
+                                    <p class="mb-1"><strong>Date:</strong> ${new Date(data.order.created_at).toLocaleString()}</p>
+                                    <p class="mb-1"><strong>Status:</strong> <span class="badge bg-${
+                                        data.order.status === 'delivered' ? 'success' :
+                                        data.order.status === 'processing' ? 'info' :
+                                        data.order.status === 'shipped' ? 'primary' :
+                                        data.order.status === 'cancelled' ? 'danger' : 'warning'
+                                    }">${data.order.status.toUpperCase()}</span></p>
+                                </div>
+                                <div class="col-md-6">
+                                    <h5>Customer Information</h5>
+                                    <p class="mb-1"><strong>Name:</strong> ${data.order.customer_name}</p>
+                                    <p class="mb-1"><strong>Email:</strong> ${data.order.customer_email}</p>
+                                    <p class="mb-1"><strong>Phone:</strong> ${data.order.phone_number}</p>
+                                    <p class="mb-0"><strong>Address:</strong> ${data.order.shipping_address}</p>
+                                </div>
+                            </div>
+                            
+                            <div class="row mb-3">
+                                <div class="col-md-12">
+                                    <h5>Order Items</h5>
+                                    <div class="table-responsive">
+                                        <table class="table table-bordered">
+                                            <thead>
+                                                <tr>
+                                                    <th>Product</th>
+                                                    <th>Merchant</th>
+                                                    <th>Price</th>
+                                                    <th>Quantity</th>
+                                                    <th>Total</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>`;
+                        
+                        data.items.forEach(item => {
+                            detailsHTML += `
+                                <tr>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            ${item.image_url ? `<img src="${item.image_url}" alt="${item.name}" style="width: 40px; height: 40px; object-fit: cover; margin-right: 10px;">` : ''}
+                                            ${item.name}
+                                        </div>
+                                    </td>
+                                    <td>${item.merchant_name}</td>
+                                    <td>$${parseFloat(item.price).toFixed(4)}</td>
+                                    <td>${item.quantity}</td>
+                                    <td>$${(parseFloat(item.price) * item.quantity).toFixed(4)}</td>
+                                </tr>`;
+                        });
+                        
+                        detailsHTML += `
+                                            </tbody>
+                                            <tfoot>
+                                                <tr>
+                                                    <td colspan="4" class="text-end"><strong>Total Amount:</strong></td>
+                                                    <td><strong>$${parseFloat(data.order.total_amount).toFixed(4)}</strong></td>
+                                                </tr>
+                                            </tfoot>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>`;
+                        
+                        $('#orderDetailsContent').html(detailsHTML);
+                        
+                        // Set up the update status button
+                        $('#updateStatusFromDetailsBtn').on('click', function() {
+                            // Hide the details modal
+                            bootstrap.Modal.getInstance(document.getElementById('orderDetailsModal')).hide();
+                            
+                            // Open the update status modal
+                            const updateStatusModal = new bootstrap.Modal(document.getElementById('updateStatusModal'));
+                            $('#updateOrderId').val(data.order.id);
+                            $('#orderStatus').val(data.order.status);
+                            updateStatusModal.show();
+                        });
+                    },
+                    error: function(xhr) {
+                        $('#orderDetailsContent').html(`
+                            <div class="alert alert-danger">
+                                Failed to load order details. ${xhr.responseJSON ? xhr.responseJSON.message : 'Please try again.'}
+                            </div>
+                        `);
+                    }
+                });
+            });
+            
+            // Update Status
+            $('.update-status-btn').on('click', function() {
+                const orderId = $(this).data('order-id');
+                const currentStatus = $(this).data('current-status');
+                
+                $('#updateOrderId').val(orderId);
+                $('#orderStatus').val(currentStatus);
+                
+                const updateStatusModal = new bootstrap.Modal(document.getElementById('updateStatusModal'));
+                updateStatusModal.show();
+            });
+            
+            // Save status update
+            $('#saveStatusBtn').on('click', function() {
+                const orderId = $('#updateOrderId').val();
+                const status = $('#orderStatus').val();
+                const notes = $('#statusNotes').val();
+                const notifyCustomer = $('#notifyCustomer').prop('checked');
+                const previousStatus = $(`tr[data-order-id="${orderId}"]`).data('status');
+                const $row = $(`tr[data-order-id="${orderId}"]`);
+                
+                // Check if we're updating to cancelled and need to update revenue
+                const updateRevenue = previousStatus !== 'cancelled' && status === 'cancelled';
+                const orderAmount = parseFloat($row.data('amount'));
+                
+                $(this).html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Updating...').prop('disabled', true);
+                
+                $.ajax({
+                    url: `/admin/orders/${orderId}/update-status`,
+                    type: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify({ status, notes, notifyCustomer }),
+                    success: function(response) {
+                        if (response.success) {
+                            // Update row status in the table
+                            const statusClass = 
+                                status === 'delivered' ? 'bg-success' :
+                                status === 'processing' ? 'bg-info' :
+                                status === 'shipped' ? 'bg-primary' :
+                                status === 'cancelled' ? 'bg-danger' : 'bg-warning';
+                            
+
+                            $row.find('.order-status').text(status.toUpperCase())
+                                .removeClass('bg-success bg-info bg-primary bg-danger bg-warning')
+                                .addClass(statusClass);
+                            
+
+                            $row.data('status', status);
+                            
+                            // Update total revenue if order was cancelled
+                            if (updateRevenue) {
+                                const currentRevenue = parseFloat($('#total-revenue').text().replace('$', ''));
+                                const newRevenue = currentRevenue - orderAmount;
+                                $('#total-revenue').text('$' + newRevenue.toFixed(4));
+                                
+                                // Remove cancel button if needed
+                                $row.find('.cancel-order-btn').remove();
+                            }
+                            
+                            // Close modal and show success
+                            bootstrap.Modal.getInstance(document.getElementById('updateStatusModal')).hide();
+                            alert('Order status updated successfully');
+                            
+                            // Reapply filters
+                            filterOrders();
+                        } else {
+                            alert(response.message || 'Failed to update status');
+                        }
+                    },
+                    error: function() {
+                        alert('Server error. Please try again later.');
+                    },
+                    complete: function() {
+                        $('#saveStatusBtn').html('Update Status').prop('disabled', false);
+                    }
+                });
+            });
+            
+            // Contact Customer
+            $('.contact-customer-btn').on('click', function() {
+                const orderId = $(this).data('order-id');
+                const customerEmail = $(this).data('customer-email');
+                
+                $('#contactOrderId').val(orderId);
+                $('#customerEmail').val(customerEmail);
+                $('#messageSubject').val(`Re: Your Order #${orderId}`);
+                
+                const modal = new bootstrap.Modal(document.getElementById('contactCustomerModal'));
+                modal.show();
+            });
+            
+            // Send Message
+            $('#sendMessageBtn').on('click', function() {
+                const orderId = $('#contactOrderId').val();
+                const email = $('#customerEmail').val();
+                const subject = $('#messageSubject').val();
+                const message = $('#messageContent').val();
+                
+                if (!message.trim()) {
+                    alert('Please enter a message');
+                    return;
+                }
+                
+                $(this).html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Sending...').prop('disabled', true);
+                
+                $.ajax({
+                    url: '/admin/orders/contact-customer',
+                    type: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify({ orderId, email, subject, message }),
+                    success: function(response) {
+                        if (response.success) {
+                            bootstrap.Modal.getInstance(document.getElementById('contactCustomerModal')).hide();
+                            alert('Message sent successfully!');
+                        } else {
+                            alert(response.message || 'Failed to send message');
+                        }
+                    },
+                    error: function() {
+                        alert('Server error. Please try again later.');
+                    },
+                    complete: function() {
+                        $('#sendMessageBtn').html('Send Message').prop('disabled', false);
+                    }
+                });
+            });
+            
+            // Export Orders
+            $('#exportBtn').on('click', function() {
+                const status = $('#status-filter').val();
+                const merchant = $('#merchant-filter').val();
+                const search = $('#searchInput').val();
+                const dateFrom = $('#date-from').val();
+                const dateTo = $('#date-to').val();
+                
+                window.location.href = '/admin/orders/export?' + $.param({
+                    status: status !== 'all' ? status : '',
+                    merchant: merchant !== 'all' ? merchant : '',
+                    search: search,
+                    dateFrom: dateFrom,
+                    dateTo: dateTo
+                });
+            });
+            
+            // Initial count update
+            updateVisibleCount();
+        });
+    </script>
+</body>
+</html>

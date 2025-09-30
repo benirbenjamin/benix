@@ -1,0 +1,126 @@
+<%- include('../partials/header') %>
+<%- include('../partials/navbar', { user: user }) %>
+
+<div class="container-fluid py-4">
+  <div class="row">
+    <div class="col-12">
+      <!-- Page Header -->
+      <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+          <h2>My Banners</h2>
+          <p class="text-muted mb-0">Manage your advertising banners</p>
+        </div>
+        <a href="/merchant-user/banners/create" class="btn btn-primary">
+          <i class="fas fa-plus"></i> Submit New Banner
+        </a>
+      </div>
+
+      <!-- Alerts -->
+      <% if (typeof success !== 'undefined' && success) { %>
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+          <%= success %>
+          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+      <% } %>
+      
+      <% if (typeof error !== 'undefined' && error) { %>
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+          <%= error %>
+          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+      <% } %>
+
+      <!-- Banners List -->
+      <div class="card">
+        <div class="card-body">
+          <% if (banners.length === 0) { %>
+            <div class="text-center py-5">
+              <i class="fas fa-image fa-3x text-muted mb-3"></i>
+              <p class="mb-0">You haven't submitted any banners yet</p>
+            </div>
+          <% } else { %>
+            <div class="table-responsive">
+              <table class="table table-hover">
+                <thead>
+                  <tr>
+                    <th>Banner</th>
+                    <th>Title</th>
+                    <th>Status</th>
+                    <th>Performance</th>
+                    <th>Costs</th>
+                    <th>Target URL</th>
+                    <th>Created</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <% banners.forEach(banner => { %>
+                    <tr>
+                      <td>
+                                                <img src="<%= banner.image_url %>" alt="<%= banner.title %>" style="max-height: 50px;">
+                      </td>
+                      <td><%= banner.title %></td>
+                      <td>
+                        <% if (banner.status === 'pending') { %>
+                          <span class="badge bg-warning">Pending</span>
+                        <% } else if (banner.status === 'approved') { %>
+                          <span class="badge bg-success">Approved</span>
+                          <% if (banner.is_active) { %>
+                            <span class="badge bg-info ms-1">Active</span>
+                          <% } %>
+                        <% } else { %>
+                          <span class="badge bg-danger">Rejected</span>
+                        <% } %>
+                      </td>
+                      <td>
+                        <div class="small">
+                          <div><i class="fas fa-eye"></i> <%= banner.total_views.toLocaleString() %> views</div>
+                          <div><i class="fas fa-mouse-pointer"></i> <%= banner.total_clicks.toLocaleString() %> clicks</div>
+                          <div><i class="fas fa-percentage"></i> <%= ((banner.total_clicks / banner.total_views * 100) || 0).toFixed(2) %>% CTR</div>
+                        </div>
+                      </td>
+                      <td>
+                        <div class="small">
+                          <div>CPC: $<%= (parseFloat(banner.cost_per_click || 0)).toFixed(2) %></div>
+                          <div>CPM: $<%= (parseFloat(banner.cost_per_view || 0)).toFixed(2) %></div>
+                          <div>
+                            <div>Click Cost: $<%= (parseFloat(banner.clicks_cost || 0)).toFixed(2) %></div>
+                            <div>View Cost: $<%= (parseFloat(banner.views_cost || 0)).toFixed(2) %></div>
+                            <div class="fw-bold mt-1">
+                              Total: $<%= (parseFloat(banner.total_cost || 0)).toFixed(2) %>
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+                      <td>
+                        <a href="<%= banner.target_url %>" target="_blank" class="text-truncate d-inline-block" style="max-width: 200px;">
+                          <%= banner.target_url %>
+                        </a>
+                      </td>
+                      <td><%= new Date(banner.created_at).toLocaleDateString() %></td>
+                      <td>
+                        <a href="/merchant-user/banners/<%= banner.id %>/analytics" class="btn btn-sm btn-info">
+                          <i class="fas fa-chart-line"></i> Analytics
+                        </a>
+                      </td>
+                    </tr>
+                  <% }); %>
+                </tbody>
+              </table>
+            </div>
+          <% } %>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Create Banner Modal -->
+<div class="modal fade" id="createBannerModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+    </div>
+  </div>
+</div>
+
+<%- include('../partials/footer') %>

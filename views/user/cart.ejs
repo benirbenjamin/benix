@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <%- include('../partials/navbar') %>
+    <title>Shopping Cart - BenixSpace</title>
+    <link rel="icon" href="/favicon.png" type="image/x-icon" />
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        /* Mobile-first responsive styles */
+        @media (max-width: 768px) {
+            .cart-item {
+                border-bottom: 1px solid #dee2e6;
+                padding-bottom: 15px;
+                margin-bottom: 15px;
+            }
+            
+            .cart-item .row {
+                flex-direction: column;
+            }
+            
+            .cart-item .col-md-2,
+            .cart-item .col-md-4,
+            .cart-item .col-md-3,
+            .cart-item .col-md-2,
+            .cart-item .col-md-1 {
+                width: 100%;
+                max-width: 100%;
+                flex: 0 0 100%;
+                margin-bottom: 10px;
+            }
+            
+            .cart-item img {
+                max-width: 120px;
+                height: auto;
+                display: block;
+                margin: 0 auto;
+            }
+            
+            .cart-item h5 {
+                text-align: center;
+                margin-top: 10px;
+            }
+            
+            .cart-item .text-muted {
+                text-align: center;
+            }
+            
+            .input-group {
+                max-width: 200px;
+                margin: 0 auto;
+            }
+            
+            .item-total {
+                text-align: center;
+                font-weight: bold;
+                font-size: 1.1em;
+            }
+            
+            .remove-item {
+                display: block;
+                margin: 10px auto;
+                width: fit-content;
+            }
+            
+            .order-summary {
+                margin-top: 30px;
+            }
+        }
+        
+        .quantity-input {
+            text-align: center;
+        }
+        
+        .cart-item:last-child {
+            border-bottom: none;
+        }
+    </style>
+</head>
+<body class="bg-light">
+    <div class="container mt-4">
+        <h2>Shopping Cart</h2>
+        
+        <% if (cartItems && cartItems.length > 0) { %>
+            <div class="row">
+                <div class="col-lg-8 col-md-12">
+                    <div class="card">
+                        <div class="card-body">
+                            <% cartItems.forEach(item => { %>
+                                <div class="cart-item" data-product-id="<%= item.product_id %>">
+                                    <div class="row align-items-center">
+                                        <div class="col-md-2 col-sm-12 text-center">
+                                            <img src="<%= item.image_url %>" alt="<%= item.name %>" class="img-fluid">
+                                        </div>
+                                        <div class="col-md-4 col-sm-12">
+                                            <h5><%= item.name %></h5>
+                                            <p class="text-muted">Price: $<%= (Number(item.price)).toFixed(4) %></p>
+                                        </div>
+                                        <div class="col-md-3 col-sm-12">
+                                            <div class="input-group">
+                                                <button class="btn btn-outline-secondary decrease-quantity" type="button">-</button>
+                                                <input type="number" class="form-control quantity-input" value="<%= item.quantity %>" min="1" max="<%= item.stock || 999 %>">
+                                                <button class="btn btn-outline-secondary increase-quantity" type="button">+</button>
+                                            </div>
+                                            <small class="text-muted d-block text-center mt-1">Stock: <%= item.stock || 'N/A' %></small>
+                                        </div>
+                                        <div class="col-md-2 col-sm-12">
+                                            <p class="item-total">$<%= (parseFloat(item.price) * parseInt(item.quantity)).toFixed(4) %></p>
+                                        </div>
+                                        <div class="col-md-1 col-sm-12 text-center">
+                                            <button class="btn btn-sm btn-danger remove-item">
+                                                <i class="fas fa-trash"></i> Remove
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            <% }); %>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-lg-4 col-md-12 order-summary">
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title">Order Summary</h5>
+                            <div class="d-flex justify-content-between mb-3">
+                                <span>Subtotal:</span>
+                                <span class="cart-subtotal">$<%= parseFloat(subtotal).toFixed(4) %></span>
+                            </div>
+                            <form id="checkout-form">
+                                <div class="mb-3">
+                                    <label for="shippingAddress" class="form-label">Shipping Address</label>
+                                    <textarea class="form-control" id="shippingAddress" name="shippingAddress" rows="3" required></textarea>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="phoneNumber" class="form-label">Phone Number</label>
+                                    <input type="tel" class="form-control" id="phoneNumber" name="phoneNumber" required>
+                                </div>
+                                <button type="submit" class="btn btn-primary w-100">Proceed to Checkout</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        <% } else { %>
+            <div class="alert alert-info">
+                Your cart is empty. <a href="/shop">Continue shopping</a>
+            </div>
+        <% } %>
+    </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const updateQuantity = async (productId, quantity) => {
+            try {
+                console.log('Updating quantity for product:', productId, 'to:', quantity);
+                
+                const response = await fetch('/api/cart/update', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ productId: parseInt(productId), quantity: parseInt(quantity) })
+                });
+                
+                const result = await response.json();
+                console.log('Update response:', result);
+                
+                if (!response.ok) {
+                    throw new Error(result.message || 'Failed to update cart');
+                }
+                
+                location.reload();
+            } catch (error) {
+                console.error('Error updating cart:', error);
+                alert('Error updating cart: ' + error.message);
+            }
+        };
+
+        document.querySelectorAll('.cart-item').forEach(item => {
+            const productId = item.dataset.productId;
+            const quantityInput = item.querySelector('.quantity-input');
+            
+            console.log('Setting up cart item:', productId);
+            
+            item.querySelector('.decrease-quantity').addEventListener('click', () => {
+                const newQuantity = parseInt(quantityInput.value) - 1;
+                console.log('Decrease clicked, new quantity:', newQuantity);
+                if (newQuantity >= 1) {
+                    updateQuantity(productId, newQuantity);
+                }
+            });
+
+            item.querySelector('.increase-quantity').addEventListener('click', () => {
+                const currentQuantity = parseInt(quantityInput.value);
+                const maxQuantity = parseInt(quantityInput.max) || 999; // Default to 999 if no stock limit
+                const newQuantity = currentQuantity + 1;
+                
+                console.log('Increase clicked:', {
+                    current: currentQuantity,
+                    new: newQuantity,
+                    max: maxQuantity,
+                    inputMax: quantityInput.max
+                });
+                
+                if (maxQuantity === 999) {
+                    // No stock limit, allow increase
+                    updateQuantity(productId, newQuantity);
+                } else if (newQuantity <= maxQuantity) {
+                    updateQuantity(productId, newQuantity);
+                } else {
+                    alert('Cannot add more items. Maximum stock available: ' + maxQuantity);
+                }
+            });
+
+            item.querySelector('.remove-item').addEventListener('click', async () => {
+                try {
+                    console.log('Removing item:', productId);
+                    
+                    const response = await fetch('/api/cart/remove', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ productId: parseInt(productId) })
+                    });
+                    
+                    const result = await response.json();
+                    console.log('Remove response:', result);
+                    
+                    if (!response.ok) {
+                        throw new Error(result.message || 'Failed to remove item');
+                    }
+                    
+                    location.reload();
+                } catch (error) {
+                    console.error('Error removing item:', error);
+                    alert('Error removing item: ' + error.message);
+                }
+            });
+        });
+
+        document.getElementById('checkout-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const formData = new FormData(e.target);
+            
+            // Get referral code from URL parameter or session storage
+            const urlParams = new URLSearchParams(window.location.search);
+            const refCode = urlParams.get('ref') || sessionStorage.getItem('refCode');
+            
+            try {
+                const response = await fetch('/api/orders/create', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        shippingAddress: formData.get('shippingAddress'),
+                        phoneNumber: formData.get('phoneNumber'),
+                        refCode: refCode // Include referral code in order
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(result.message || 'Checkout failed');
+                }
+                
+                // Clear referral code from session storage after successful order
+                sessionStorage.removeItem('refCode');
+                
+                alert('Order placed successfully!');
+                window.location.href = '/orders/' + result.orderId;
+            } catch (error) {
+                console.error('Error during checkout:', error);
+                alert('Error during checkout: ' + error.message);
+            }
+        });
+    });
+    </script>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
+    <%- include('../partials/footer') %>
+</body>
+</html>

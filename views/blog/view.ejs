@@ -1,0 +1,1068 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= post.title %> - BenixSpace</title>
+    
+    <!-- SEO Meta Tags -->
+    <meta name="description" content="<%= post.meta_description || post.excerpt || '' %>">
+    <meta name="keywords" content="<%= post.meta_keywords || '' %>">
+    <meta name="author" content="<%= post.business_name || post.username %>">
+    
+    <!-- Open Graph Meta Tags -->
+    <meta property="og:title" content="<%= post.title %>">
+    <meta property="og:description" content="<%= post.meta_description || post.excerpt || '' %>">
+    <meta property="og:image" content="<%= post.featured_image ? ('https://benixspace.com' + post.featured_image) : 'https://benixspace.com/static/img/logo.png' %>">
+    <meta property="og:url" content="<%= 'https://benixspace.com/blog/' + post.slug %>">
+    <meta property="og:type" content="article">
+    <meta property="og:site_name" content="BenixSpace">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:type" content="image/jpeg">
+    <meta property="article:author" content="<%= post.business_name || post.username %>">
+    <meta property="article:published_time" content="<%= post.created_at %>">
+    <% if (post.updated_at !== post.created_at) { %>
+        <meta property="article:modified_time" content="<%= post.updated_at %>">
+    <% } %>
+    
+    <!-- Twitter Card Meta Tags -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="<%= post.title %>">
+    <meta name="twitter:description" content="<%= post.meta_description || post.excerpt || '' %>">
+    <meta name="twitter:image" content="<%= post.featured_image ? ('https://benixspace.com' + post.featured_image) : 'https://benixspace.com/static/img/logo.png' %>">
+    
+    <!-- Favicon -->
+    <link rel="icon" href="/static/img/favicon.png" type="image/png" />
+    
+    <!-- CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
+    
+    <!-- Include AdSense -->
+    <%- include('../partials/adsense') %>
+     <%- include('../partials/auto-ads') %>
+
+    
+    <style>
+        .blog-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 2.5rem 0;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .blog-header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 20"><defs><radialGradient id="a" cx="50%" cy="0%" r="100%"><stop offset="0%" stop-color="rgba(255,255,255,.1)"/><stop offset="100%" stop-color="rgba(255,255,255,0)"/></radialGradient></defs><rect width="100" height="20" fill="url(%23a)"/></svg>');
+            opacity: 0.3;
+        }
+        
+        .backdrop-blur {
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+        }
+        
+        .blog-content {
+            font-size: 1.1rem;
+            line-height: 1.8;
+            color: #2c3e50;
+        }
+        
+        .blog-content h1, .blog-content h2, .blog-content h3 {
+            margin-top: 2.5rem;
+            margin-bottom: 1.2rem;
+            color: #2c3e50;
+            font-weight: 600;
+        }
+        
+        .blog-content h1 { font-size: 2.2rem; }
+        .blog-content h2 { font-size: 1.8rem; }
+        .blog-content h3 { font-size: 1.5rem; }
+        
+        .blog-content img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 12px;
+            margin: 2rem 0;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        
+        .blog-content blockquote {
+            border-left: 4px solid #667eea;
+            padding: 1.5rem 2rem;
+            margin: 2rem 0;
+            font-style: italic;
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border-radius: 0 12px 12px 0;
+            font-size: 1.1rem;
+            position: relative;
+        }
+        
+        .blog-content blockquote::before {
+            content: '"';
+            font-size: 4rem;
+            color: #667eea;
+            position: absolute;
+            top: -10px;
+            left: 20px;
+            font-family: Georgia, serif;
+        }
+        
+        .share-sticky {
+            position: sticky;
+            top: 120px;
+        }
+        
+        .share-btn {
+            width: 100%;
+            margin-bottom: 0.8rem;
+            transition: all 0.3s ease;
+            border-radius: 25px;
+        }
+        
+        .share-btn:hover {
+            transform: translateX(10px) scale(1.05);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        
+        .author-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 20px;
+            color: white;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .author-card::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -50%;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+        }
+        
+        .related-posts {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border-radius: 20px;
+            padding: 3rem;
+            margin-top: 4rem;
+        }
+        
+        .related-post-card {
+            transition: all 0.3s ease;
+            border-radius: 15px;
+            overflow: hidden;
+            background: white;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.08);
+        }
+        
+        .related-post-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 15px 40px rgba(0,0,0,0.15);
+        }
+        
+        .related-post-image {
+            height: 180px;
+            object-fit: cover;
+            width: 100%;
+        }
+        
+        .reading-progress {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 0%;
+            height: 4px;
+            background: linear-gradient(to right, #667eea, #764ba2);
+            z-index: 9999;
+            transition: width 0.1s ease;
+        }
+        
+        .floating-share {
+            position: fixed;
+            right: 30px;
+            top: 50%;
+            transform: translateY(-50%);
+            z-index: 1000;
+            background: white;
+            border-radius: 25px;
+            padding: 1rem;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+            backdrop-filter: blur(10px);
+        }
+        
+        .floating-share .share-btn {
+            margin-bottom: 0.5rem;
+            border-radius: 20px;
+            width: 50px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .tags-section {
+            background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+            border-radius: 15px;
+            padding: 1.5rem;
+            margin: 2rem 0;
+        }
+        
+        .tag-badge {
+            background: linear-gradient(45deg, #2196f3, #21cbf3);
+            color: white;
+            border: none;
+            border-radius: 20px;
+            padding: 0.5rem 1rem;
+            margin: 0.2rem;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+        
+        .tag-badge:hover {
+            transform: scale(1.05);
+            box-shadow: 0 5px 15px rgba(33, 150, 243, 0.3);
+        }
+        
+        .share-section {
+            background: linear-gradient(135deg, #e8f5e8 0%, #c8e6c9 100%);
+            border-radius: 20px;
+            padding: 2rem;
+            margin: 3rem 0;
+        }
+        
+        @media (max-width: 768px) {
+            .floating-share {
+                display: none !important;
+            }
+            
+            .blog-content {
+                font-size: 1rem;
+            }
+        }
+
+        /* Ad Banner Sections */
+        .sidebar-ad-section {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin: 2rem 0;
+            border: 1px solid #dee2e6;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+
+        .ad-banner-container {
+            text-align: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .ad-banner-container:last-child {
+            margin-bottom: 0;
+        }
+
+        .ad-banner {
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            cursor: pointer;
+            border: 1px solid #e9ecef;
+        }
+
+        .ad-banner:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+        }
+
+        .ad-banner img {
+            width: 100%;
+            height: auto;
+            max-height: 150px;
+            object-fit: cover;
+        }
+
+        .ad-banner-title {
+            padding: 0.8rem;
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: #495057;
+            background: white;
+        }
+
+        .advertise-here {
+            background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
+            color: white;
+            padding: 2rem;
+            border-radius: 8px;
+            text-align: center;
+            border: 2px dashed rgba(255,255,255,0.3);
+        }
+
+        .advertise-here h5 {
+            margin-bottom: 1rem;
+            font-weight: 600;
+        }
+
+        .advertise-here p {
+            margin-bottom: 1.5rem;
+            opacity: 0.9;
+        }
+
+        .advertise-btn {
+            background: white;
+            color: #495057;
+            border: none;
+            padding: 0.8rem 1.5rem;
+            border-radius: 25px;
+            font-weight: 600;
+            text-decoration: none;
+            display: inline-block;
+            transition: all 0.3s ease;
+        }
+
+        .advertise-btn:hover {
+            background: #f8f9fa;
+            color: #495057;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+
+        /* Hide desktop banners on mobile */
+        @media (max-width: 768px) {
+            .adsense-banner-desktop-left,
+            .adsense-banner-desktop-right {
+                display: none !important;
+            }
+        }
+
+        /* Hide mobile banner on desktop */
+        @media (min-width: 769px) {
+            .adsense-banner-mobile {
+                display: none !important;
+            }
+        }
+
+        @media (max-width: 576px) {
+            .adsense-banner-mobile {
+                width: 90%;
+                max-width: 320px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Reading Progress Bar -->
+    <div class="reading-progress" id="readingProgress"></div>
+    
+    <%- include('../partials/navbar') %>
+    
+    <!-- Blog Header -->
+    <div class="blog-header">
+        <div class="container">
+            <div class="row">
+                <div class="col-lg-10 mx-auto">
+                    <!-- Title -->
+                    <h1 class="display-5 fw-bold mb-4 text-center"><%= post.title %></h1>
+                    
+                    <!-- Meta Information -->
+                    <div class="d-flex justify-content-center align-items-center gap-4 mb-4 flex-wrap">
+                        <div class="d-flex align-items-center text-white">
+                            <div class="me-2">
+                                <i class="fas fa-user"></i>
+                            </div>
+                            <div>
+                                <span class="fw-semibold"><%= post.business_name || post.username %></span>
+                            </div>
+                        </div>
+                        
+                        <div class="d-flex align-items-center text-white">
+                            <div class="me-2">
+                                <i class="fas fa-calendar"></i>
+                            </div>
+                            <div>
+                                <span><%= new Date(post.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) %></span>
+                            </div>
+                        </div>
+                        
+                        <div class="d-flex align-items-center text-white">
+                            <div class="me-2">
+                                <i class="fas fa-clock"></i>
+                            </div>
+                            <div>
+                                <span><%= Math.ceil(post.content.replace(/<[^>]*>/g, '').split(' ').length / 200) %> min read</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Post Stats -->
+                    <div class="d-flex justify-content-center gap-3 flex-wrap">
+                        <div class="bg-white bg-opacity-15 backdrop-blur rounded-pill px-3 py-2 border border-white border-opacity-20">
+                            <i class="fas fa-eye me-2 text-dark"></i>
+                            <span class="fw-semibold text-dark"><%= post.view_count || 0 %></span>
+                            <small class="opacity-75 ms-1">views</small>
+                        </div>
+                        <div class="bg-white bg-opacity-15 backdrop-blur rounded-pill px-3 py-2 border border-white border-opacity-20">
+                            <i class="fas fa-mouse-pointer me-2 text-dark"></i>
+                            <span class="fw-semibold text-dark"><%= post.click_count || 0 %></span>
+                            <small class="text-dark opacity-75 ms-1">clicks</small>
+                        </div>
+                        <div class="bg-white bg-opacity-15 backdrop-blur rounded-pill px-3 py-2 border border-white border-opacity-20">
+                            <i class="fas fa-share me-2 text-white"></i>
+                            <span class="fw-semibold text-dark"><%= post.share_count || 0 %></span>
+                            <small class="text-dark opacity-75 ms-1">shares</small>
+                        </div>
+                        <div class="bg-success bg-opacity-80 rounded-pill px-3 py-2 border border-success border-opacity-50">
+                            <i class="fas fa-dollar-sign me-2 text-dark"></i>
+                            <span class="fw-semibold text-white">$<%= (parseFloat(post.cpc || 0.001) * (userCommissionPercentage || 30) / 100).toFixed(4) %></span>
+                            <small class="text-white opacity-75 ms-1">you earn per click</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Main Content -->
+    <div class="container mt-5">
+        <div class="row">
+            <!-- Blog Content -->
+            <div class="col-lg-8">
+                <!-- Featured Image -->
+                <% if (post.featured_image) { %>
+                    <div class="mb-4">
+                        <img src="<%= post.featured_image %>" class="img-fluid rounded shadow" alt="<%= post.title %>">
+                    </div>
+                <% } %>
+                
+                <!-- Content -->
+                <div class="blog-content">
+                    <%- post.content %>
+                </div>
+                
+                <!-- Tags -->
+                <% if (post.meta_keywords) { %>
+                    <div class="tags-section">
+                        <h6 class="text-primary mb-3">
+                            <i class="fas fa-tags me-2"></i>Tags
+                        </h6>
+                        <div class="d-flex flex-wrap">
+                            <% post.meta_keywords.split(',').forEach(tag => { %>
+                                <span class="tag-badge">#<%= tag.trim() %></span>
+                            <% }); %>
+                        </div>
+                    </div>
+                <% } %>
+                
+                <!-- Share Section -->
+                <div class="share-section">
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <h4 class="text-success mb-3">
+                                <i class="fas fa-share-alt me-2"></i>Love this post? Share it and earn!
+                            </h4>
+                            <p class="text-muted mb-3">
+                                Share this post with your network and earn <strong>$<%= (parseFloat(post.cpc || 0.001) * (userCommissionPercentage || 30) / 100).toFixed(4) %></strong> for every click on your shared link. 
+                                That's <strong><%= userCommissionPercentage || 30 %>%</strong> of the total CPC value!
+                            </p>
+                            <div class="d-flex gap-2">
+                                <div class="bg-white rounded-pill px-3 py-2">
+                                    <i class="fas fa-mouse-pointer text-success me-2"></i>
+                                    <small><strong><%= post.click_count || 0 %></strong> total clicks</small>
+                                </div>
+                                <div class="bg-white rounded-pill px-3 py-2">
+                                    <i class="fas fa-users text-primary me-2"></i>
+                                    <small><strong><%= post.share_count || 0 %></strong> people sharing</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4 text-center">
+                            <% if (user) { %>
+                                <button class="btn btn-success btn-lg rounded-pill px-4" 
+                                        data-post-id="<%= post.id %>" 
+                                        data-post-title="<%= post.title %>" 
+                                        data-post-slug="<%= post.slug %>"
+                                        onclick="sharePost(this.dataset.postId, this.dataset.postTitle, this.dataset.postSlug)">
+                                    <i class="fas fa-share me-2"></i>Get My Share Link
+                                </button>
+                            <% } else { %>
+                                <a href="/login" class="btn btn-primary btn-lg rounded-pill px-4">
+                                    <i class="fas fa-sign-in-alt me-2"></i>Login to Share & Earn
+                                </a>
+                            <% } %>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Author Info -->
+                <div class="author-card p-4 mt-5">
+                    <div class="row align-items-center">
+                        <div class="col-md-3 text-center">
+                            <div class="bg-white rounded-circle d-inline-flex align-items-center justify-content-center" style="width: 80px; height: 80px;">
+                                <i class="fas fa-user fa-2x text-primary"></i>
+                            </div>
+                        </div>
+                        <div class="col-md-9">
+                            <h5 class="mb-2"><%= post.business_name || post.username %></h5>
+                            <p class="mb-3">Content creator and merchant on BenixSpace platform.</p>
+                            <div class="d-flex gap-2">
+                                <span class="badge bg-white text-dark">
+                                    <i class="fas fa-blog me-1"></i>Posts: 1
+                                </span>
+                                <span class="badge bg-white text-dark">
+                                    <i class="fas fa-eye me-1"></i>Total Views: <%= post.view_count || 0 %>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Sidebar -->
+            <div class="col-lg-4">
+                <!-- Floating Share Buttons -->
+                <div class="share-sticky">
+                    <div class="card shadow-sm">
+                        <div class="card-header bg-primary text-white">
+                            <h6 class="mb-0">
+                                <i class="fas fa-share me-2"></i>Share & Earn
+                            </h6>
+                        </div>
+                        <div class="card-body">
+                            <% if (user) { %>
+                                <button class="btn btn-success share-btn" 
+                                        data-post-id="<%= post.id %>" 
+                                        data-post-title="<%= post.title %>" 
+                                        data-post-slug="<%= post.slug %>"
+                                        onclick="sharePost(this.dataset.postId, this.dataset.postTitle, this.dataset.postSlug)">
+                                    <i class="fas fa-link me-2"></i>Get Share Link
+                                </button>
+                                <button class="btn btn-primary share-btn" onclick="shareToFacebook()">
+                                    <i class="fab fa-facebook me-2"></i>Facebook
+                                </button>
+                                <button class="btn btn-info share-btn" onclick="shareToTwitter()">
+                                    <i class="fab fa-twitter me-2"></i>Twitter
+                                </button>
+                                <button class="btn btn-success share-btn" onclick="shareToWhatsApp()">
+                                    <i class="fab fa-whatsapp me-2"></i>WhatsApp
+                                </button>
+                            <% } else { %>
+                                <p class="text-muted small">Login to share and earn commissions</p>
+                                <a href="/login" class="btn btn-primary w-100">Login</a>
+                            <% } %>
+                        </div>
+                    </div>
+                    
+                    <!-- Table of Contents -->
+                    <div class="card shadow-sm mt-4" id="tocCard" style="display: none;">
+                        <div class="card-header bg-secondary text-white">
+                            <h6 class="mb-0">
+                                <i class="fas fa-list me-2"></i>Table of Contents
+                            </h6>
+                        </div>
+                        <div class="card-body" id="tableOfContents">
+                            <!-- Generated by JavaScript -->
+                        </div>
+                    </div>
+
+                    <!-- Advertisement Section -->
+                    <div class="sidebar-ad-section">
+                        <h6 class="text-center mb-3">
+                            <i class="fas fa-bullhorn me-2"></i>Sponsored
+                        </h6>
+                        <div id="adBannersContainer">
+                            <!-- Ad banners will be loaded here -->
+                            <div class="advertise-here">
+                                <h5><i class="fas fa-megaphone me-2"></i>Advertise Here</h5>
+                                <p>Reach thousands of engaged readers</p>
+                                <a href="/admin/banners" class="advertise-btn">
+                                    <i class="fas fa-plus me-2"></i>Place Your Ad
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Related Posts -->
+        <% if (relatedPosts && relatedPosts.length > 0) { %>
+            <div class="related-posts">
+                <div class="text-center mb-4">
+                    <h3 class="fw-bold text-primary">
+                        <i class="fas fa-newspaper me-3"></i>You Might Also Like
+                    </h3>
+                    <p class="text-muted">Discover more amazing content from our community</p>
+                </div>
+                
+                <div class="row">
+                    <% relatedPosts.forEach(relatedPost => { %>
+                        <div class="col-md-4 mb-4">
+                            <div class="related-post-card">
+                                <% if (relatedPost.featured_image) { %>
+                                    <img src="<%= relatedPost.featured_image %>" class="related-post-image" alt="<%= relatedPost.title %>">
+                                <% } else { %>
+                                    <div class="related-post-image d-flex align-items-center justify-content-center bg-gradient">
+                                        <i class="fas fa-blog fa-2x text-white"></i>
+                                    </div>
+                                <% } %>
+                                
+                                <div class="p-3">
+                                    <h6 class="fw-bold mb-2">
+                                        <a href="/blog/<%= relatedPost.slug %>" class="text-decoration-none text-dark">
+                                            <%= relatedPost.title %>
+                                        </a>
+                                    </h6>
+                                    
+                                    <div class="d-flex align-items-center justify-content-between text-muted small mb-3">
+                                        <div>
+                                            <i class="fas fa-user me-1"></i>
+                                            <%= relatedPost.business_name || relatedPost.username %>
+                                        </div>
+                                        <div>
+                                            <i class="fas fa-calendar me-1"></i>
+                                            <%= new Date(relatedPost.created_at).toLocaleDateString() %>
+                                        </div>
+                                    </div>
+                                    
+                                    <a href="/blog/<%= relatedPost.slug %>" class="btn btn-primary btn-sm w-100 rounded-pill">
+                                        <i class="fas fa-arrow-right me-2"></i>Read More
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    <% }); %>
+                </div>
+                
+                <div class="text-center mt-4">
+                    <a href="/blog" class="btn btn-outline-primary btn-lg rounded-pill">
+                        <i class="fas fa-blog me-2"></i>Explore All Blog Posts
+                    </a>
+                </div>
+            </div>
+        <% } %>
+    </div>
+    
+    <!-- Floating Share Button (Mobile) -->
+    <div class="floating-share">
+        <button class="btn btn-primary rounded-circle p-3 shadow-lg" onclick="toggleMobileShare()">
+            <i class="fas fa-share fa-lg"></i>
+        </button>
+    </div>
+    
+    <!-- Share Modal -->
+    <div class="modal fade" id="shareModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="fas fa-share me-2"></i>Share Post & Earn
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <p class="text-muted">Share this post and earn when people click your link!</p>
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle me-2"></i>
+                            You'll earn <strong>$<%= (parseFloat(post.cpc || 0.001) * (userCommissionPercentage || 30) / 100).toFixed(4) %></strong> for each click on your shared link.
+                            <br><small class="text-muted">That's <strong><%= userCommissionPercentage || 30 %>%</strong> of the total CPC ($<%= parseFloat(post.cpc || 0.001).toFixed(4) %>)</small>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Your Share Link:</label>
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="shareUrl" readonly>
+                            <button class="btn btn-outline-secondary" onclick="copyShareLink()">
+                                <i class="fas fa-copy"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Social Share Buttons -->
+                    <div class="d-flex gap-2 mb-3">
+                        <button class="btn btn-success flex-grow-1" onclick="shareToWhatsApp()">
+                            <i class="fab fa-whatsapp me-1"></i>WhatsApp
+                        </button>
+                        <button class="btn btn-primary flex-grow-1" onclick="shareToFacebook()">
+                            <i class="fab fa-facebook me-1"></i>Facebook
+                        </button>
+                        <button class="btn btn-info flex-grow-1" onclick="shareToTwitter()">
+                            <i class="fab fa-twitter me-1"></i>Twitter
+                        </button>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+        let currentShareData = {};
+        const shareModal = new bootstrap.Modal(document.getElementById('shareModal'));
+        
+        // Reading Progress
+        window.addEventListener('scroll', updateReadingProgress);
+        
+        function updateReadingProgress() {
+            const article = document.querySelector('.blog-content');
+            if (!article) return;
+            
+            const articleTop = article.offsetTop;
+            const articleHeight = article.offsetHeight;
+            const windowHeight = window.innerHeight;
+            const scrollTop = window.pageYOffset;
+            
+            const progress = Math.min(100, Math.max(0, ((scrollTop - articleTop + windowHeight/2) / articleHeight) * 100));
+            document.getElementById('readingProgress').style.width = progress + '%';
+        }
+        
+        // Generate Table of Contents
+        document.addEventListener('DOMContentLoaded', function() {
+            generateTableOfContents();
+            updateReadingProgress();
+        });
+        
+        function generateTableOfContents() {
+            const content = document.querySelector('.blog-content');
+            const headings = content.querySelectorAll('h1, h2, h3, h4, h5, h6');
+            
+            if (headings.length > 2) {
+                const tocContainer = document.getElementById('tableOfContents');
+                const tocCard = document.getElementById('tocCard');
+                
+                let tocHTML = '<ul class="list-unstyled">';
+                
+                headings.forEach((heading, index) => {
+                    const id = `heading-${index}`;
+                    heading.id = id;
+                    
+                    const level = parseInt(heading.tagName.charAt(1));
+                    const indent = (level - 1) * 15;
+                    
+                    tocHTML += `
+                        <li style="margin-left: ${indent}px; margin-bottom: 5px;">
+                            <a href="#${id}" class="text-decoration-none small d-block py-1">
+                                ${heading.textContent}
+                            </a>
+                        </li>
+                    `;
+                });
+                
+                tocHTML += '</ul>';
+                tocContainer.innerHTML = tocHTML;
+                tocCard.style.display = 'block';
+            }
+        }
+        
+        // Share Functions
+        async function sharePost(postId, title, slug) {
+            try {
+                const response = await fetch(`/blog/share/${postId}`, {
+                    method: 'POST'
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    currentShareData = {
+                        url: result.shareUrl,
+                        title: title,
+                        slug: slug
+                    };
+                    
+                    document.getElementById('shareUrl').value = result.shareUrl;
+                    shareModal.show();
+                } else {
+                    alert('Error: ' + result.error);
+                }
+            } catch (error) {
+                console.error('Share error:', error);
+                alert('Failed to create share link');
+            }
+        }
+        
+        function copyShareLink() {
+            const shareUrl = document.getElementById('shareUrl');
+            shareUrl.select();
+            navigator.clipboard.writeText(shareUrl.value);
+            
+            const button = event.target.closest('button');
+            const originalHTML = button.innerHTML;
+            button.innerHTML = '<i class="fas fa-check"></i>';
+            button.classList.add('btn-success');
+            button.classList.remove('btn-outline-secondary');
+            
+            setTimeout(() => {
+                button.innerHTML = originalHTML;
+                button.classList.remove('btn-success');
+                button.classList.add('btn-outline-secondary');
+            }, 2000);
+        }
+        
+        function shareToWhatsApp() {
+            const text = `Check out this blog post: ${currentShareData.title}`;
+            const url = `https://wa.me/?text=${encodeURIComponent(text + ' ' + currentShareData.url)}`;
+            window.open(url, '_blank');
+        }
+        
+        function shareToFacebook() {
+            const url = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(currentShareData.url)}`;
+            window.open(url, '_blank', 'width=600,height=400');
+        }
+        
+        function shareToTwitter() {
+            const text = `Check out this blog post: ${currentShareData.title}`;
+            const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(currentShareData.url)}`;
+            window.open(url, '_blank', 'width=600,height=400');
+        }
+        
+        // Smooth scrolling for TOC links
+        document.addEventListener('click', function(e) {
+            if (e.target.matches('#tableOfContents a')) {
+                e.preventDefault();
+                const targetId = e.target.getAttribute('href');
+                const targetElement = document.querySelector(targetId);
+                if (targetElement) {
+                    targetElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            }
+        });
+
+        // Load Ad Banners from Database
+        async function loadAdBanners() {
+            try {
+                const response = await fetch('/api/blog-banners');
+                const banners = await response.json();
+                
+                const container = document.getElementById('adBannersContainer');
+                
+                if (banners && banners.length > 0) {
+                    let bannersHTML = '';
+                    
+                    banners.forEach((banner, index) => {
+                        bannersHTML += `
+                            <div class="ad-banner-container">
+                                <div class="ad-banner" data-banner-id="${banner.id}" onclick="trackBannerClick(${banner.id}, '${banner.click_url}')">
+                                    <img src="${banner.image_url}" alt="${banner.title}" loading="lazy">
+                                    <div class="ad-banner-title">${banner.title}</div>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    
+                    container.innerHTML = bannersHTML;
+                } else {
+                    // Show "Advertise Here" when no banners
+                    container.innerHTML = `
+                        <div class="advertise-here">
+                            <h5><i class="fas fa-megaphone me-2"></i>Advertise Here</h5>
+                            <p>Reach thousands of engaged readers</p>
+                            <a href="/admin/banners" class="advertise-btn">
+                                <i class="fas fa-plus me-2"></i>Place Your Ad
+                            </a>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                console.error('Error loading ad banners:', error);
+                // Fallback to "Advertise Here"
+                const container = document.getElementById('adBannersContainer');
+                container.innerHTML = `
+                    <div class="advertise-here">
+                        <h5><i class="fas fa-megaphone me-2"></i>Advertise Here</h5>
+                        <p>Reach thousands of engaged readers</p>
+                        <a href="/admin/banners" class="advertise-btn">
+                            <i class="fas fa-plus me-2"></i>Place Your Ad
+                        </a>
+                    </div>
+                `;
+            }
+        }
+
+        // Track banner clicks
+        async function trackBannerClick(bannerId, clickUrl) {
+            try {
+                // Track the click analytics
+                await fetch('/api/banner-analytics', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        banner_id: bannerId,
+                        event_type: 'click'
+                    })
+                });
+                
+                // Open the banner URL
+                window.open(clickUrl, '_blank');
+            } catch (error) {
+                console.error('Error tracking banner click:', error);
+                // Still open the URL even if tracking fails
+                window.open(clickUrl, '_blank');
+            }
+        }
+
+        // Track banner impressions
+        async function trackBannerImpressions() {
+            const bannerElements = document.querySelectorAll('.ad-banner');
+            bannerElements.forEach(async (element) => {
+                const bannerId = element.getAttribute('data-banner-id');
+                if (bannerId) {
+                    try {
+                        await fetch('/api/banner-analytics', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                banner_id: parseInt(bannerId),
+                                event_type: 'impression'
+                            })
+                        });
+                    } catch (error) {
+                        console.error('Error tracking banner impression:', error);
+                    }
+                }
+            });
+        }
+
+        // Initialize ad banners
+        document.addEventListener('DOMContentLoaded', function() {
+            // Load banners when page loads
+            loadAdBanners();
+            
+            // Track impressions after banners are loaded
+            setTimeout(() => {
+                trackBannerImpressions();
+            }, 1000);
+            
+            // Initialize read time tracking for shared posts
+            initializeReadTimeTracking();
+        });
+
+        // Read time tracking for commission system
+        function initializeReadTimeTracking() {
+            // Check if this is a shared post visit (has ref parameter)
+            const urlParams = new URLSearchParams(window.location.search);
+            const refCode = urlParams.get('ref');
+            
+            // Get click ID from server (if this was a shared post visit)
+            <% if (typeof pendingClickId !== 'undefined' && pendingClickId) { %>
+            const clickId = <%= pendingClickId %>;
+            <% } else { %>
+            const clickId = null;
+            <% } %>
+            
+            <% if (typeof shareId !== 'undefined' && shareId) { %>
+            const shareViewId = <%= shareId %>;
+            <% } else { %>
+            const shareViewId = null;
+            <% } %>
+            
+            const clickData = {
+                clickId: clickId,
+                isSharedView: shareViewId
+            };
+            
+            if (clickData.clickId) {
+                console.log('Shared post detected, starting read time tracking...');
+                
+                // Track after 20 seconds of being on the page
+                setTimeout(async () => {
+                    try {
+                        console.log('20 seconds passed, validating read time...');
+                        
+                        const response = await fetch('/api/blog/validate-read', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                clickId: clickData.clickId
+                            })
+                        });
+                        
+                        const result = await response.json();
+                        
+                        if (result.success && result.earnings) {
+                            console.log(`Commission earned: ${result.earnings} for ${result.readTime} seconds read time`);
+                            
+                            // Show success notification
+                            showEarningsNotification(result.earnings, result.readTime);
+                        } else if (result.success) {
+                            console.log(`Read time validated: ${result.readTime} seconds`);
+                        } else {
+                            console.log('Read validation failed:', result.error);
+                        }
+                    } catch (error) {
+                        console.error('Error validating read time:', error);
+                    }
+                }, 20000); // 20 seconds
+                
+                // Also track page visibility to ensure user is actually reading
+                let isPageVisible = true;
+                let totalVisibleTime = 0;
+                let lastVisibleTime = Date.now();
+                
+                document.addEventListener('visibilitychange', () => {
+                    if (document.hidden) {
+                        if (isPageVisible) {
+                            totalVisibleTime += Date.now() - lastVisibleTime;
+                            isPageVisible = false;
+                        }
+                    } else {
+                        isPageVisible = true;
+                        lastVisibleTime = Date.now();
+                    }
+                });
+                
+                // Track scroll engagement
+                let maxScrollDepth = 0;
+                window.addEventListener('scroll', () => {
+                    const scrollPercent = (window.scrollY / (document.body.scrollHeight - window.innerHeight)) * 100;
+                    maxScrollDepth = Math.max(maxScrollDepth, scrollPercent);
+                });
+            }
+        }
+
+        // Show earnings notification
+        function showEarningsNotification(earnings, readTime) {
+            const notification = document.createElement('div');
+            notification.className = 'alert alert-success alert-dismissible fade show position-fixed';
+            notification.style.cssText = 'top: 20px; right: 20px; z-index: 9999; max-width: 300px;';
+            notification.innerHTML = `
+                <i class="fas fa-coins me-2"></i>
+                <strong>Commission Earned!</strong><br>
+                You earned <strong>${earnings.toFixed(4)} RWF</strong> for reading this post for ${readTime} seconds.
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            
+            document.body.appendChild(notification);
+            
+            // Auto remove after 10 seconds
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.remove();
+                }
+            }, 10000);
+        }
+    </script>
+</body>
+</html>

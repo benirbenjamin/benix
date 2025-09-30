@@ -1,0 +1,874 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Blog Post - BenixSpace</title>
+    <link rel="icon" href="/static/img/favicon.png" type="image/png" />
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Rich Text Editor - Quill -->
+    <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
+    
+    <!-- SEO Analysis CSS -->
+    <style>
+        .seo-panel {
+            position: sticky;
+            top: 20px;
+            height: fit-content;
+        }
+        
+        .seo-score {
+            font-size: 2rem;
+            font-weight: bold;
+        }
+        
+        .seo-good { color: #28a745; }
+        .seo-warning { color: #ffc107; }
+        .seo-error { color: #dc3545; }
+        
+        .seo-item {
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 5px;
+            border-left: 4px solid;
+        }
+        
+        .seo-item.good { 
+            background: #d4edda; 
+            border-left-color: #28a745; 
+        }
+        
+        .seo-item.warning { 
+            background: #fff3cd; 
+            border-left-color: #ffc107; 
+        }
+        
+        .seo-item.error { 
+            background: #f8d7da; 
+            border-left-color: #dc3545; 
+        }
+        
+        .editor-container {
+            min-height: 400px;
+        }
+        
+        .char-counter {
+            font-size: 0.9em;
+            color: #6c757d;
+        }
+        
+        .featured-image-preview {
+            max-width: 100%;
+            max-height: 200px;
+            object-fit: cover;
+            border-radius: 8px;
+        }
+        
+        .drag-drop-area {
+            border: 2px dashed #ccc;
+            border-radius: 8px;
+            padding: 40px;
+            text-align: center;
+            background: #f8f9fa;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .drag-drop-area:hover,
+        .drag-drop-area.dragover {
+            border-color: #007bff;
+            background: #e3f2fd;
+        }
+        
+        .form-control.is-valid {
+            border-color: #28a745;
+        }
+        
+        .form-control.is-invalid {
+            border-color: #dc3545;
+        }
+        
+        .validation-feedback {
+            display: block;
+            width: 100%;
+            margin-top: 0.25rem;
+            font-size: 0.875rem;
+        }
+        
+        .validation-feedback.valid {
+            color: #28a745;
+        }
+        
+        .validation-feedback.invalid {
+            color: #dc3545;
+        }
+        
+        .loading-spinner {
+            display: inline-block;
+            width: 1rem;
+            height: 1rem;
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #007bff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="bg-light">
+    <%- include('../partials/navbar') %>
+
+    <div class="container-fluid mt-4">
+        <div class="row">
+            <!-- Main Content -->
+            <div class="col-lg-8">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-primary text-white">
+                        <h4 class="mb-0">
+                            <i class="fas fa-blog me-2"></i>Create New Blog Post
+                        </h4>
+                    </div>
+                    <div class="card-body">
+                        <form id="blogForm" enctype="multipart/form-data">
+                            <!-- Title -->
+                            <div class="mb-4">
+                                <label for="title" class="form-label">
+                                    <i class="fas fa-heading me-2"></i>Post Title *
+                                </label>
+                                <input type="text" class="form-control form-control-lg" id="title" name="title" 
+                                       placeholder="Enter an engaging title..." required>
+                                <div class="char-counter mt-1">
+                                    <span id="titleCount">0</span>/60 characters (optimal for SEO)
+                                </div>
+                            </div>
+
+                            <!-- Slug Preview -->
+                            <div class="mb-4">
+                                <label class="form-label">
+                                    <i class="fas fa-link me-2"></i>URL Preview
+                                </label>
+                                <div class="input-group">
+                                    <span class="input-group-text">
+                                        <%= `${req.protocol}://${req.get('host')}` %>/blog/
+                                    </span>
+                                    <input type="text" class="form-control" id="slugPreview" readonly>
+                                </div>
+                            </div>
+
+                            <!-- Featured Image -->
+                            <div class="mb-4">
+                                <label for="featured_image" class="form-label">
+                                    <i class="fas fa-image me-2"></i>Featured Image
+                                </label>
+                                <div class="drag-drop-area" id="dropArea">
+                                    <i class="fas fa-cloud-upload-alt fa-3x text-muted mb-3"></i>
+                                    <p class="mb-2">Drag & drop an image here, or click to select</p>
+                                    <p class="text-muted small">Recommended: 1200x630px for best social media sharing</p>
+                                    <input type="file" class="d-none" id="featured_image" name="featured_image" 
+                                           accept="image/*">
+                                </div>
+                                <div id="imagePreview" class="mt-3" style="display: none;">
+                                    <img id="previewImg" class="featured-image-preview">
+                                    <button type="button" class="btn btn-sm btn-outline-danger mt-2" id="removeImage">
+                                        <i class="fas fa-trash me-1"></i>Remove Image
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Content Editor -->
+                            <div class="mb-4">
+                                <label class="form-label">
+                                    <i class="fas fa-edit me-2"></i>Content *
+                                </label>
+                                <div id="editor" class="editor-container"></div>
+                                <textarea id="content" name="content" style="display: none;" required></textarea>
+                                <div class="char-counter mt-1">
+                                    Words: <span id="wordCount">0</span> | 
+                                    Reading time: <span id="readingTime">0</span> min
+                                </div>
+                            </div>
+
+                            <!-- Excerpt -->
+                            <div class="mb-4">
+                                <label for="excerpt" class="form-label">
+                                    <i class="fas fa-quote-left me-2"></i>Excerpt
+                                </label>
+                                <textarea class="form-control" id="excerpt" name="excerpt" rows="3" 
+                                          placeholder="Brief description for social media sharing..."></textarea>
+                                <div class="char-counter mt-1">
+                                    <span id="excerptCount">0</span>/160 characters (optimal for meta description)
+                                </div>
+                            </div>
+
+                            <!-- CPC Setting -->
+                            <div class="mb-4">
+                                <label for="cpc" class="form-label">
+                                    <i class="fas fa-dollar-sign me-2"></i>Cost Per Click (CPC) *
+                                </label>
+                                <div class="input-group">
+                                    <span class="input-group-text">$</span>
+                                    <input type="number" class="form-control" id="cpc" name="cpc" 
+                                           step="0.01" min="0.01" value="0.01" required>
+                                </div>
+                                <small class="text-muted">
+                                    Amount users earn when someone clicks their shared link
+                                </small>
+                            </div>
+
+                            <!-- SEO Settings -->
+                            <div class="card mb-4">
+                                <div class="card-header">
+                                    <h6 class="mb-0">
+                                        <i class="fas fa-search me-2"></i>SEO Settings
+                                    </h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="mb-3">
+                                        <label for="meta_title" class="form-label">Meta Title</label>
+                                        <input type="text" class="form-control" id="meta_title" name="meta_title" 
+                                               placeholder="Auto-filled from title if empty">
+                                        <div class="char-counter mt-1">
+                                            <span id="metaTitleCount">0</span>/60 characters
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <label for="meta_description" class="form-label">Meta Description</label>
+                                        <textarea class="form-control" id="meta_description" name="meta_description" 
+                                                  rows="2" placeholder="Auto-filled from excerpt if empty"></textarea>
+                                        <div class="char-counter mt-1">
+                                            <span id="metaDescCount">0</span>/160 characters
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <label for="meta_keywords" class="form-label">Keywords</label>
+                                        <input type="text" class="form-control" id="meta_keywords" name="meta_keywords" 
+                                               placeholder="keyword1, keyword2, keyword3">
+                                        <small class="text-muted">
+                                            Separate keywords with commas (3-5 keywords recommended)
+                                        </small>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Submit Buttons -->
+                            <div class="d-flex gap-2">
+                                <button type="submit" class="btn btn-primary btn-lg">
+                                    <i class="fas fa-save me-2"></i>Publish Post
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SEO Panel -->
+            <div class="col-lg-4">
+                <div class="seo-panel">
+                    <!-- SEO Score -->
+                    <div class="card shadow-sm mb-4">
+                        <div class="card-header bg-success text-white">
+                            <h6 class="mb-0">
+                                <i class="fas fa-chart-line me-2"></i>SEO Score
+                            </h6>
+                        </div>
+                        <div class="card-body text-center">
+                            <div class="seo-score" id="seoScore">0</div>
+                            <div class="text-muted">out of 100</div>
+                            <div class="progress mt-2">
+                                <div class="progress-bar" id="seoProgressBar" style="width: 0%"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- SEO Checklist -->
+                    <div class="card shadow-sm mb-4">
+                        <div class="card-header">
+                            <h6 class="mb-0">
+                                <i class="fas fa-tasks me-2"></i>SEO Checklist
+                            </h6>
+                        </div>
+                        <div class="card-body" id="seoChecklist">
+                            <!-- SEO items will be populated by JavaScript -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
+    
+    <script>
+        // Initialize Quill Editor with Image Upload
+        const quill = new Quill('#editor', {
+            theme: 'snow',
+            modules: {
+                toolbar: {
+                    container: [
+                        [{ 'header': [1, 2, 3, false] }],
+                        ['bold', 'italic', 'underline', 'strike'],
+                        [{ 'color': [] }, { 'background': [] }],
+                        [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                        [{ 'align': [] }],
+                        ['link', 'image'],
+                        ['blockquote', 'code-block'],
+                        ['clean']
+                    ],
+                    handlers: {
+                        image: imageHandler
+                    }
+                }
+            },
+            placeholder: 'Write your blog post content here...'
+        });
+
+        // Custom image handler for Quill
+        function imageHandler() {
+            const input = document.createElement('input');
+            input.setAttribute('type', 'file');
+            input.setAttribute('accept', 'image/*');
+            input.click();
+
+            input.onchange = async () => {
+                const file = input.files[0];
+                if (file) {
+                    // Validate file
+                    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
+                    if (!allowedTypes.includes(file.type)) {
+                        alert('Invalid image format. Please use JPEG, PNG, or GIF files only.');
+                        return;
+                    }
+
+                    if (file.size > 5 * 1024 * 1024) {
+                        alert('Image file is too large. Please use an image smaller than 5MB.');
+                        return;
+                    }
+
+                    // Show loading indicator
+                    const range = quill.getSelection();
+                    quill.insertText(range.index, 'Uploading image...', 'user');
+
+                    try {
+                        // Upload image
+                        const formData = new FormData();
+                        formData.append('image', file);
+
+                        const response = await fetch('/api/upload-image', {
+                            method: 'POST',
+                            body: formData
+                        });
+
+                        if (!response.ok) {
+                            throw new Error(`Upload failed: ${response.statusText}`);
+                        }
+
+                        const result = await response.json();
+                        
+                        if (result.success) {
+                            // Remove loading text and insert image
+                            quill.deleteText(range.index, 'Uploading image...'.length);
+                            quill.insertEmbed(range.index, 'image', result.url);
+                            quill.setSelection(range.index + 1);
+                        } else {
+                            throw new Error(result.error || 'Upload failed');
+                        }
+                    } catch (error) {
+                        console.error('Image upload error:', error);
+                        // Remove loading text
+                        quill.deleteText(range.index, 'Uploading image...'.length);
+                        alert('Failed to upload image: ' + error.message);
+                    }
+                }
+            };
+        }
+
+        // SEO Analysis Configuration
+        const seoRules = {
+            title: { min: 30, max: 60, weight: 20 },
+            excerpt: { min: 120, max: 160, weight: 15 },
+            content: { minWords: 300, weight: 25 },
+            metaTitle: { min: 30, max: 60, weight: 15 },
+            metaDescription: { min: 120, max: 160, weight: 15 },
+            featuredImage: { weight: 10 }
+        };
+
+        // DOM Elements
+        const titleInput = document.getElementById('title');
+        const excerptInput = document.getElementById('excerpt');
+        const metaTitleInput = document.getElementById('meta_title');
+        const metaDescInput = document.getElementById('meta_description');
+        const cpcInput = document.getElementById('cpc');
+        const blogForm = document.getElementById('blogForm');
+        const contentTextarea = document.getElementById('content');
+
+        // Character counters and slug generation (removed real-time validation to prevent loops)
+        titleInput.addEventListener('input', function() {
+            updateCharCount('title', 'titleCount', 60);
+            generateSlug();
+        });
+
+        excerptInput.addEventListener('input', function() {
+            updateCharCount('excerpt', 'excerptCount', 160);
+        });
+
+        metaTitleInput.addEventListener('input', function() {
+            updateCharCount('meta_title', 'metaTitleCount', 60);
+        });
+
+        metaDescInput.addEventListener('input', function() {
+            updateCharCount('meta_description', 'metaDescCount', 160);
+        });
+
+        // SEO update on blur events (when user finishes typing) instead of every keystroke
+        titleInput.addEventListener('blur', updateSEO);
+        excerptInput.addEventListener('blur', updateSEO);
+        metaTitleInput.addEventListener('blur', updateSEO);
+        metaDescInput.addEventListener('blur', updateSEO);
+
+        // Update SEO when user stops typing in Quill editor
+        let seoUpdateTimeout;
+        quill.on('text-change', function() {
+            const content = quill.root.innerHTML;
+            contentTextarea.value = content;
+            updateWordCount();
+            
+            // Debounce SEO update - only update after user stops typing for 2 seconds
+            clearTimeout(seoUpdateTimeout);
+            seoUpdateTimeout = setTimeout(updateSEO, 2000);
+        });
+
+        // Image upload handling
+        const dropArea = document.getElementById('dropArea');
+        const fileInput = document.getElementById('featured_image');
+        const imagePreview = document.getElementById('imagePreview');
+        const previewImg = document.getElementById('previewImg');
+        const removeImageBtn = document.getElementById('removeImage');
+
+        dropArea.addEventListener('click', () => fileInput.click());
+        dropArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropArea.classList.add('dragover');
+        });
+        dropArea.addEventListener('dragleave', () => {
+            dropArea.classList.remove('dragover');
+        });
+        dropArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropArea.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleImageUpload(files[0]);
+            }
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleImageUpload(e.target.files[0]);
+            }
+        });
+
+        removeImageBtn.addEventListener('click', () => {
+            fileInput.value = '';
+            imagePreview.style.display = 'none';
+            dropArea.style.display = 'block';
+            updateSEO();
+        });
+
+        function handleImageUpload(file) {
+            if (file && file.type.startsWith('image/')) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    previewImg.src = e.target.result;
+                    imagePreview.style.display = 'block';
+                    dropArea.style.display = 'none';
+                    updateSEO();
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        // Helper functions
+        function updateCharCount(inputId, countId, maxChars) {
+            const input = document.getElementById(inputId);
+            const counter = document.getElementById(countId);
+            const count = input.value.length;
+            counter.textContent = count;
+            
+            if (count > maxChars) {
+                counter.classList.add('text-danger');
+            } else if (count > maxChars * 0.8) {
+                counter.classList.remove('text-danger');
+                counter.classList.add('text-warning');
+            } else {
+                counter.classList.remove('text-danger', 'text-warning');
+            }
+        }
+
+        function generateSlug() {
+            const title = titleInput.value;
+            const slug = title
+                .toLowerCase()
+                .replace(/[^a-z0-9 -]/g, '')
+                .replace(/\s+/g, '-')
+                .replace(/-+/g, '-')
+                .trim('-');
+            document.getElementById('slugPreview').value = slug;
+        }
+
+        function updateWordCount() {
+            const text = quill.getText();
+            const words = text.trim().split(/\s+/).filter(word => word.length > 0).length;
+            const readingTime = Math.ceil(words / 200); // Average reading speed
+            
+            document.getElementById('wordCount').textContent = words;
+            document.getElementById('readingTime').textContent = readingTime;
+        }
+
+        function updateSEO() {
+            let score = 0;
+            const checklist = document.getElementById('seoChecklist');
+            const items = [];
+
+            // Title check
+            const titleLength = titleInput.value.length;
+            if (titleLength >= seoRules.title.min && titleLength <= seoRules.title.max) {
+                score += seoRules.title.weight;
+                items.push({
+                    text: 'Title length is optimal (30-60 characters)',
+                    status: 'good'
+                });
+            } else {
+                items.push({
+                    text: `Title should be 30-60 characters (current: ${titleLength})`,
+                    status: titleLength < seoRules.title.min ? 'error' : 'warning'
+                });
+            }
+
+            // Content check
+            const wordCount = quill.getText().trim().split(/\s+/).filter(word => word.length > 0).length;
+            if (wordCount >= seoRules.content.minWords) {
+                score += seoRules.content.weight;
+                items.push({
+                    text: `Content is substantial (${wordCount} words)`,
+                    status: 'good'
+                });
+            } else {
+                items.push({
+                    text: `Content should be at least 300 words (current: ${wordCount})`,
+                    status: 'error'
+                });
+            }
+
+            // Excerpt check
+            const excerptLength = excerptInput.value.length;
+            if (excerptLength >= seoRules.excerpt.min && excerptLength <= seoRules.excerpt.max) {
+                score += seoRules.excerpt.weight;
+                items.push({
+                    text: 'Excerpt length is optimal',
+                    status: 'good'
+                });
+            } else if (excerptLength > 0) {
+                items.push({
+                    text: `Excerpt should be 120-160 characters (current: ${excerptLength})`,
+                    status: 'warning'
+                });
+            } else {
+                items.push({
+                    text: 'Add an excerpt for better social sharing',
+                    status: 'error'
+                });
+            }
+
+            // Featured image check
+            if (fileInput.files.length > 0 || previewImg.src) {
+                score += seoRules.featuredImage.weight;
+                items.push({
+                    text: 'Featured image added',
+                    status: 'good'
+                });
+            } else {
+                items.push({
+                    text: 'Add a featured image for better engagement',
+                    status: 'warning'
+                });
+            }
+
+            // Meta title check
+            const metaTitleLength = metaTitleInput.value.length;
+            if (metaTitleLength > 0) {
+                if (metaTitleLength >= seoRules.metaTitle.min && metaTitleLength <= seoRules.metaTitle.max) {
+                    score += seoRules.metaTitle.weight;
+                    items.push({
+                        text: 'Meta title is optimal',
+                        status: 'good'
+                    });
+                } else {
+                    items.push({
+                        text: `Meta title should be 30-60 characters (current: ${metaTitleLength})`,
+                        status: 'warning'
+                    });
+                }
+            } else {
+                items.push({
+                    text: 'Meta title will use post title',
+                    status: 'good'
+                });
+                score += seoRules.metaTitle.weight * 0.8; // Partial score for auto-fill
+            }
+
+            // Meta description check
+            const metaDescLength = metaDescInput.value.length;
+            if (metaDescLength > 0) {
+                if (metaDescLength >= seoRules.metaDescription.min && metaDescLength <= seoRules.metaDescription.max) {
+                    score += seoRules.metaDescription.weight;
+                    items.push({
+                        text: 'Meta description is optimal',
+                        status: 'good'
+                    });
+                } else {
+                    items.push({
+                        text: `Meta description should be 120-160 characters (current: ${metaDescLength})`,
+                        status: 'warning'
+                    });
+                }
+            } else {
+                items.push({
+                    text: 'Meta description will use excerpt',
+                    status: 'good'
+                });
+                score += seoRules.metaDescription.weight * 0.8; // Partial score for auto-fill
+            }
+
+            // Update SEO score display
+            const scoreElement = document.getElementById('seoScore');
+            const progressBar = document.getElementById('seoProgressBar');
+            
+            scoreElement.textContent = Math.round(score);
+            progressBar.style.width = score + '%';
+            
+            if (score >= 80) {
+                scoreElement.className = 'seo-score seo-good';
+                progressBar.className = 'progress-bar bg-success';
+            } else if (score >= 60) {
+                scoreElement.className = 'seo-score seo-warning';
+                progressBar.className = 'progress-bar bg-warning';
+            } else {
+                scoreElement.className = 'seo-score seo-error';
+                progressBar.className = 'progress-bar bg-danger';
+            }
+
+            // Update checklist
+            checklist.innerHTML = items.map(item => `
+                <div class="seo-item ${item.status}">
+                    <i class="fas ${item.status === 'good' ? 'fa-check' : item.status === 'warning' ? 'fa-exclamation-triangle' : 'fa-times'} me-2"></i>
+                    ${item.text}
+                </div>
+            `).join('');
+        }
+
+        // Remove the duplicate real-time validation that causes loops
+        // The updateSEO() function already handles character counting
+        
+
+        
+        // Content validation only on form submit, not real-time to avoid loops
+        
+        
+        function removeValidationFeedback(element) {
+            const feedback = element.parentNode.querySelector('.validation-feedback');
+            if (feedback) {
+                feedback.remove();
+            }
+        }
+        blogForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            // Reset previous validation states
+            clearValidationStates();
+            
+            // Basic validation with visual feedback
+            let isValid = true;
+            const errors = [];
+            
+            const title = titleInput.value.trim();
+            const content = quill.getText().trim();
+            const cpcValue = parseFloat(cpcInput.value);
+            
+            // Title validation
+            if (!title) {
+                addValidationError(titleInput, 'Please enter a title for your blog post.');
+                errors.push('Title is required');
+                isValid = false;
+            } else if (title.length < 3) {
+                addValidationError(titleInput, 'Title must be at least 3 characters long.');
+                errors.push('Title too short');
+                isValid = false;
+            } else if (title.length > 60) {
+                addValidationError(titleInput, 'Title should be 60 characters or less for better SEO.');
+                errors.push('Title too long');
+                isValid = false;
+            } else {
+                addValidationSuccess(titleInput, 'Title looks good!');
+            }
+            
+            // Content validation
+            if (!content || content.length < 50) {
+                addValidationError(document.querySelector('#editor'), 'Content must be at least 50 characters long.');
+                errors.push('Content too short');
+                isValid = false;
+            } else {
+                addValidationSuccess(document.querySelector('#editor'), 'Content length is good!');
+            }
+            
+            // CPC validation
+            if (isNaN(cpcValue) || cpcValue < 0.001 || cpcValue > 10) {
+                addValidationError(cpcInput, 'CPC must be between $0.001 and $10.00.');
+                errors.push('Invalid CPC value');
+                isValid = false;
+            } else {
+                addValidationSuccess(cpcInput, 'CPC value is valid.');
+            }
+            
+            if (!isValid) {
+                alert('Please fix the following errors:\\n• ' + errors.join('\\n• '));
+                return;
+            }
+            
+            // Show loading state
+            const submitBtn = blogForm.querySelector('button[type="submit"]');
+            const originalText = submitBtn.innerHTML;
+            submitBtn.innerHTML = '<span class="loading-spinner me-2"></span>Creating post...';
+            submitBtn.disabled = true;
+            
+            // Ensure content is synced
+            contentTextarea.value = quill.root.innerHTML;
+            
+            const formData = new FormData(blogForm);
+            
+            try {
+                const response = await fetch('/blog/create', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    let errorMessage = 'Unknown error occurred';
+                    
+                    try {
+                        const errorJson = JSON.parse(errorText);
+                        errorMessage = errorJson.error || errorJson.message || errorMessage;
+                    } catch (parseError) {
+                        errorMessage = `Server error (${response.status}): ${errorText}`;
+                    }
+                    
+                    throw new Error(errorMessage);
+                }
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    // Show success message
+                    showSuccessMessage('Blog post created successfully! Redirecting...');
+                    
+                    // Redirect after a short delay
+                    setTimeout(() => {
+                        window.location.href = `/blog/${result.slug}`;
+                    }, 1500);
+                } else {
+                    throw new Error(result.error || result.message || 'Unknown error occurred');
+                }
+            } catch (error) {
+                console.error('Blog creation error:', error);
+                showErrorMessage('Failed to create blog post: ' + error.message);
+            } finally {
+                // Reset button state
+                submitBtn.innerHTML = originalText;
+                submitBtn.disabled = false;
+            }
+        });
+        
+        // Validation helper functions
+        function clearValidationStates() {
+            const inputs = blogForm.querySelectorAll('.form-control, #editor');
+            inputs.forEach(input => {
+                input.classList.remove('is-valid', 'is-invalid');
+                const feedback = input.parentNode.querySelector('.validation-feedback');
+                if (feedback) {
+                    feedback.remove();
+                }
+            });
+        }
+        
+        function addValidationError(element, message) {
+            element.classList.remove('is-valid');
+            element.classList.add('is-invalid');
+            
+            const feedback = document.createElement('div');
+            feedback.className = 'validation-feedback invalid';
+            feedback.textContent = message;
+            element.parentNode.appendChild(feedback);
+        }
+        
+        function addValidationSuccess(element, message) {
+            element.classList.remove('is-invalid');
+            element.classList.add('is-valid');
+            
+            const feedback = document.createElement('div');
+            feedback.className = 'validation-feedback valid';
+            feedback.textContent = message;
+            element.parentNode.appendChild(feedback);
+        }
+        
+        function showSuccessMessage(message) {
+            const alertDiv = document.createElement('div');
+            alertDiv.className = 'alert alert-success alert-dismissible fade show position-fixed';
+            alertDiv.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+            alertDiv.innerHTML = `
+                <i class="fas fa-check-circle me-2"></i>${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            document.body.appendChild(alertDiv);
+            
+            // Auto remove after 5 seconds
+            setTimeout(() => {
+                if (alertDiv.parentNode) {
+                    alertDiv.remove();
+                }
+            }, 5000);
+        }
+        
+        function showErrorMessage(message) {
+            const alertDiv = document.createElement('div');
+            alertDiv.className = 'alert alert-danger alert-dismissible fade show position-fixed';
+            alertDiv.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px; max-width: 500px;';
+            alertDiv.innerHTML = `
+                <i class="fas fa-exclamation-triangle me-2"></i>${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            document.body.appendChild(alertDiv);
+            
+            // Auto remove after 8 seconds for errors (longer read time)
+            setTimeout(() => {
+                if (alertDiv.parentNode) {
+                    alertDiv.remove();
+                }
+            }, 8000);
+        }
+
+        // Preview button
+        // Initialize
+        updateSEO();
+    </script>
+</body>
+</html>

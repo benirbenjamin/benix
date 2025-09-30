@@ -1,0 +1,19 @@
+
+[2025-09-27T13:02:12.057Z] AdminRoutes.bannerAnalytics
+{
+  "timestamp": "2025-09-27T13:02:12.057Z",
+  "component": "AdminRoutes.bannerAnalytics",
+  "error": {
+    "message": "Unknown column 'b.total_budget' in 'SELECT'",
+    "stack": "Error: Unknown column 'b.total_budget' in 'SELECT'\n    at PromisePool.query (/home/naweririmbaspace/nodeapps/node_modules/mysql2/lib/promise/pool.js:36:22)\n    at /home/naweririmbaspace/nodeapps/routes/adminRoutes.js:4046:37\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)",
+    "code": "ER_BAD_FIELD_ERROR",
+    "sqlMessage": "Unknown column 'b.total_budget' in 'SELECT'",
+    "sqlState": "42S22"
+  },
+  "additionalInfo": {
+    "bannerId": "2",
+    "user": 1,
+    "sqlState": "42S22",
+    "sqlMessage": "Unknown column 'b.total_budget' in 'SELECT'"
+  }
+}

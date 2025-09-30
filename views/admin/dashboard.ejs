@@ -1,0 +1,450 @@
+<!-- filepath: c:\Users\RW 0354\Desktop\app\benix\views\admin\dashboard.ejs -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - BenixSpace</title>
+    <link rel="icon" href="/static/img/favicon.png" type="image/png" />
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- AdSense and Analytics -->
+    <%- include('../partials/adsense') %>
+</head>
+<body class="bg-light">
+    <%- include('../partials/navbar', { user: user }) %>
+    
+    <div class="container mt-4">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2>Admin Dashboard</h2>
+            <div class="d-flex align-items-center">
+                <select id="timePeriod" class="form-select me-2">
+                    <option value="today" <%= analytics.period === 'today' ? 'selected' : '' %>>Today</option>
+                    <option value="week" <%= analytics.period === 'week' ? 'selected' : '' %>>This Week</option>
+                    <option value="month" <%= analytics.period === 'month' ? 'selected' : '' %>>This Month</option>
+                    <option value="year" <%= analytics.period === 'year' ? 'selected' : '' %>>This Year</option>
+                    <option value="custom" <%= analytics.period === 'custom' ? 'selected' : '' %>>Custom Range</option>
+                </select>
+                <div id="dateRangePicker" class="<%= analytics.period !== 'custom' ? 'd-none' : '' %>">
+                    <input type="date" id="startDate" class="form-control me-2" value="<%= analytics.customStart || '' %>">
+                    <input type="date" id="endDate" class="form-control" value="<%= analytics.customEnd || '' %>">
+                </div>
+            </div>
+        </div>
+
+        <!-- Analytics Overview -->
+        <div class="row mb-4">
+            <!-- Platform Stats -->
+            <div class="col-md-4 mb-3">
+                <div class="card h-100">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0">Platform Overview</h5>
+                    </div>
+                    <div class="card-body">
+                        <ul class="list-unstyled">
+                            <li class="mb-2">New Users: <strong><%= analytics.platform.new_users %></strong></li>
+                            <li class="mb-2">New Merchants: <strong><%= analytics.platform.new_merchants %></strong></li>
+                            <li class="mb-2">Total Revenue: <strong>$<%= Number(analytics.platform.total_revenue || 0).toFixed(2) %></strong></li>
+                            <li class="mb-2">Total Links: <strong><%= analytics.platform.total_links || 0 %></strong></li>
+                            <li class="mb-2">Total Clicks: <strong><%= analytics.platform.total_clicks || 0 %></strong></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Users Stats -->
+            <div class="col-md-4 mb-3">
+                <div class="card h-100">
+                    <div class="card-header bg-success text-white">
+                        <h5 class="mb-0">Users Activity</h5>
+                    </div>
+                    <div class="card-body">
+                        <ul class="list-unstyled">
+                            <li class="mb-2">Active Users: <strong><%= analytics.users.total_users %></strong></li>
+                            <li class="mb-2">Shared Links: <strong><%= analytics.users.total_links %></strong></li>
+                            <li class="mb-2">Total Clicks: <strong><%= analytics.users.total_clicks %></strong></li>
+                            <li class="mb-2">Blog Posts: <strong><%= analytics.users.total_posts %></strong></li>
+                            <li class="mb-2">Total Views: <strong><%= analytics.users.total_views %></strong></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Merchants Stats -->
+            <div class="col-md-4 mb-3">
+                <div class="card h-100">
+                    <div class="card-header bg-info text-white">
+                        <h5 class="mb-0">Merchants Activity</h5>
+                    </div>
+                    <div class="card-body">
+                        <ul class="list-unstyled">
+                            <li class="mb-2">Active Merchants: <strong><%= analytics.merchants.total_merchants %></strong></li>
+                            <li class="mb-2">Products Listed: <strong><%= analytics.merchants.total_products %></strong></li>
+                            <li class="mb-2">Product Views: <strong><%= analytics.merchants.total_product_views %></strong></li>
+                            <li class="mb-2">Shared Links: <strong><%= analytics.merchants.total_links %></strong></li>
+                            <li class="mb-2">Total Clicks: <strong><%= analytics.merchants.total_clicks %></strong></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Stats Cards -->
+        <div class="row mb-4">
+            <div class="col-lg-2 col-md-4 col-sm-6 mb-3">
+                <div class="card bg-primary text-white h-100">
+                    <div class="card-body">
+                        <h6 class="card-title">Products</h6>
+                        <h3 class="display-6"><%= counts.products %></h3>
+                    </div>
+                    <div class="card-footer d-flex align-items-center justify-content-between">
+                        <a href="/admin/products" class="text-white text-decoration-none small">View Details</a>
+                        <div><i class="fas fa-angle-right"></i></div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-lg-2 col-md-4 col-sm-6 mb-3">
+                <div class="card bg-success text-white h-100">
+                    <div class="card-body">
+                        <h6 class="card-title">Links</h6>
+                        <h3 class="display-6"><%= counts.links %></h3>
+                    </div>
+                    <div class="card-footer d-flex align-items-center justify-content-between">
+                        <a href="/admin/links" class="text-white text-decoration-none small">View Details</a>
+                        <div><i class="fas fa-angle-right"></i></div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-lg-2 col-md-4 col-sm-6 mb-3">
+                <div class="card bg-warning text-dark h-100">
+                    <div class="card-body">
+                        <h6 class="card-title">Users</h6>
+                        <h3 class="display-6"><%= counts.users %></h3>
+                    </div>
+                    <div class="card-footer d-flex align-items-center justify-content-between">
+                        <a href="/admin/users" class="text-dark text-decoration-none small">View Details</a>
+                        <div><i class="fas fa-angle-right"></i></div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-lg-2 col-md-4 col-sm-6 mb-3">
+                <div class="card bg-info text-white h-100">
+                    <div class="card-body">
+                        <h6 class="card-title">Orders</h6>
+                        <h3 class="display-6"><%= counts.orders %></h3>
+                    </div>
+                    <div class="card-footer d-flex align-items-center justify-content-between">
+                        <a href="/admin/orders" class="text-white text-decoration-none small">View Details</a>
+                        <div><i class="fas fa-angle-right"></i></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-2 col-md-4 col-sm-6 mb-3">
+                <div class="card bg-purple text-white h-100" style="background-color: #6f42c1;">
+                    <div class="card-body">
+                        <h6 class="card-title">Blog Posts</h6>
+                        <h3 class="display-6"><%= counts.blogPosts %></h3>
+                    </div>
+                    <div class="card-footer d-flex align-items-center justify-content-between">
+                        <a href="/admin/blog-posts" class="text-white text-decoration-none small">View Details</a>
+                        <div><i class="fas fa-angle-right"></i></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-2 col-md-4 col-sm-6 mb-3">
+                <div class="card bg-dark text-white h-100">
+                    <div class="card-body">
+                        <h6 class="card-title">Banners</h6>
+                        <h3 class="display-6">-</h3>
+                    </div>
+                    <div class="card-footer d-flex align-items-center justify-content-between">
+                        <a href="/admin/banners" class="text-white text-decoration-none small">View Details</a>
+                        <div><i class="fas fa-angle-right"></i></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Quick Actions -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">Quick Actions</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-flex flex-wrap gap-2">
+                    <a href="/admin/products" class="btn btn-primary">Manage Products</a>
+                    <a href="/admin/links" class="btn btn-success">Manage Links</a>
+                    <a href="/admin/users" class="btn btn-warning text-dark">Manage Users</a>
+                    <a href="/admin/orders" class="btn btn-info text-white">Manage Orders</a>
+                    <a href="/admin/blog-posts" class="btn btn-purple" style="background-color: #6f42c1; color: white;">Manage Blog Posts</a>
+                    <a href="/admin/banners" class="btn btn-dark text-white">Manage Banners</a>
+                    <a href="/admin/performance" class="btn btn-danger">Performance Analytics</a>
+                    <a href="/admin/settings" class="btn btn-secondary">System Settings</a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row">
+            <!-- Recent Products -->
+            <div class="col-lg-4 col-md-6 mb-4">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">Recent Products</h5>
+                        <a href="/admin/products" class="btn btn-sm btn-outline-primary">View All</a>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>Merchant</th>
+                                        <th>Price</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <% recentProducts.forEach(product => { %>
+                                        <tr>
+                                            <td><a href="/admin/products/<%= product.id %>"><%= product.name %></a></td>
+                                            <td><%= product.merchant_name %></td>
+                                            <td>$<%= parseFloat(product.price).toFixed(4) %></td>
+                                            <td>
+                                                <span class="badge bg-<%= product.is_active ? 'success' : 'danger' %>">
+                                                    <%= product.is_active ? 'Active' : 'Inactive' %>
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    <% }) %>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Recent Links -->
+            <div class="col-lg-4 col-md-6 mb-4">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">Recent Links</h5>
+                        <a href="/admin/links" class="btn btn-sm btn-outline-success">View All</a>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Title</th>
+                                        <th>Merchant</th>
+                                        <th>Type</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <% recentLinks.forEach(link => { %>
+                                        <tr>
+                                            <td><a href="/admin/links/<%= link.id %>"><%= link.title %></a></td>
+                                            <td><%= link.merchant_name %></td>
+                                            <td><%= link.type %></td>
+                                            <td>
+                                                <span class="badge bg-<%= link.is_active ? 'success' : 'danger' %>">
+                                                    <%= link.is_active ? 'Active' : 'Inactive' %>
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    <% }) %>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Blog Posts -->
+            <div class="col-lg-4 col-md-12 mb-4">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">Recent Blog Posts</h5>
+                        <a href="/admin/blog-posts" class="btn btn-sm btn-outline-purple" style="color: #6f42c1; border-color: #6f42c1;">View All</a>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Title</th>
+                                        <th>Author</th>
+                                        <th>Status</th>
+                                        <th>Stats</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <% if (typeof recentBlogPosts !== 'undefined' && recentBlogPosts && recentBlogPosts.length > 0) { %>
+                                        <% recentBlogPosts.forEach(post => { %>
+                                            <tr>
+                                                <td>
+                                                    <a href="/admin/blog-posts/<%= post.id %>/edit">
+                                                        <%= post.title.length > 30 ? post.title.substring(0, 30) + '...' : post.title %>
+                                                    </a>
+                                                </td>
+                                                <td><%= post.author_name || 'Unknown' %></td>
+                                                <td>
+                                                    <span class="badge bg-<%= post.is_active ? 'success' : 'secondary' %>">
+                                                        <%= post.is_active ? 'Active' : 'Inactive' %>
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    <small class="text-muted">
+                                                        👁️ <%= post.total_clicks || 0 %> | 📤 <%= post.total_shares || 0 %>
+                                                    </small>
+                                                </td>
+                                            </tr>
+                                        <% }) %>
+                                    <% } else { %>
+                                        <tr>
+                                            <td colspan="4" class="text-center py-3 text-muted">
+                                                No blog posts yet
+                                                <br>
+                                                <a href="/admin/blog-posts/create" class="btn btn-sm btn-outline-primary mt-2">Create First Post</a>
+                                            </td>
+                                        </tr>
+                                    <% } %>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Leaderboard Section -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">🏆 Top Performers Leaderboard</h5>
+                        <a href="/admin/users" class="btn btn-sm btn-outline-primary">View All Users</a>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Rank</th>
+                                        <th>User</th>
+                                        <th>Referrals</th>
+                                        <th>Links Shared</th>
+                                        <th>Orders</th>
+                                        <th>Wallet</th>
+                                        <th>Earnings</th>
+                                        <th>Performance Score</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <% if (topPerformers && topPerformers.length > 0) { %>
+                                        <% topPerformers.forEach((performer, index) => { %>
+                                            <tr>
+                                                <td>
+                                                    <% if (index === 0) { %>
+                                                        <span class="badge bg-warning text-dark">🥇 #1</span>
+                                                    <% } else if (index === 1) { %>
+                                                        <span class="badge bg-secondary">🥈 #2</span>
+                                                    <% } else if (index === 2) { %>
+                                                        <span class="badge bg-dark">🥉 #3</span>
+                                                    <% } else { %>
+                                                        <span class="badge bg-light text-dark">#<%= index + 1 %></span>
+                                                    <% } %>
+                                                </td>
+                                                <td>
+                                                    <a href="/admin/users/<%= performer.id %>" class="text-decoration-none">
+                                                        <%= performer.username %>
+                                                    </a>
+                                                </td>
+                                                <td>
+                                                    <span class="badge bg-info">
+                                                        <%= performer.referral_count %>
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    <span class="badge bg-success">
+                                                        <%= performer.total_shared_links %>
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    <span class="badge bg-primary">
+                                                        <%= performer.total_orders %>
+                                                    </span>
+                                                </td>
+                                                <td>$<%= parseFloat(performer.wallet || 0).toFixed(4) %></td>
+                                                <td>$<%= parseFloat(performer.earnings || 0).toFixed(4) %></td>
+                                                <td>
+                                                    <span class="badge bg-dark">
+                                                        <%= Math.round(performer.performance_score) %>
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                        <% }) %>
+                                    <% } else { %>
+                                        <tr>
+                                            <td colspan="8" class="text-center py-3">No performance data available</td>
+                                        </tr>
+                                    <% } %>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Analytics Time Range Selection -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const timePeriod = document.getElementById('timePeriod');
+            const dateRangePicker = document.getElementById('dateRangePicker');
+            const startDate = document.getElementById('startDate');
+            const endDate = document.getElementById('endDate');
+
+            // Handle time period change
+            timePeriod.addEventListener('change', function() {
+                if (this.value === 'custom') {
+                    dateRangePicker.classList.remove('d-none');
+                } else {
+                    dateRangePicker.classList.add('d-none');
+                    updateDashboard(this.value);
+                }
+            });
+
+            // Handle date range changes
+            startDate.addEventListener('change', handleDateChange);
+            endDate.addEventListener('change', handleDateChange);
+
+            function handleDateChange() {
+                if (startDate.value && endDate.value) {
+                    updateDashboard('custom', startDate.value, endDate.value);
+                }
+            }
+
+            // Update dashboard with new time range
+            function updateDashboard(period, startDate = null, endDate = null) {
+                let url = '/admin/dashboard?period=' + period;
+                if (period === 'custom' && startDate && endDate) {
+                    url += '&startDate=' + startDate + '&endDate=' + endDate;
+                }
+                window.location.href = url;
+            }
+        });
+    </script>
+
+    <%- include('../partials/footer') %>
+</body>
+</html>

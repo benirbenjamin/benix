@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Your Referrals - BenixSpace</title>
+  <link rel="icon" href="/static/img/favicon.png" type="image/png" />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    .gradient-header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      border-radius: 10px;
+      color: white;
+    }
+    .referral-link-card {
+      background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+      border-radius: 15px;
+      border: none;
+      box-shadow: 0 10px 30px rgba(240, 147, 251, 0.3);
+    }
+    .stats-card {
+      border-radius: 15px;
+      border: none;
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+      height: 100%;
+    }
+    .stats-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+    }
+    .level-badge {
+      font-size: 0.9rem;
+      padding: 0.5rem 1rem;
+      border-radius: 25px;
+    }
+    .commission-card {
+      border-radius: 15px;
+      border: 2px solid;
+      transition: all 0.3s ease;
+    }
+    .commission-card:hover {
+      transform: scale(1.02);
+    }
+    .level1-card {
+      border-color: #0d6efd;
+      background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+    }
+    .level2-card {
+      border-color: #6c757d;
+      background: linear-gradient(135deg, #f5f5f5 0%, #e0e0e0 100%);
+    }
+    .copy-success {
+      animation: copyPulse 0.6s ease;
+    }
+    @keyframes copyPulse {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+      100% { transform: scale(1); }
+    }
+  </style>
+</head>
+<body class="bg-light">
+
+<%- include('../partials/navbar') %>
+
+<div class="container mt-4">
+  <!-- Hero Header -->
+  <div class="row mb-4">
+    <div class="col-12">
+      <div class="card gradient-header">
+        <div class="card-body text-center py-5">
+          <h1 class="display-4 mb-3">
+            <i class="fas fa-users me-3"></i>Your Referral Network
+          </h1>
+          <p class="lead mb-0">Build your network and earn commissions with our 2-level system</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Referral Link Prominently Displayed -->
+  <div class="row mb-4">
+    <div class="col-12">
+      <div class="card referral-link-card">
+        <div class="card-body text-center py-4">
+          <h3 class="text-white mb-3">
+            <i class="fas fa-link me-2"></i>Your Referral Link
+          </h3>
+          <div class="row justify-content-center">
+            <div class="col-lg-8">
+              <div class="input-group mb-3">
+                <input type="text" class="form-control form-control-lg text-center fw-bold" 
+                       id="referralLink" value="<%= referralStats.referralLink %>" readonly>
+                <button class="btn btn-light btn-lg px-4" type="button" onclick="copyReferralLink()">
+                  <i class="fas fa-copy me-2"></i>Copy Link
+                </button>
+              </div>
+              <div class="d-flex justify-content-center flex-wrap gap-2">
+                <a href="https://wa.me/?text=<%= encodeURIComponent('🚀 Join BenixSpace and start earning! Use my referral link: ' + referralStats.referralLink) %>" 
+                   class="btn btn-success" target="_blank">
+                  <i class="fab fa-whatsapp me-2"></i>WhatsApp
+                </a>
+                <a href="https://www.facebook.com/sharer/sharer.php?u=<%= encodeURIComponent(referralStats.referralLink) %>" 
+                   class="btn btn-primary" target="_blank">
+                  <i class="fab fa-facebook me-2"></i>Facebook
+                </a>
+                <a href="https://twitter.com/intent/tweet?text=<%= encodeURIComponent('🚀 Join BenixSpace and start earning! Use my referral link: ' + referralStats.referralLink) %>" 
+                   class="btn btn-info" target="_blank">
+                  <i class="fab fa-twitter me-2"></i>Twitter
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stats Overview -->
+  <div class="row mb-4">
+    <div class="col-lg-3 col-md-6 mb-3">
+      <div class="card stats-card shadow-sm">
+        <div class="card-body text-center">
+          <i class="fas fa-users text-primary mb-3" style="font-size: 2.5rem;"></i>
+          <h3 class="text-primary mb-1"><%= referralStats.totalReferrals %></h3>
+          <p class="text-muted mb-0">Total Referrals</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-3 col-md-6 mb-3">
+      <div class="card stats-card shadow-sm">
+        <div class="card-body text-center">
+          <i class="fas fa-user-plus text-success mb-3" style="font-size: 2.5rem;"></i>
+          <h3 class="text-success mb-1"><%= referralStats.level1Count %></h3>
+          <p class="text-muted mb-0">Level 1 Referrals</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-3 col-md-6 mb-3">
+      <div class="card stats-card shadow-sm">
+        <div class="card-body text-center">
+          <i class="fas fa-network-wired text-info mb-3" style="font-size: 2.5rem;"></i>
+          <h3 class="text-info mb-1"><%= referralStats.level2Count %></h3>
+          <p class="text-muted mb-0">Level 2 Referrals</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-3 col-md-6 mb-3">
+      <div class="card stats-card shadow-sm">
+        <div class="card-body text-center">
+          <i class="fas fa-money-bill-wave text-warning mb-3" style="font-size: 2.5rem;"></i>
+          <h3 class="text-warning mb-1">$<%= parseFloat(referralStats.totalEarnings).toFixed(4) %></h3>
+          <p class="text-muted mb-0">Total Earnings</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  
+  <!-- Level 1 Referrals Table -->
+  <div class="row mb-4">
+    <div class="col-12">
+      <div class="card shadow-sm">
+        <div class="card-header bg-primary text-white">
+          <h5 class="mb-0">
+            <i class="fas fa-user-plus me-2"></i>Level 1 Referrals 
+            <span class="badge bg-light text-primary ms-2"><%= referralStats.level1Count %></span>
+          </h5>
+        </div>
+        <div class="card-body">
+          <% if (referralStats.level1Referrals && referralStats.level1Referrals.length > 0) { %>
+            <div class="table-responsive">
+              <table class="table table-striped table-hover">
+                <thead class="table-light">
+                  <tr>
+                    <th><i class="fas fa-user me-2"></i>Username</th>
+                    <th><i class="fas fa-envelope me-2"></i>Email</th>
+                    <th><i class="fas fa-calendar me-2"></i>Joined Date</th>
+                    <th><i class="fas fa-check-circle me-2"></i>Status</th>
+                    <th><i class="fas fa-money-bill me-2"></i>Commission</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <% referralStats.level1Referrals.forEach(user => { %>
+                    <tr>
+                      <td>
+                        <i class="fas fa-user-circle text-primary me-2"></i>
+                        <strong><%= user.username %></strong>
+                      </td>
+                      <td><%= user.email %></td>
+                      <td><%= new Date(user.created_at).toLocaleDateString() %></td>
+                      <td>
+                        <% if (user.status === 'active' && user.activation_paid) { %>
+                          <span class="badge bg-success level-badge">
+                            <i class="fas fa-check me-1"></i>Activated
+                          </span>
+                        <% } else { %>
+                          <span class="badge bg-warning level-badge">
+                            <i class="fas fa-clock me-1"></i>Pending Activation
+                          </span>
+                        <% } %>
+                      </td>
+                      <td>
+                        <% if (user.commission_earned) { %>
+                          <div class="text-success">
+                            <strong>✅ <%= user.commission_earned %> RWF</strong>
+                            <small class="d-block text-muted">
+                              Earned: <%= new Date(user.commission_date).toLocaleDateString() %>
+                            </small>
+                          </div>
+                        <% } else { %>
+                          <span class="text-muted">
+                            <i class="fas fa-hourglass-half me-1"></i>Pending
+                          </span>
+                        <% } %>
+                      </td>
+                    </tr>
+                  <% }); %>
+                </tbody>
+              </table>
+            </div>
+          <% } else { %>
+            <div class="text-center py-4">
+              <i class="fas fa-user-plus text-muted mb-3" style="font-size: 3rem;"></i>
+              <h5 class="text-muted">No Level 1 Referrals Yet</h5>
+              <p class="text-muted">Share your referral link to start earning per direct referral!</p>
+            </div>
+          <% } %>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Level 2 Referrals Table -->
+  <div class="row mb-4">
+    <div class="col-12">
+      <div class="card shadow-sm">
+        <div class="card-header bg-secondary text-white">
+          <h5 class="mb-0">
+            <i class="fas fa-network-wired me-2"></i>Level 2 Referrals 
+            <span class="badge bg-light text-secondary ms-2"><%= referralStats.level2Count %></span>
+          </h5>
+        </div>
+        <div class="card-body">
+          <% if (referralStats.level2Referrals && referralStats.level2Referrals.length > 0) { %>
+            <div class="table-responsive">
+              <table class="table table-striped table-hover">
+                <thead class="table-light">
+                  <tr>
+                    <th><i class="fas fa-user me-2"></i>Username</th>
+                    <th><i class="fas fa-envelope me-2"></i>Email</th>
+                    <th><i class="fas fa-user-friends me-2"></i>Referred By</th>
+                    <th><i class="fas fa-calendar me-2"></i>Joined Date</th>
+                    <th><i class="fas fa-check-circle me-2"></i>Status</th>
+                    <th><i class="fas fa-money-bill me-2"></i>Commission</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <% referralStats.level2Referrals.forEach(user => { %>
+                    <tr>
+                      <td>
+                        <i class="fas fa-user-circle text-secondary me-2"></i>
+                        <strong><%= user.username %></strong>
+                      </td>
+                      <td><%= user.email %></td>
+                      <td>
+                        <span class="badge bg-primary">
+                          <i class="fas fa-user me-1"></i><%= user.referrer_username %>
+                        </span>
+                      </td>
+                      <td><%= new Date(user.created_at).toLocaleDateString() %></td>
+                      <td>
+                        <% if (user.status === 'active' && user.activation_paid) { %>
+                          <span class="badge bg-success level-badge">
+                            <i class="fas fa-check me-1"></i>Activated
+                          </span>
+                        <% } else { %>
+                          <span class="badge bg-warning level-badge">
+                            <i class="fas fa-clock me-1"></i>Pending Activation
+                          </span>
+                        <% } %>
+                      </td>
+                      <td>
+                        <% if (user.commission_earned) { %>
+                          <div class="text-success">
+                            <strong>✅ <%= user.commission_earned %> RWF</strong>
+                            <small class="d-block text-muted">
+                              Earned: <%= new Date(user.commission_date).toLocaleDateString() %>
+                            </small>
+                          </div>
+                        <% } else { %>
+                          <span class="text-muted">
+                            <i class="fas fa-hourglass-half me-1"></i>Pending
+                          </span>
+                        <% } %>
+                      </td>
+                    </tr>
+                  <% }); %>
+                </tbody>
+              </table>
+            </div>
+          <% } else { %>
+            <div class="text-center py-4">
+              <i class="fas fa-network-wired text-muted mb-3" style="font-size: 3rem;"></i>
+              <h5 class="text-muted">No Level 2 Referrals Yet</h5>
+              <p class="text-muted">Earn when your Level 1 referrals refer others!</p>
+            </div>
+          <% } %>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Quick Start Guide -->
+  <% if (referralStats.totalReferrals === 0) { %>
+  <div class="row mb-4">
+    <div class="col-12">
+      <div class="card shadow-sm border-success">
+        <div class="card-header bg-success text-white">
+          <h5 class="mb-0"><i class="fas fa-rocket me-2"></i>Start Building Your Network Today!</h5>
+        </div>
+        <div class="card-body">
+          <div class="row">
+            <div class="col-md-8">
+              <h6 class="text-success mb-3">Quick Start Guide:</h6>
+              <ol class="mb-3">
+                <li><strong>Copy your referral link</strong> from the card above</li>
+                <li><strong>Share it with friends</strong> on social media or directly</li>
+                <li><strong>Earn when they activate their account</li>
+                <li><strong>Earn  when they refer others</li>
+              </ol>
+              <div class="alert alert-info">
+                <i class="fas fa-lightbulb me-2"></i>
+                <strong>Pro Tip:</strong> The more active your referrals are, the more you can earn from the 2-level system!
+              </div>
+            </div>
+            <div class="col-md-4 text-center">
+              <button class="btn btn-success btn-lg" onclick="copyReferralLink()">
+                <i class="fas fa-copy me-2"></i>Copy Link & Start Earning
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <% } %>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+function copyReferralLink() {
+  const referralLinkInput = document.getElementById('referralLink');
+  referralLinkInput.select();
+  referralLinkInput.setSelectionRange(0, 99999); // For mobile devices
+  
+  try {
+    document.execCommand('copy');
+    
+    // Visual feedback
+    const button = event.currentTarget;
+    const originalText = button.innerHTML;
+    button.innerHTML = '<i class="fas fa-check me-2"></i>Copied!';
+    button.classList.add('copy-success');
+    
+    // Find all copy buttons and update them
+    const allCopyButtons = document.querySelectorAll('button[onclick="copyReferralLink()"]');
+    allCopyButtons.forEach(btn => {
+      if (btn !== button) {
+        btn.innerHTML = '<i class="fas fa-check me-2"></i>Copied!';
+        btn.classList.add('copy-success');
+      }
+    });
+    
+    setTimeout(() => {
+      allCopyButtons.forEach(btn => {
+        if (btn === button) {
+          btn.innerHTML = '<i class="fas fa-copy me-2"></i>Copy Link';
+        } else {
+          btn.innerHTML = '<i class="fas fa-copy me-2"></i>Copy My Link & Start Earning';
+        }
+        btn.classList.remove('copy-success');
+      });
+    }, 2000);
+    
+    // Show success toast
+    showToast('Referral link copied to clipboard!', 'success');
+  } catch (err) {
+    showToast('Failed to copy link. Please try again.', 'error');
+  }
+}
+
+function showToast(message, type) {
+  // Create toast element
+  const toast = document.createElement('div');
+  toast.className = `alert alert-${type === 'success' ? 'success' : 'danger'} position-fixed`;
+  toast.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+  toast.innerHTML = `
+    <i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-circle'} me-2"></i>
+    ${message}
+  `;
+  
+  document.body.appendChild(toast);
+  
+  // Remove toast after 3 seconds
+  setTimeout(() => {
+    toast.remove();
+  }, 3000);
+}
+</script>
+
+<%- include('../partials/footer') %>
+</body>
+</html>

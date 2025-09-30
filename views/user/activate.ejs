@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Activate Your Account - BenixSpace</title>
+  <link rel="icon" href="/static/img/favicon.png" type="image/png" />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-light">
+  <%- include('../partials/navbar') %>
+
+  <div class="container mt-4">
+    <div class="row justify-content-center">
+      <div class="col-md-8">
+        <% if (locals.successMessage) { %>
+          <div class="alert alert-success alert-dismissible fade show">
+            <%= successMessage %>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+          </div>
+        <% } %>
+        <% if (locals.errorMessage) { %>
+          <div class="alert alert-danger alert-dismissible fade show">
+            <%= errorMessage %>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+          </div>
+        <% } %>
+
+        <!-- Account Status -->
+        <div class="card shadow mb-4">
+          <div class="card-header bg-warning text-dark">
+            <h4 class="mb-0"><i class="fas fa-exclamation-triangle"></i> Account Activation Required</h4>
+          </div>
+          <div class="card-body">
+            <div class="row align-items-center">
+              <div class="col-md-8">
+                <h5>Welcome, <%= user.username %>!</h5>
+                <p class="mb-0">Your account is currently <strong class="text-warning">pending activation</strong>. 
+                   To access all features and start earning commissions, you need to activate your account by paying the activation fee.</p>
+              </div>
+              <div class="col-md-4 text-center">
+                <i class="fas fa-user-clock fa-4x text-warning"></i>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Activation Payment -->
+        <div class="card shadow">
+          <div class="card-header bg-success text-white">
+            <h4 class="mb-0"><i class="fas fa-credit-card"></i> Activate Your Account</h4>
+          </div>
+          <div class="card-body">
+            <!-- Payment Method Selection -->
+            <div class="mb-4">
+              <h5 class="mb-3">Choose Payment Method</h5>
+              <div class="row">
+                <div class="col-md-6">
+                  <div class="card payment-method-card" data-method="automatic">
+                    <div class="card-body text-center">
+                      <i class="fas fa-bolt fa-3x text-success mb-3"></i>
+                      <h5 class="card-title">Automatic Payment</h5>
+                      <p class="card-text">Quick and secure payment with Flutterwave</p>
+                      <span class="badge bg-success">Instant Activation</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-md-6">
+                  <div class="card payment-method-card" data-method="manual">
+                    <div class="card-body text-center">
+                      <i class="fas fa-university fa-3x text-info mb-3"></i>
+                      <h5 class="card-title">Manual Payment</h5>
+                      <p class="card-text">Bank transfer or mobile money</p>
+                      <span class="badge bg-info">Admin Approval Required</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="row">
+              <div class="col-md-6">
+                <h5 class="mb-3">Payment Details</h5>
+                
+                <!-- Currency Selection -->
+                <div class="mb-3">
+                  <label for="currency" class="form-label">Select Currency</label>
+                  <select class="form-select" id="currency" name="currency" required>
+                    <% supportedCurrencies.forEach(currency => { 
+                      let amount = typeof fees === 'object' && fees[currency] ? Number(fees[currency]) : 0;
+                      if (isNaN(amount)) {
+                        amount = currency === 'RWF' ? activationFeeRwf : 0;
+                      }
+                    %>
+                      <option value="<%= currency %>" data-amount="<%= amount %>">
+                        <%= currency %> - 
+                        <% if (currency === 'RWF') { %>Rwandan Franc<% } %>
+                        <% if (currency === 'USD') { %>US Dollar<% } %>
+                        <% if (currency === 'UGX') { %>Ugandan Shilling<% } %>
+                        <% if (currency === 'KES') { %>Kenyan Shilling<% } %>
+                        <% if (currency === 'EUR') { %>Euro<% } %>
+                        <% if (currency === 'GBP') { %>British Pound<% } %>
+                        (<%= amount.toLocaleString() %> <%= currency %>)
+                      </option>
+                    <% }); %>
+                  </select>
+                </div>
+
+                <div class="mb-3">
+                  <label for="amount" class="form-label">Activation Fee</label>
+                  <div class="input-group">
+                    <span class="input-group-text" id="currencySymbol">RWF</span>
+                    <input type="number" class="form-control" id="amount" name="amount" 
+                           value="<%= typeof fees === 'object' && fees[supportedCurrencies[0]] ? Number(fees[supportedCurrencies[0]]) : activationFeeRwf %>" readonly>
+                  </div>
+                  <small class="text-muted">Base fee: <%= activationFeeRwf %> RWF (converted using live exchange rates)</small>
+                </div>
+
+                <!-- Automatic Payment Form -->
+                <div id="automaticPaymentSection">
+                  <form id="activationForm">
+                    <div class="d-grid">
+                      <button type="submit" class="btn btn-success btn-lg" id="payButton">
+                        <i class="fas fa-credit-card"></i> Pay with Flutterwave
+                      </button>
+                    </div>
+                  </form>
+                </div>
+
+                <!-- Manual Payment Section -->
+                <div id="manualPaymentSection" style="display: none;">
+                  <div class="alert alert-info">
+                    <h6><i class="fas fa-info-circle"></i> Manual Payment Instructions</h6>
+                    <p class="mb-2"><%= locals.manualPaymentInstructions || 'Please transfer the amount to our account and upload a screenshot/receipt as proof of payment.' %></p>
+                    
+                    <% if (locals.manualPaymentScreenshot) { %>
+                    <div class="text-center mb-3">
+                      <img src="<%= manualPaymentScreenshot %>" 
+                           alt="Payment Instructions" 
+                           class="img-fluid border rounded shadow-sm" 
+                           style="max-width: 100%; max-height: 300px; cursor: pointer;" 
+                           onclick="window.open('<%= manualPaymentScreenshot %>', '_blank')">
+                      <br>
+                      <small class="text-muted">Click image to view full size</small>
+                    </div>
+                    <% } %>
+                    
+                    <hr>
+                    <strong>Payment Details:</strong><br>
+                    <% if (locals.manualPaymentBankName) { %><strong>Bank:</strong> <%= manualPaymentBankName %><br><% } %>
+                    <% if (locals.manualPaymentAccountName) { %><strong>Account Name:</strong> <%= manualPaymentAccountName %><br><% } %>
+                    <% if (locals.manualPaymentAccountNumber) { %><strong>Account Number:</strong> <%= manualPaymentAccountNumber %><br><% } %>
+                    <% if (locals.manualPaymentSwiftCode) { %><strong>SWIFT/BIC:</strong> <%= manualPaymentSwiftCode %><br><% } %>
+                  </div>
+                  
+                  <div class="d-grid">
+                    <button type="button" class="btn btn-info btn-lg" id="confirmManualPaymentBtn">
+                      <i class="fas fa-check"></i> I Have Made the Payment
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="col-md-6">
+                <h5 class="mb-3">What You Get After Activation</h5>
+                <div class="list-group">
+                  <div class="list-group-item">
+                    <i class="fas fa-check text-success me-2"></i>
+                    <strong>Full Platform Access</strong><br>
+                    <small class="text-muted">Access all features and services</small>
+                  </div>
+                  <div class="list-group-item">
+                    <i class="fas fa-users text-success me-2"></i>
+                    <strong>Referral Earnings</strong><br>
+                    <small class="text-muted">Earn commissions when you refer others</small>
+                  </div>
+                  <div class="list-group-item">
+                    <i class="fas fa-shopping-cart text-success me-2"></i>
+                    <strong>Product Purchases</strong><br>
+                    <small class="text-muted">Buy products and earn from referrals</small>
+                  </div>
+                  <div class="list-group-item">
+                    <i class="fas fa-link text-success me-2"></i>
+                    <strong>Link Sharing</strong><br>
+                    <small class="text-muted">Share links and earn from clicks</small>
+                  </div>
+                  <div class="list-group-item">
+                    <i class="fas fa-wallet text-success me-2"></i>
+                    <strong>Wallet System</strong><br>
+                    <small class="text-muted">Track your earnings and withdrawals</small>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Commission Structure -->
+        <div class="card mt-4 shadow">
+          <div class="card-header bg-info text-white">
+            <h5 class="mb-0"><i class="fas fa-sitemap"></i> Referral Commission Structure</h5>
+          </div>
+          <div class="card-body">
+            <div class="row text-center">
+              <div class="col-md-6">
+                <div class="card border-success">
+                  <div class="card-body">
+                    <h4 class="text-success">Level 1</h4>
+                    <h3>
+                      <% if (typeof fees === 'object' && fees.RWF && !isNaN(fees.RWF)) { %>
+                        <%= Number(fees.RWF * 0.5).toLocaleString() %> RWF
+                      <% } else { %>
+                        <%= Number(activationFeeRwf * 0.5).toLocaleString() %> RWF
+                      <% } %>
+                    </h3>
+                    <p class="text-muted">When someone you refer directly activates their account</p>
+                  </div>
+                </div>
+              </div>
+              <div class="col-md-6">
+                <div class="card border-warning">
+                  <div class="card-body">
+                    <h4 class="text-warning">Level 2</h4>
+                    <h3>
+                      <% if (typeof fees === 'object' && fees.RWF && !isNaN(fees.RWF)) { %>
+                        <%= Number(fees.RWF * 0.167).toLocaleString() %> RWF
+                      <% } else { %>
+                        <%= Number(activationFeeRwf * 0.167).toLocaleString() %> RWF
+                      <% } %>
+                    </h3>
+                    <p class="text-muted">When someone your referrals refer activates their account</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="text-center mt-3">
+              <small class="text-muted">Start earning by sharing your referral link: 
+                <strong><%= protocol %>://<%= host %>/register?ref=<%= user.referral_id %></strong>
+              </small>
+            </div>
+          </div>
+        </div>
+
+        <!-- Support -->
+        <div class="card mt-4 shadow">
+          <div class="card-header bg-secondary text-white">
+            <h5 class="mb-0"><i class="fas fa-question-circle"></i> Need Help?</h5>
+          </div>
+          <div class="card-body">
+            <p>If you're having trouble with the payment process or have any questions, please contact our support team:</p>
+            <div class="row">
+              <div class="col-md-6">
+                <p><i class="fas fa-envelope"></i> <strong>Email:</strong>benirabok@gmail.com</p>
+              </div>
+              <div class="col-md-6">
+                <p><i class="fas fa-phone"></i> <strong>Phone:</strong> +250 783987223 </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <%- include('../partials/footer') %>
+
+  <!-- Manual Payment Modal -->
+  <div class="modal fade" id="manualPaymentModal" tabindex="-1" aria-labelledby="manualPaymentModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="manualPaymentModalLabel">
+            <i class="fas fa-upload"></i> Confirm Manual Payment
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <form id="manualPaymentForm" enctype="multipart/form-data">
+          <div class="modal-body">
+            <div class="alert alert-info">
+              <i class="fas fa-info-circle"></i>
+              Please provide the following information to confirm your payment:
+            </div>
+            
+            <div class="row">
+              <div class="col-md-6">
+                <div class="mb-3">
+                  <label for="accountName" class="form-label">Account Name Used for Payment *</label>
+                  <input type="text" class="form-control" id="accountName" name="accountName" required>
+                  <small class="text-muted">Name on the account you used to send payment</small>
+                </div>
+              </div>
+              <div class="col-md-6">
+                <div class="mb-3">
+                  <label for="paymentPhone" class="form-label">Phone Number</label>
+                  <input type="tel" class="form-control" id="paymentPhone" name="paymentPhone">
+                  <small class="text-muted">Phone number used for mobile money (optional)</small>
+                </div>
+              </div>
+            </div>
+            
+            <div class="mb-3">
+              <label for="paymentAccountNumber" class="form-label">Account/Reference Number</label>
+              <input type="text" class="form-control" id="paymentAccountNumber" name="paymentAccountNumber">
+              <small class="text-muted">Account number or transaction reference (optional)</small>
+            </div>
+            
+            <div class="mb-3">
+              <label for="paymentScreenshot" class="form-label">Payment Screenshot/Receipt *</label>
+              <input type="file" class="form-control" id="paymentScreenshot" name="paymentScreenshot" 
+                     accept="image/*,.pdf" required>
+              <small class="text-muted">Upload a screenshot or receipt of your payment (JPG, PNG, or PDF). This will be sent to admin via WhatsApp for verification.</small>
+            </div>
+            
+            <div class="alert alert-warning">
+              <i class="fas fa-whatsapp"></i>
+              <strong>WhatsApp Notification:</strong> After submitting, you'll be redirected to WhatsApp to send your payment details directly to our admin for quick verification. 
+              You will be notified once your payment is approved and your account is activated.
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" class="btn btn-success" id="submitManualPayment">
+              <i class="fab fa-whatsapp"></i> Submit & Send to Admin via WhatsApp
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    const fees = <%- JSON.stringify(fees) %>;
+    let selectedPaymentMethod = 'automatic'; // Default to automatic
+    
+    // Payment method selection
+    document.querySelectorAll('.payment-method-card').forEach(card => {
+      card.addEventListener('click', function() {
+        const method = this.dataset.method;
+        
+        // Remove active class from all cards
+        document.querySelectorAll('.payment-method-card').forEach(c => {
+          c.classList.remove('border-primary', 'bg-light');
+        });
+        
+        // Add active class to selected card
+        this.classList.add('border-primary', 'bg-light');
+        
+        // Update selected method
+        selectedPaymentMethod = method;
+        
+        // Show/hide appropriate payment sections
+        if (method === 'automatic') {
+          document.getElementById('automaticPaymentSection').style.display = 'block';
+          document.getElementById('manualPaymentSection').style.display = 'none';
+        } else {
+          document.getElementById('automaticPaymentSection').style.display = 'none';
+          document.getElementById('manualPaymentSection').style.display = 'block';
+        }
+      });
+    });
+    
+    // Set default selection
+    document.querySelector('[data-method="automatic"]').click();
+    
+    // Update amount when currency changes
+    document.getElementById('currency').addEventListener('change', function() {
+      const selectedCurrency = this.value;
+      const amount = fees[selectedCurrency];
+      
+      document.getElementById('amount').value = amount;
+      document.getElementById('currencySymbol').textContent = selectedCurrency;
+    });
+
+    // Handle automatic payment form submission
+    document.getElementById('activationForm').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      
+      const payButton = document.getElementById('payButton');
+      const originalText = payButton.innerHTML;
+      
+      // Get form values
+      const currencyElement = document.getElementById('currency');
+      const amountElement = document.getElementById('amount');
+      const currency = currencyElement.value;
+      const amount = amountElement.value;
+      
+      console.log('Form submission - Currency:', currency, 'Amount:', amount);
+      
+      // Validate data before sending
+      if (!currency || !amount) {
+        alert('Please select a currency and ensure amount is set');
+        return;
+      }
+      
+      // Show loading state
+      payButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+      payButton.disabled = true;
+      
+      try {
+        // Send as JSON instead of FormData
+        const response = await fetch('/user/activate/payment', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            currency: currency,
+            amount: amount,
+            payment_type: 'automatic'
+          })
+        });
+        
+        const result = await response.json();
+        console.log('Server response:', result);
+        
+        if (result.success) {
+          // Redirect to Flutterwave payment page
+          window.location.href = result.payment_link;
+        } else {
+          alert('Error: ' + (result.error || 'Payment creation failed'));
+          // Reset button
+          payButton.innerHTML = originalText;
+          payButton.disabled = false;
+        }
+      } catch (error) {
+        console.error('Payment error:', error);
+        alert('An error occurred. Please try again.');
+        // Reset button
+        payButton.innerHTML = originalText;
+        payButton.disabled = false;
+      }
+    });
+    
+    // Handle manual payment confirmation button
+    document.getElementById('confirmManualPaymentBtn').addEventListener('click', function() {
+      const modal = new bootstrap.Modal(document.getElementById('manualPaymentModal'));
+      modal.show();
+    });
+    
+    // Handle manual payment form submission
+    document.getElementById('manualPaymentForm').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      
+      const submitBtn = document.getElementById('submitManualPayment');
+      const originalText = submitBtn.innerHTML;
+      
+      // Show loading state
+      submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Submitting...';
+      submitBtn.disabled = true;
+      
+      try {
+        const formData = new FormData(this);
+        
+        // Add payment details
+        formData.append('currency', document.getElementById('currency').value);
+        formData.append('amount', document.getElementById('amount').value);
+        formData.append('payment_type', 'manual');
+        
+        const response = await fetch('/user/activate/manual-payment', {
+          method: 'POST',
+          body: formData
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+          // Close modal
+          const modal = bootstrap.Modal.getInstance(document.getElementById('manualPaymentModal'));
+          modal.hide();
+          
+          if (result.redirectToWhatsApp && result.whatsappUrl) {
+            // Show redirect message and open WhatsApp
+            const alertDiv = document.createElement('div');
+            alertDiv.className = 'alert alert-info alert-dismissible fade show';
+            alertDiv.innerHTML = `
+              <i class="fab fa-whatsapp"></i> <strong>Payment details saved!</strong> 
+              Opening WhatsApp to send details to admin. Please send the message to complete your submission.
+              <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            
+            document.querySelector('.container .col-md-8').insertBefore(alertDiv, document.querySelector('.card'));
+            
+            // Open WhatsApp in new tab/window
+            setTimeout(() => {
+              window.open(result.whatsappUrl, '_blank');
+            }, 1000);
+            
+            // Show follow-up message after WhatsApp opens
+            setTimeout(() => {
+              const followUpDiv = document.createElement('div');
+              followUpDiv.className = 'alert alert-success alert-dismissible fade show';
+              followUpDiv.innerHTML = `
+                <i class="fas fa-check-circle"></i> <strong>Next Step:</strong> 
+                Send the WhatsApp message to admin for verification. You'll be notified once your payment is approved.
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+              `;
+              
+              document.querySelector('.container .col-md-8').insertBefore(followUpDiv, document.querySelector('.card'));
+            }, 3000);
+          } else {
+            // Fallback success message
+            const alertDiv = document.createElement('div');
+            alertDiv.className = 'alert alert-success alert-dismissible fade show';
+            alertDiv.innerHTML = `
+              <i class="fas fa-check-circle"></i> Payment details submitted successfully! 
+              You will receive a notification once your payment is verified and approved.
+              <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            
+            document.querySelector('.container .col-md-8').insertBefore(alertDiv, document.querySelector('.card'));
+          }
+          
+          // Scroll to top to show alerts
+          window.scrollTo(0, 0);
+        } else {
+          alert('Error: ' + (result.error || 'Submission failed'));
+        }
+      } catch (error) {
+        console.error('Manual payment error:', error);
+        alert('An error occurred. Please try again.');
+      } finally {
+        // Reset button
+        submitBtn.innerHTML = originalText;
+        submitBtn.disabled = false;
+      }
+    });
+  </script>
+
+  <style>
+    .payment-method-card {
+      cursor: pointer;
+      transition: all 0.3s ease;
+      border: 2px solid #dee2e6;
+    }
+    
+    .payment-method-card:hover {
+      border-color: #007bff;
+      box-shadow: 0 4px 8px rgba(0,123,255,0.2);
+    }
+    
+    .payment-method-card.border-primary {
+      border-color: #007bff !important;
+      box-shadow: 0 4px 12px rgba(0,123,255,0.3);
+    }
+  </style>
+</body>
+</html>

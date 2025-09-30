@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Banner Analytics - <%= banner.title %></title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      background-color: #f8f9fa;
+    }
+    .stats-card {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border-radius: 10px;
+    }
+    .banner-preview {
+      max-width: 200px;
+      max-height: 100px;
+      object-fit: cover;
+      border-radius: 5px;
+    }
+    .chart-container {
+      background: white;
+      border-radius: 10px;
+      padding: 20px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    #logConsole {
+      background: #1e1e1e;
+      color: #00ff00;
+      font-family: monospace;
+      padding: 10px;
+      border-radius: 5px;
+      height: 200px;
+      overflow-y: auto;
+      margin: 20px 0;
+    }
+    .log-entry {
+      margin: 5px 0;
+      border-bottom: 1px solid #333;
+      padding-bottom: 5px;
+    }
+    .log-error {
+      color: #ff4444;
+    }
+    .log-info {
+      color: #00ff00;
+    }
+    .log-warning {
+      color: #ffbb33;
+    }
+  </style>
+</head>
+<body>
+  <!-- Debug Console -->
+  <div class="container-fluid mb-4">
+    <div class="row">
+      <div class="col-12">
+        <div class="card">
+          <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Debug Console</h5>
+            <button class="btn btn-sm btn-outline-danger" onclick="clearLogs()">Clear Logs</button>
+          </div>
+          <div class="card-body">
+            <div id="logConsole"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="container-fluid">
+    <div class="row">
+      <!-- Sidebar -->
+      <div class="col-md-2 bg-dark text-white min-vh-100 p-3">
+        <h5><i class="fas fa-shield-alt me-2"></i>Admin Panel</h5>
+        <ul class="nav flex-column mt-4">
+          <li class="nav-item">
+            <a class="nav-link text-white" href="/admin/dashboard">
+              <i class="fas fa-tachometer-alt me-2"></i>Dashboard
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link text-white" href="/admin/users">
+              <i class="fas fa-users me-2"></i>Users
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link text-white" href="/admin/links">
+              <i class="fas fa-link me-2"></i>Links
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link text-white" href="/admin/products">
+              <i class="fas fa-box me-2"></i>Products
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link text-white-50 active bg-primary rounded" href="/admin/banners">
+              <i class="fas fa-ad me-2"></i>Ad Banners
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link text-white" href="/admin/transactions">
+              <i class="fas fa-credit-card me-2"></i>Transactions
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link text-white" href="/admin/settings">
+              <i class="fas fa-cog me-2"></i>Settings
+            </a>
+          </li>
+        </ul>
+      </div>
+
+      <!-- Main Content -->
+      <div class="col-md-10">
+        <div class="container-fluid py-4">
+          <!-- Header -->
+          <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+              <h2><i class="fas fa-chart-bar me-3"></i>Banner Analytics</h2>
+              <p class="text-muted"><%= banner.title %></p>
+            </div>
+            <div>
+              <a href="/admin/banners/<%= banner.id %>/edit" class="btn btn-outline-primary me-2">
+                <i class="fas fa-edit me-2"></i>Edit Banner
+              </a>
+              <a href="/admin/banners" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-2"></i>Back to Banners
+              </a>
+            </div>
+          </div>
+
+          <!-- Banner Info -->
+          <div class="card mb-4">
+            <div class="card-body">
+              <div class="row align-items-center">
+                <div class="col-md-3">
+                  <img src="<%= banner.image_url %>" alt="Banner" class="banner-preview">
+                </div>
+                <div class="col-md-6">
+                  <h5><%= banner.title %></h5>
+                  <p class="text-muted mb-1">
+                    <i class="fas fa-external-link-alt me-1"></i>
+                    <a href="<%= banner.click_url %>" target="_blank"><%= banner.click_url %></a>
+                  </p>
+                  <p class="mb-0">
+                    <span class="badge bg-<%= banner.is_active ? 'success' : 'secondary' %>">
+                      <%= banner.is_active ? 'Active' : 'Inactive' %>
+                    </span>
+                    <% if (banner.target_type === 'all') { %>
+                      <span class="badge bg-info ms-2">All Links</span>
+                    <% } else if (banner.target_type === 'specific') { %>
+                      <span class="badge bg-warning ms-2">Specific Links</span>
+                    <% } else { %>
+                      <span class="badge bg-success ms-2">Popular (>= <%= banner.min_clicks %> clicks)</span>
+                    <% } %>
+                  </p>
+                </div>
+                <div class="col-md-3 text-end">
+                  <small class="text-muted">Created: <%= new Date(banner.created_at).toLocaleDateString() %></small>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Stats Cards -->
+          <div class="row mb-4">
+            <div class="col-md-3">
+              <div class="card stats-card">
+                <div class="card-body text-center">
+                  <i class="fas fa-eye fa-2x mb-2"></i>
+                  <h4>
+                    <% 
+                      const totalImpressions = totalStats.find(s => s.event_type === 'impression')?.total || 0;
+                    %>
+                    <%= totalImpressions.toLocaleString() %>
+                  </h4>
+                  <small>Total Impressions</small>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="card stats-card">
+                <div class="card-body text-center">
+                  <i class="fas fa-mouse-pointer fa-2x mb-2"></i>
+                  <h4>
+                    <% 
+                      const totalClicks = totalStats.find(s => s.event_type === 'click')?.total || 0;
+                    %>
+                    <%= totalClicks.toLocaleString() %>
+                  </h4>
+                  <small>Total Clicks</small>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="card stats-card">
+                <div class="card-body text-center">
+                  <i class="fas fa-percentage fa-2x mb-2"></i>
+                  <h4>
+                    <% 
+                      const ctr = totalImpressions > 0 ? ((totalClicks / totalImpressions) * 100).toFixed(2) : 0;
+                    %>
+                    <%= ctr %>%
+                  </h4>
+                  <small>Click-Through Rate</small>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="card stats-card">
+                <div class="card-body text-center">
+                  <i class="fas fa-calendar fa-2x mb-2"></i>
+                  <h4>
+                    <% 
+                      const daysActive = Math.ceil((new Date() - new Date(banner.created_at)) / (1000 * 60 * 60 * 24));
+                    %>
+                    <%= daysActive %>
+                  </h4>
+                  <small>Days Active</small>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Charts -->
+          <div class="row mb-4">
+            <div class="col-md-12">
+              <div class="chart-container">
+                <h5 class="mb-3"><i class="fas fa-chart-line me-2"></i>Performance Over Time (Last 30 Days)</h5>
+                <canvas id="performanceChart" width="400" height="100"></canvas>
+              </div>
+            </div>
+          </div>
+
+          <!-- Recent Activity -->
+          <div class="card">
+            <div class="card-header">
+              <h5 class="mb-0"><i class="fas fa-history me-2"></i>Recent Activity</h5>
+            </div>
+            <div class="card-body">
+              <% if (recentActivity.length === 0) { %>
+                <div class="text-center py-4">
+                  <i class="fas fa-chart-bar fa-3x text-muted mb-3"></i>
+                  <h6 class="text-muted">No activity yet</h6>
+                  <p class="text-muted">Analytics will appear here once users start viewing and clicking your banner.</p>
+                </div>
+              <% } else { %>
+                <div class="table-responsive">
+                  <table class="table table-hover">
+                    <thead>
+                      <tr>
+                        <th>Event</th>
+                        <th>Link</th>
+                        <th>User</th>
+                        <th>IP Address</th>
+                        <th>Time</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <% recentActivity.forEach(activity => { %>
+                        <tr>
+                          <td>
+                            <% if (activity.event_type === 'impression') { %>
+                              <span class="badge bg-info">
+                                <i class="fas fa-eye me-1"></i>Impression
+                              </span>
+                            <% } else { %>
+                              <span class="badge bg-success">
+                                <i class="fas fa-mouse-pointer me-1"></i>Click
+                              </span>
+                            <% } %>
+                          </td>
+                          <td>
+                            <% if (activity.link_title) { %>
+                              <%= activity.link_title %>
+                            <% } else { %>
+                              <span class="text-muted">Unknown</span>
+                            <% } %>
+                          </td>
+                          <td>
+                            <% if (activity.username) { %>
+                              <%= activity.username %>
+                            <% } else { %>
+                              <span class="text-muted">Anonymous</span>
+                            <% } %>
+                          </td>
+                          <td>
+                            <small class="text-muted"><%= activity.ip_address || 'Unknown' %></small>
+                          </td>
+                          <td>
+                            <small><%= new Date(activity.timestamp).toLocaleString() %></small>
+                          </td>
+                        </tr>
+                      <% }); %>
+                    </tbody>
+                  </table>
+                </div>
+              <% } %>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    // Prepare chart data
+    const analyticsData = <%- JSON.stringify(analytics) %>;
+    
+    // Process data for chart
+    const dates = [];
+    const impressions = [];
+    const clicks = [];
+    
+    // Get last 30 days
+    for (let i = 29; i >= 0; i--) {
+      const date = new Date();
+      date.setDate(date.getDate() - i);
+      const dateStr = date.toISOString().split('T')[0];
+      dates.push(date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
+      
+      const dayImpressions = analyticsData.find(d => d.date === dateStr && d.event_type === 'impression')?.count || 0;
+      const dayClicks = analyticsData.find(d => d.date === dateStr && d.event_type === 'click')?.count || 0;
+      
+      impressions.push(dayImpressions);
+      clicks.push(dayClicks);
+    }
+    
+    // Create chart
+    const ctx = document.getElementById('performanceChart').getContext('2d');
+    new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: dates,
+        datasets: [{
+          label: 'Impressions',
+          data: impressions,
+          borderColor: '#36a2eb',
+          backgroundColor: 'rgba(54, 162, 235, 0.1)',
+          tension: 0.1,
+          fill: true
+        }, {
+          label: 'Clicks',
+          data: clicks,
+          borderColor: '#4bc0c0',
+          backgroundColor: 'rgba(75, 192, 192, 0.1)',
+          tension: 0.1,
+          fill: true
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: {
+            position: 'top',
+          },
+          title: {
+            display: false
+          }
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: {
+              stepSize: 1
+            }
+          }
+        },
+        interaction: {
+          intersect: false,
+          mode: 'index'
+        }
+      }
+    });
+  </script>
+</body>
+</html>

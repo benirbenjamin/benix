@@ -1,0 +1,73 @@
+<%- include('../partials/header') %>
+<%- include('../partials/navbar', { user: user }) %>
+
+<div class="container mt-4">
+  <div class="row">
+    <div class="col-md-8 offset-md-2">
+      <div class="card">
+        <div class="card-header bg-primary text-white">
+          <h4 class="mb-0">Create New Banner</h4>
+        </div>
+        <div class="card-body">
+          <% if (typeof error !== 'undefined') { %>
+            <div class="alert alert-danger"><%= error %></div>
+          <% } %>
+          <% if (typeof success !== 'undefined') { %>
+            <div class="alert alert-success"><%= success %></div>
+          <% } %>
+
+          <form action="/merchant-user/banners/create" method="POST" enctype="multipart/form-data">
+            <div class="mb-3">
+              <label for="title" class="form-label">Banner Title</label>
+              <input type="text" class="form-control" id="title" name="title" required>
+              <small class="text-muted">Give your banner a descriptive name</small>
+            </div>
+
+            <div class="mb-3">
+              <label for="targetUrl" class="form-label">Target URL</label>
+              <input type="url" class="form-control" id="targetUrl" name="targetUrl" required>
+              <small class="text-muted">Where should users go when they click your banner?</small>
+            </div>
+
+            <div class="mb-3">
+              <label for="bannerImage" class="form-label">Banner Image</label>
+              <input type="file" class="form-control" id="bannerImage" name="bannerImage" accept="image/*" required>
+              <small class="text-muted">Recommended size: 728x90px (leaderboard) or 300x250px (medium rectangle)</small>
+            </div>
+
+            <div class="mb-3">
+              <label for="targetClicks" class="form-label">Target Clicks</label>
+              <select class="form-control" id="targetClicks" name="targetClicks" required>
+                <option value="">Select target clicks...</option>
+                <option value="100">100 clicks</option>
+                <option value="500">500 clicks</option>
+                <option value="1000">1,000 clicks</option>
+                <option value="5000">5,000 clicks</option>
+                <option value="10000">10,000 clicks</option>
+                <option value="50000">50,000 clicks</option>
+                <option value="100000">100,000 clicks</option>
+              </select>
+              <small class="text-muted">Number of clicks after which the banner will be automatically deactivated. The total cost will be based on actual clicks and impressions received.</small>
+            </div>
+
+            <div class="mb-4">
+              <div class="alert alert-info">
+                <h6 class="mb-2">Cost Information</h6>
+                <p class="mb-1">• Cost per Click (CPC): $<%= settings.banner_cpc_usd %></p>
+                <p class="mb-1">• Cost per 1000 Impressions (CPM): $<%= settings.banner_cpm_usd %></p>
+                <p class="mb-0 small text-muted">You will be charged based on actual clicks and impressions received. Ensure you have sufficient balance.</p>
+              </div>
+            </div>
+
+            <div class="d-grid gap-2">
+              <button type="submit" class="btn btn-primary">Submit Banner</button>
+              <a href="/merchant-user/banners" class="btn btn-secondary">Back to My Banners</a>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<%- include('../partials/footer') %>

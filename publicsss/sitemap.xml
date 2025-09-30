@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+   <!-- Main Pages -->
+   <url>
+      <loc>https://benix.space/</loc>
+      <lastmod>2025-05-22</lastmod>
+      <changefreq>weekly</changefreq>
+      <priority>1.0</priority>
+   </url>
+   <url>
+      <loc>https://benix.space/auth</loc>
+      <lastmod>2025-05-22</lastmod>
+      <changefreq>monthly</changefreq>
+      <priority>0.8</priority>
+   </url>
+   
+   <!-- Blog Page -->
+   <url>
+      <loc>https://benix.space/blog</loc>
+      <lastmod>2025-09-03</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.9</priority>
+   </url>
+   
+   <!-- User Pages -->
+   <url>
+      <loc>https://benix.space/user/products</loc>
+      <lastmod>2025-05-22</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.9</priority>
+   </url>
+   <url>
+      <loc>https://benix.space/user/profile</loc>
+      <lastmod>2025-05-22</lastmod>
+      <changefreq>monthly</changefreq>
+      <priority>0.7</priority>
+   </url>
+   <url>
+      <loc>https://benix.space/user/orders</loc>
+      <lastmod>2025-05-22</lastmod>
+      <changefreq>weekly</changefreq>
+      <priority>0.7</priority>
+   </url>
+   <url>
+      <loc>https://benix.space/user/cart</loc>
+      <lastmod>2025-05-22</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.6</priority>
+   </url>
+   <url>
+      <loc>https://benix.space/user/wallet</loc>
+      <lastmod>2025-05-22</lastmod>
+      <changefreq>weekly</changefreq>
+      <priority>0.7</priority>
+   </url>
+   <url>
+      <loc>https://benix.space/user/referrals</loc>
+      <lastmod>2025-05-22</lastmod>
+      <changefreq>weekly</changefreq>
+      <priority>0.6</priority>
+   </url>
+   <url>
+      <loc>https://benix.space/user/share</loc>
+      <lastmod>2025-05-22</lastmod>
+      <changefreq>monthly</changefreq>
+      <priority>0.8</priority>
+   </url>   <url>
+      <loc>https://benix.space/user/upgrade</loc>
+      <lastmod>2025-05-22</lastmod>
+      <changefreq>monthly</changefreq>
+      <priority>0.7</priority>
+   </url>
+   
+   <!-- Merchant Pages -->
+   <url>
+      <loc>https://benix.space/merchant-user/products</loc>
+      <lastmod>2025-05-22</lastmod>
+      <changefreq>weekly</changefreq>
+      <priority>0.7</priority>
+   </url>
+   <url>
+      <loc>https://benix.space/merchant/links</loc>
+      <lastmod>2025-05-22</lastmod>
+      <changefreq>weekly</changefreq>
+      <priority>0.7</priority>
+   </url>
+   <url>
+      <loc>https://benix.space/merchant/my-orders</loc>
+      <lastmod>2025-05-22</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.7</priority>
+   </url>
+   <url>
+      <loc>https://benix.space/merchant/deposit</loc>
+      <lastmod>2025-05-22</lastmod>
+      <changefreq>monthly</changefreq>
+      <priority>0.6</priority>
+   </url>
+     <!-- HTML Sitemap -->
+   <url>
+      <loc>https://benix.space/sitemap.html</loc>
+      <lastmod>2025-05-22</lastmod>
+      <changefreq>monthly</changefreq>
+      <priority>0.5</priority>
+   </url>
+   
+   <!-- Legal Pages -->
+   <url>
+      <loc>https://benix.space/privacy-policy</loc>
+      <lastmod>2025-05-22</lastmod>
+      <changefreq>monthly</changefreq>
+      <priority>0.5</priority>
+   </url>
+   <url>
+      <loc>https://benix.space/terms</loc>
+      <lastmod>2025-05-22</lastmod>
+      <changefreq>monthly</changefreq>
+      <priority>0.5</priority>
+   </url>
+   <url>
+      <loc>https://benix.space/about</loc>
+      <lastmod>2025-05-22</lastmod>
+      <changefreq>monthly</changefreq>
+      <priority>0.7</priority>
+   </url>
+</urlset>

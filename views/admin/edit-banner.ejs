@@ -1,0 +1,98 @@
+<%- include('../partials/header') %>
+<%- include('../partials/navbar') %>
+
+<div class="container mt-4">
+  <div class="row">
+    <div class="col-md-8 offset-md-2">
+      <div class="card">
+        <div class="card-header bg-primary text-white">
+          <h4 class="mb-0">Edit Banner</h4>
+        </div>
+        <div class="card-body">
+          <% if (typeof error !== 'undefined') { %>
+            <div class="alert alert-danger"><%= error %></div>
+          <% } %>
+          <% if (typeof success !== 'undefined') { %>
+            <div class="alert alert-success"><%= success %></div>
+          <% } %>
+
+          <form action="/admin/banners/<%= banner.id %>/edit" method="POST" enctype="multipart/form-data">
+            <div class="mb-3">
+              <label for="title" class="form-label">Banner Title</label>
+              <input type="text" class="form-control" id="title" name="title" value="<%= banner.title %>" required>
+            </div>
+
+            <div class="mb-3">
+              <label for="merchant" class="form-label">Assign to Merchant</label>
+              <select class="form-control select2" id="merchant" name="merchantId">
+                <option value="">Select a Merchant</option>
+                <% merchants.forEach(function(merchant) { %>
+                  <option value="<%= merchant.id %>" <%= banner.merchant_id === merchant.id ? 'selected' : '' %>>
+                    <%= merchant.username %> (<%= merchant.email %>)
+                  </option>
+                <% }); %>
+              </select>
+            </div>
+
+            <div class="mb-3">
+              <label for="targetUrl" class="form-label">Target URL</label>
+              <input type="url" class="form-control" id="targetUrl" name="targetUrl" value="<%= banner.target_url %>" required>
+            </div>
+
+            <div class="mb-3">
+              <label for="displayOrder" class="form-label">Display Order</label>
+              <input type="number" class="form-control" id="displayOrder" name="displayOrder" value="<%= banner.display_order %>" required>
+              <small class="text-muted">Higher numbers appear first</small>
+            </div>
+
+            <div class="mb-3">
+              <label for="status" class="form-label">Status</label>
+              <select class="form-control" id="status" name="status" required>
+                <option value="pending" <%= banner.status === 'pending' ? 'selected' : '' %>>Pending</option>
+                <option value="approved" <%= banner.status === 'approved' ? 'selected' : '' %>>Approved</option>
+                <option value="rejected" <%= banner.status === 'rejected' ? 'selected' : '' %>>Rejected</option>
+              </select>
+            </div>
+
+            <div class="mb-3">
+              <label for="is_active" class="form-label">Active Status</label>
+              <div class="form-check">
+                <input type="checkbox" class="form-check-input" id="is_active" name="is_active" <%= banner.is_active ? 'checked' : '' %>>
+                <label class="form-check-label" for="is_active">Active</label>
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label">Current Banner Image</label><br>
+              <img src="/uploads/<%= banner.image_path %>" alt="Current Banner" class="img-thumbnail mb-2" style="max-height: 200px">
+            </div>
+
+            <div class="mb-3">
+              <label for="bannerImage" class="form-label">Update Banner Image</label>
+              <input type="file" class="form-control" id="bannerImage" name="bannerImage" accept="image/*">
+              <small class="text-muted">Leave empty to keep current image</small>
+            </div>
+
+            <div class="d-grid gap-2">
+              <button type="submit" class="btn btn-primary">Update Banner</button>
+              <a href="/admin/banners" class="btn btn-secondary">Back to Banner List</a>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Initialize Select2 for merchant selection -->
+<script>
+$(document).ready(function() {
+  $('.select2').select2({
+    placeholder: 'Select a merchant',
+    allowClear: true,
+    width: '100%'
+  });
+});
+</script>
+
+<%- include('../partials/footer') %>

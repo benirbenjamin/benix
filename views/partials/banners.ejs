@@ -1,0 +1,130 @@
+<!-- Display Banners Component -->
+<div class="banner-container mb-4">
+  <% if (typeof banners !== 'undefined' && banners.length > 0) { %>
+    <div class="banner-wrapper">
+      <% banners.forEach(banner => { %>
+        <div class="banner-item" data-id="<%= banner.id %>">
+          <a href="#" onclick="handleBannerClick(<%= banner.id %>); return false;" class="banner-link">
+            <img src="<%= banner.image_url %>" alt="<%= banner.title %>" class="img-fluid">
+          </a>
+        </div>
+      <% }); %>
+    </div>
+  <% } %>
+</div>
+
+<script>
+// Record banner view when it becomes visible
+document.addEventListener('DOMContentLoaded', function() {
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        const bannerId = entry.target.dataset.id;
+        recordBannerView(bannerId);
+        observer.unobserve(entry.target); // Only record once
+      }
+    });
+  }, {
+    threshold: 0.5 // At least 50% of the banner must be visible
+  });
+
+  // Observe each banner
+  document.querySelectorAll('.banner-item').forEach(banner => {
+    observer.observe(banner);
+  });
+});
+
+// Record banner view
+async function recordBannerView(bannerId) {
+  try {
+    await fetch(`/api/banners/${bannerId}/view`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+  } catch (error) {
+    console.error('Error recording banner view:', error);
+  }
+}
+
+// Handle banner click
+async function handleBannerClick(bannerId) {
+  console.log('[Banner Click] Starting click handler:', {
+    bannerId: bannerId,
+    url: window.location.href,
+    timestamp: new Date().toISOString()
+  });
+  
+  try {
+    console.log('[Banner Click] Sending request to server...');
+    const response = await fetch('/api/banners/click', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ bannerId })
+    });
+    
+    console.log('[Banner Click] Server response:', {
+      status: response.status,
+      statusText: response.statusText,
+      headers: Object.fromEntries(response.headers.entries()),
+      timestamp: new Date().toISOString()
+    });
+    
+    const data = await response.json();
+    console.log('[Banner Click] Response data:', {
+      data: data,
+      timestamp: new Date().toISOString()
+    });
+    
+    if (data.success && data.url) {
+      console.log('Opening banner URL:', data.url);
+      window.open(data.url, '_blank');
+    } else {
+      console.error('Failed to track banner click:', {
+        success: data.success,
+        url: data.url,
+        error: data.error
+      });
+    }
+  } catch (error) {
+    console.error('Error recording banner click:', error);
+  }
+}
+</script>
+
+<style>
+.banner-container {
+  width: 100%;
+  overflow: hidden;
+}
+
+.banner-wrapper {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  justify-content: center;
+}
+
+.banner-item {
+  max-width: 100%;
+  flex: 0 0 auto;
+}
+
+.banner-item img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+.banner-link {
+  display: block;
+  transition: transform 0.2s;
+}
+
+.banner-link:hover {
+  transform: scale(1.02);
+}
+</style>

@@ -1,0 +1,666 @@
+<!-- Benix Auto Ads -->
+<script>
+    // Global configuration for auto ads
+    window.benixAdsConfig = {
+        enabled: true,
+        debug: false,
+        animationStyle: 'fade-slide', // fade-slide, bounce, pulse
+        adStyles: {
+            card: true,     // Enable card-style ads
+            badge: true,    // Enable badge-style ads
+            banner: true,   // Enable banner-style ads
+            overlay: false  // Enable overlay-style ads
+        }
+    };
+</script>
+
+<!-- Auto Ads Styles -->
+<style>
+    /* Ad Wrapper */
+    .benix-ad-wrapper {
+        --primary-color: #0d6efd;
+        --hover-color: #0b5ed7;
+        --text-color: #333;
+        --bg-light: #ffffff;
+        --bg-dark: #f8f9fa;
+        --shadow-light: rgba(0,0,0,0.1);
+        --shadow-hover: rgba(0,0,0,0.15);
+        margin: 1.5rem auto;
+        max-width: 100%;
+        overflow: hidden;
+        transition: all 0.3s ease;
+    }
+
+    /* Premium Top Ad */
+    .benix-ad-premium {
+        background: var(--bg-light);
+        border-radius: 12px;
+        box-shadow: 0 4px 20px var(--shadow-light);
+        display: grid;
+        grid-template-columns: 300px 1fr;
+        gap: 1rem;
+        margin: 0 auto 1.5rem;
+        max-width: 800px;
+        overflow: hidden;
+        padding: 0.75rem;
+    }
+
+    .benix-ad-premium .benix-ad-media {
+        position: relative;
+        overflow: hidden;
+        border-radius: 8px;
+        height: 180px;
+    }
+
+    .benix-ad-premium .ad-image {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        transition: transform 0.5s ease;
+    }
+
+    .benix-ad-premium:hover .ad-image {
+        transform: scale(1.05);
+    }
+
+    .benix-ad-premium .benix-ad-content {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        padding: 1rem;
+    }
+
+    /* Banner Style */
+    .benix-ad-banner {
+        background: var(--bg-light);
+        border-radius: 8px;
+        box-shadow: 0 2px 10px var(--shadow-light);
+        display: grid;
+        grid-template-columns: 320px 1fr;
+        gap: 1rem;
+        margin: 1.5rem auto;
+        max-width: 800px;
+        overflow: hidden;
+        position: relative;
+    }
+
+    .benix-ad-banner .ad-image {
+        width: 100%;
+        height: auto;
+        object-fit: cover;
+        transition: transform 0.5s ease;
+    }
+
+    .benix-ad-banner:hover .ad-image {
+        transform: scale(1.05);
+    }
+
+    .benix-ad-content {
+        padding: 1rem;
+        background: rgba(255,255,255,0.95);
+    }
+
+    .benix-ad-title {
+        color: var(--text-color);
+        font-size: 1.1rem;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+    }
+
+    .benix-ad-description {
+        color: var(--text-color);
+        font-size: 0.9rem;
+        margin-bottom: 1rem;
+        opacity: 0.9;
+    }
+
+    .benix-ad-cta {
+        background: var(--primary-color);
+        border: none;
+        border-radius: 4px;
+        color: white;
+        cursor: pointer;
+        display: inline-block;
+        font-weight: 500;
+        padding: 0.5rem 1rem;
+        text-decoration: none;
+        transition: all 0.3s ease;
+    }
+
+    .benix-ad-cta:hover {
+        background: var(--hover-color);
+        transform: translateY(-1px);
+        color: white;
+        text-decoration: none;
+    }
+
+    /* Card Style */
+    .benix-ad-card {
+        background: var(--bg-light);
+        border-radius: 12px;
+        box-shadow: 0 2px 15px var(--shadow-light);
+        margin: 1rem;
+        max-width: 320px;
+        overflow: hidden;
+        transition: all 0.3s ease;
+    }
+
+    .benix-ad-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 4px 20px var(--shadow-hover);
+    }
+
+    .benix-ad-card .benix-ad-media {
+        height: 180px;
+        overflow: hidden;
+    }
+
+    .benix-ad-card .ad-image {
+        height: 100%;
+        width: 100%;
+        object-fit: cover;
+        transition: transform 0.5s ease;
+    }
+
+    .benix-ad-card:hover .ad-image {
+        transform: scale(1.1);
+    }
+
+    /* Badge Style - Inline Ads */
+    .benix-ad-badge {
+        align-items: center;
+        background: var(--bg-light);
+        border-radius: 50px;
+        box-shadow: 0 2px 8px var(--shadow-light);
+        display: flex;
+        margin: 1rem auto;
+        max-width: 600px;
+        padding: 0.75rem;
+        transition: all 0.3s ease;
+    }
+
+    .benix-ad-badge:hover {
+        box-shadow: 0 4px 15px var(--shadow-hover);
+        transform: translateY(-2px);
+    }
+
+    .benix-ad-badge .benix-ad-media {
+        flex-shrink: 0;
+        margin-right: 1rem;
+    }
+
+    .benix-ad-badge .ad-image {
+        border-radius: 50%;
+        height: 60px;
+        width: 60px;
+        object-fit: cover;
+        transition: transform 0.5s ease;
+    }
+
+    .benix-ad-badge:hover .ad-image {
+        transform: scale(1.1);
+    }
+
+    .benix-ad-badge .benix-ad-content {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    /* List Card Style */
+    .benix-ad-list-card {
+        background: var(--bg-light);
+        border-radius: 8px;
+        box-shadow: 0 2px 10px var(--shadow-light);
+        display: flex;
+        margin: 1rem auto;
+        max-width: 700px;
+        overflow: hidden;
+        transition: all 0.3s ease;
+    }
+
+    .benix-ad-list-card:hover {
+        transform: translateX(5px);
+        box-shadow: 0 4px 15px var(--shadow-hover);
+    }
+
+    .benix-ad-list-card .benix-ad-media {
+        width: 120px;
+        overflow: hidden;
+    }
+
+    .benix-ad-list-card .ad-image {
+        height: 100%;
+        width: 100%;
+        object-fit: cover;
+        transition: transform 0.5s ease;
+    }
+
+    .benix-ad-list-card:hover .ad-image {
+        transform: scale(1.1);
+    }
+
+    /* Animation Classes */
+    .fade-slide {
+        animation: fadeSlideIn 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+        will-change: transform, opacity;
+    }
+
+    .bounce {
+        animation: bounceIn 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+        will-change: transform, opacity;
+    }
+
+    .pulse {
+        animation: pulseEffect 3s ease-in-out infinite;
+        will-change: transform;
+    }
+
+    @keyframes fadeSlideIn {
+        0% {
+            opacity: 0;
+            transform: translateY(30px);
+        }
+        100% {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    @keyframes bounceIn {
+        0% { 
+            transform: scale(0.3);
+            opacity: 0;
+        }
+        40% {
+            transform: scale(1.08);
+            opacity: 0.7;
+        }
+        60% {
+            transform: scale(0.95);
+            opacity: 0.9;
+        }
+        100% {
+            transform: scale(1);
+            opacity: 1;
+        }
+    }
+
+    @keyframes pulseEffect {
+        0% { transform: scale(1); }
+        3% { transform: scale(1.02); }
+        6% { transform: scale(1); }
+        9% { transform: scale(1.01); }
+        12% { transform: scale(1); }
+        100% { transform: scale(1); }
+    }
+
+    /* Responsive Design */
+    @media (max-width: 768px) {
+        .benix-ad-banner {
+            margin: 0.5rem auto;
+            grid-template-columns: 1fr;
+            max-width: 100%;
+            gap: 0;
+        }
+
+        .benix-ad-banner .benix-ad-media {
+            max-height: 200px;
+            overflow: hidden;
+        }
+
+        .benix-ad-banner .ad-image {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+        }
+
+        .benix-ad-card {
+            margin: 0.5rem auto;
+            max-width: 300px;
+        }
+
+        .benix-ad-badge {
+            max-width: 100%;
+            margin: 0.5rem auto;
+            padding: 0.5rem;
+        }
+
+        .benix-ad-content {
+            padding: 0.75rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+        }
+
+        .benix-ad-title {
+            font-size: 0.95rem;
+            margin-bottom: 0.5rem;
+            line-height: 1.3;
+        }
+
+        .benix-ad-description {
+            font-size: 0.85rem;
+            line-height: 1.4;
+            margin-bottom: 0.75rem;
+        }
+
+        .benix-ad-cta {
+            padding: 0.4rem 0.85rem;
+            font-size: 0.9rem;
+            width: auto;
+            min-width: 120px;
+            text-align: center;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .benix-ad-cta .cta-text {
+            white-space: nowrap;
+        }
+
+        .benix-ad-cta .cta-icon {
+            font-size: 0.8rem;
+        }
+
+        /* Premium ad responsive styles */
+        .benix-ad-premium {
+            grid-template-columns: 1fr;
+            max-width: 100%;
+            padding: 0.5rem;
+            gap: 0.5rem;
+        }
+
+        .benix-ad-premium .benix-ad-media {
+            height: 160px;
+        }
+    }
+
+    /* Small mobile devices */
+    @media (max-width: 480px) {
+        .benix-ad-banner .benix-ad-media {
+            max-height: 160px;
+        }
+
+        .benix-ad-banner .ad-image {
+            height: 160px;
+        }
+
+        .benix-ad-card {
+            max-width: 100%;
+        }
+
+        .benix-ad-card .benix-ad-media {
+            height: 160px;
+        }
+
+        .benix-ad-badge .benix-ad-media {
+            width: 50px;
+        }
+
+        .benix-ad-badge .ad-image {
+            width: 50px;
+            height: 50px;
+        }
+
+        .benix-ad-title {
+            font-size: 0.9rem;
+        }
+
+        .benix-ad-cta {
+            padding: 0.35rem 0.75rem;
+            font-size: 0.85rem;
+            min-width: 100px;
+        }
+    }
+</style>
+
+<!-- Auto Ads JavaScript -->
+<script>
+    class BenixAutoAds {
+        constructor(config = {}) {
+            this.config = {
+                ...window.benixAdsConfig,
+                ...config
+            };
+            this.init();
+        }
+
+        async init() {
+            try {
+                const response = await fetch('/api/ads/active');
+                const ads = await response.json();
+                if (ads.length > 0) {
+                    this.injectAds(ads);
+                }
+            } catch (error) {
+                if (this.config.debug) {
+                    console.error('Failed to load ads:', error);
+                }
+            }
+        }
+
+        injectAds(ads) {
+            if (!ads.length) return;
+            
+            // Find the complete navbar structure
+            const header = document.querySelector('header, .header');
+            const navbar = document.querySelector('nav, .navbar');
+            
+            // Find the actual end of the navigation structure
+            let navEnd = header || navbar;
+            
+            if (navEnd) {
+                // Place the first ad after the entire navigation
+                const topAd = ads[0];
+                const topAdElement = this.createAdElement(topAd, 'premium');
+                
+                // Set proper margins to ensure separation from navbar
+                topAdElement.style.cssText = 'margin: 2rem auto; clear: both;';
+                
+                // Insert after the navigation
+                navEnd.parentNode.insertBefore(topAdElement, navEnd.nextSibling);
+                this.trackImpression(topAd.id);
+            } else {
+                // Fallback: try to find main content area
+                const mainContent = document.querySelector('main, .main-content, .container');
+                if (mainContent) {
+                    const topAd = ads[0];
+                    const topAdElement = this.createAdElement(topAd, 'premium');
+                    topAdElement.style.cssText = 'margin: 2rem auto; clear: both;';
+                    mainContent.insertBefore(topAdElement, mainContent.firstChild);
+                    this.trackImpression(topAd.id);
+                }
+            }
+
+            // Get all content sections after the navigation
+            const contentSections = [
+                // Major content blocks
+                ...Array.from(document.querySelectorAll('.content-section, .content-block, article, section')),
+                // Headers that start new sections
+                ...Array.from(document.querySelectorAll('h2, h3')),
+                // Significant paragraphs
+                ...Array.from(document.querySelectorAll('p')).filter(p => p.textContent.trim().length > 150),
+                // Lists and card containers
+                ...Array.from(document.querySelectorAll('.card-container, .grid, ul, ol'))
+            ].filter(el => {
+                // Skip elements in navigation or existing ads
+                if (el.closest('nav, .navbar, header, .header')) return false;
+                if (el.closest('.benix-ad-wrapper')) return false;
+                
+                // Check if element comes after the navigation in the document
+                if (navEnd) {
+                    const position = navEnd.compareDocumentPosition(el);
+                    return (position & Node.DOCUMENT_POSITION_FOLLOWING) && !navEnd.contains(el);
+                }
+                return true;
+            });
+
+            // Place remaining ads throughout content
+            const remainingAds = ads.slice(1);
+            const maxAds = Math.min(Math.floor(contentSections.length / 3), remainingAds.length);
+            
+            // Place ads evenly throughout content
+            for (let i = 0; i < maxAds; i++) {
+                const sectionIndex = Math.floor((i + 1) * contentSections.length / (maxAds + 1));
+                const section = contentSections[sectionIndex];
+                
+                if (section) {
+                    const ad = remainingAds[i];
+                    const style = this.determineAdStyle(section);
+                    const adElement = this.createAdElement(ad, style);
+                    
+                    // Add proper spacing
+                    adElement.style.margin = '2rem auto';
+                    
+                    // Insert after the section
+                    section.after(adElement);
+                    this.trackImpression(ad.id);
+                    
+                    if (this.config.debug) {
+                        console.log(`Placed ad ${i + 1} after section at index ${sectionIndex}`);
+                    }
+                }
+            }
+        }
+
+        shuffle(array) {
+            // Fisher-Yates shuffle algorithm
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+
+        determineAdStyle(element) {
+            // Determine best ad style based on context
+            if (element.matches('h2, h3, h4')) return 'banner';
+            if (element.matches('.card, .grid-item')) return 'card';
+            if (element.matches('p')) return 'badge';
+            if (element.matches('ul, ol')) return 'list-card';
+            return 'banner';
+        }
+
+        createAdElement(ad, style = 'banner') {
+            const wrapper = document.createElement('div');
+            wrapper.className = `benix-ad-wrapper ${style} ${this.config.animationStyle}`;
+            
+            // Customize CTA text based on screen size and ad style
+            const ctaText = window.innerWidth <= 480 ? 'View' : 'Learn More';
+            
+            let template = `
+                <div class="benix-ad-${style}">
+                    <div class="benix-ad-media">
+                        ${ad.image_url ? `<img src="${ad.image_url}" alt="${ad.title}" class="ad-image" loading="lazy">` : ''}
+                    </div>
+                    <div class="benix-ad-content">
+                        <h3 class="benix-ad-title">${ad.title || ''}</h3>
+                        <a href="${ad.target_url}" class="benix-ad-cta" data-ad-id="${ad.id}" data-target-url="${ad.target_url}" onclick="window.benixAds.handleAdClick(this); return false;">
+                            <span class="cta-text">${ctaText}</span>
+                            <span class="cta-icon">→</span>
+                        </a>
+                    </div>
+                </div>
+            `;
+            
+            wrapper.innerHTML = template;
+            return wrapper;
+        }
+
+        async trackImpression(adId) {
+            try {
+                await fetch('/api/ads/impression', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        bannerId: adId,
+                        url: window.location.href
+                    })
+                });
+            } catch (error) {
+                if (this.config.debug) {
+                    console.error('Failed to track impression:', error);
+                }
+            }
+        }
+
+        async handleAdClick(element) {
+            console.log('Ad click handler triggered', element);
+            
+            // Get ad data from element
+            const bannerId = element.getAttribute('data-ad-id');
+            const targetUrl = element.getAttribute('data-target-url');
+            
+            console.log('Banner data:', {
+                bannerId: bannerId,
+                targetUrl: targetUrl,
+                element: element,
+                dataset: element.dataset
+            });
+
+            if (!bannerId || !targetUrl) {
+                console.error('Missing required ad data:', { bannerId, targetUrl });
+                return;
+            }
+
+            try {
+                console.log('Preparing to send click tracking request for banner:', bannerId);
+                const requestBody = {
+                    bannerId: parseInt(bannerId, 10),
+                    url: window.location.href
+                };
+                console.log('Request payload:', requestBody);
+
+                const response = await fetch('/api/ads/click', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(requestBody)
+                });
+                
+                console.log('Click tracking response status:', response.status);
+
+                let responseData;
+                try {
+                    responseData = await response.json();
+                    console.log('Response data:', responseData);
+                } catch (e) {
+                    console.error('Failed to parse response:', e);
+                    responseData = null;
+                }
+
+                if (!response.ok) {
+                    throw new Error(`Click tracking failed: ${responseData?.error || response.statusText}`);
+                }
+                
+                console.log('Click tracked successfully:', responseData);
+                
+                // Only open in new tab after successful tracking
+                console.log('Opening URL in new tab:', targetUrl);
+                window.open(targetUrl, '_blank');
+            } catch (error) {
+                console.error('Click tracking failed:', {
+                    error: error.message,
+                    stack: error.stack,
+                    bannerId: bannerId,
+                    targetUrl: targetUrl
+                });
+                // On tracking failure, still open the URL but log the error
+                window.open(targetUrl, '_blank');
+            }
+        }
+    }
+
+    // Initialize auto ads when DOM is loaded
+    document.addEventListener('DOMContentLoaded', () => {
+        window.benixAds = new BenixAutoAds();
+    });
+</script>

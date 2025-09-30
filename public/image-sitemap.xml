@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
+  <url>
+    <loc>https://benix.space/</loc>
+    <image:image>
+      <image:loc>https://benix.space/static/img/logo.png</image:loc>
+      <image:title>BenixSpace Logo</image:title>
+      <image:caption>Official logo of BenixSpace Affiliate Platform</image:caption>
+    </image:image>
+    <image:image>
+      <image:loc>https://benix.space/static/img/favicon.png</image:loc>
+      <image:title>BenixSpace Favicon</image:title>
+      <image:caption>BenixSpace site icon</image:caption>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://benix.space/user/products</loc>
+    <image:image>
+      <image:loc>https://benix.space/uploads/02f5d553-ef7b-4ecf-a7b5-bb57805bd0e1.jpg</image:loc>
+      <image:title>Product Image</image:title>
+    </image:image>
+    <image:image>
+      <image:loc>https://benix.space/uploads/05379456-7d6f-49f5-a454-69db26c28b88.jpg</image:loc>
+      <image:title>Product Image</image:title>
+    </image:image>
+    <image:image>
+      <image:loc>https://benix.space/uploads/05b5f026-cb1e-4640-8581-6d498aba74e4.jpg</image:loc>
+      <image:title>Product Image</image:title>
+    </image:image>
+  </url>
+</urlset>

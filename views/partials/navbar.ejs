@@ -1,0 +1,333 @@
+<nav class="navbar navbar-expand-lg navbar-light bg-white shadow-sm">
+  <div class="container">
+    <a class="navbar-brand" href="/"><img src="/static/img/logo.png" alt="Benix Space Logo" width="100px" height="90px"></a>
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+    <div class="collapse navbar-collapse" id="navbarNav">
+      <ul class="navbar-nav me-auto">
+        <li class="nav-item">
+          <a class="nav-link" href="/">Home</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="/blog">
+            <i class="fas fa-blog me-1"></i>Blog
+          </a>
+        </li>
+        <% if (typeof user !== 'undefined' && user) { %>
+          <li class="nav-item">
+            <a class="nav-link" href="/dashboard">Dashboard</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="/user/products">Shop</a>
+          </li>
+          <li class="nav-item d-none d-lg-block">
+            <a class="nav-link" href="/shared-links">
+              <i class="fas fa-share-alt me-1"></i>Shared Links
+            </a>
+          </li>
+          <% if (user.role === 'merchant' || user.role === 'admin') { %>
+            <li class="nav-item dropdown">
+              <a class="nav-link dropdown-toggle" href="#" id="merchantDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                Merchant
+              </a>
+              <ul class="dropdown-menu" aria-labelledby="merchantDropdown">
+                <li><a class="dropdown-item" href="/merchant/links">My Links</a></li>
+                <li><a class="dropdown-item" href="/merchant/links/create">Create Link</a></li>
+                <li><hr class="dropdown-divider"></li>
+                <li><a class="dropdown-item" href="/merchant-user/products">My Products</a></li>
+                <li><a class="dropdown-item" href="/merchant-user/products/create">Add Product</a></li>
+                <li><hr class="dropdown-divider"></li>
+                <li><a class="dropdown-item" href="/blog/create">
+                  <i class="fas fa-blog me-2"></i>Create Blog Post
+                </a></li>
+                <li><hr class="dropdown-divider"></li>
+                <li><a class="dropdown-item" href="/merchant/orders">Manage Orders</a></li>
+                <li><hr class="dropdown-divider"></li>
+                <li><a class="dropdown-item" href="/merchant-user/banners">
+                  <i class="fas fa-image me-2"></i>My Banners
+                </a></li>
+                <li><a class="dropdown-item" href="/merchant-user/banners/create">
+                  <i class="fas fa-plus me-2"></i>Create Banner
+                </a></li>
+              </ul>
+            </li>
+          <% } %>
+          <% if (user.role === 'admin') { %>
+            <!-- Debug Info -->
+            <script>
+              console.log('Admin Notifications:', {
+                banners: <%= user.pendingBannerCount || 0 %>,
+                payments: <%= user.pendingPaymentCount || 0 %>,
+                orders: <%= user.pendingOrderCount || 0 %>
+              });
+            </script>
+            <li class="nav-item dropdown">
+              <a class="nav-link dropdown-toggle" href="#" id="adminDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                Admin
+                <% 
+                  const totalPending = (parseInt(user.pendingBannerCount) || 0) + 
+                                     (parseInt(user.pendingPaymentCount) || 0) + 
+                                     (parseInt(user.pendingOrderCount) || 0);
+                  if (totalPending > 0) { 
+                %>
+                  <span class="badge bg-danger">
+                    <%= totalPending %>
+                  </span>
+                <% } %>
+              </a>
+              <ul class="dropdown-menu" aria-labelledby="adminDropdown">
+                <li><a class="dropdown-item" href="/admin/dashboard"><i class="fas fa-tachometer-alt me-2"></i>Dashboard</a></li>
+                <li><hr class="dropdown-divider"></li>
+                <li><a class="dropdown-item" href="/admin/products"><i class="fas fa-box me-2"></i>Manage Products</a></li>
+                <li><a class="dropdown-item" href="/admin/links"><i class="fas fa-link me-2"></i>Manage Links</a></li>
+                <li><a class="dropdown-item" href="/admin/users"><i class="fas fa-users me-2"></i>Manage Users</a></li>
+                <li>
+                  <a class="dropdown-item" href="/admin/orders">
+                    <i class="fas fa-shopping-bag me-2"></i>Manage Orders
+                    <% if (user.pendingOrderCount > 0) { %>
+                      <span class="badge bg-info ms-2"><%= user.pendingOrderCount %></span>
+                    <% } %>
+                  </a>
+                </li>
+                <li><hr class="dropdown-divider"></li>
+                <li><a class="dropdown-item" href="/admin/merchants"><i class="fas fa-store me-2"></i>Manage Merchants</a></li>
+                <li><a class="dropdown-item" href="/admin/transactions"><i class="fas fa-money-bill me-2"></i>Transactions</a></li>
+                <li><a class="dropdown-item" href="/admin/commissions"><i class="fas fa-percentage me-2"></i>Commissions</a></li>
+                <li>
+                  <a class="dropdown-item" href="/admin/activation-payments">
+                    <i class="fas fa-credit-card me-2"></i>Activation Payments
+                    <% if (user.pendingPaymentCount > 0) { %>
+                      <span class="badge bg-warning text-dark ms-2"><%= user.pendingPaymentCount %></span>
+                    <% } %>
+                  </a>
+                </li>
+                <li><hr class="dropdown-divider"></li>
+                <li>
+                  <a class="dropdown-item" href="/admin/banners">
+                    <i class="fas fa-image me-2"></i>Manage Banners
+                    <% if (user.pendingBannerCount > 0) { %>
+                      <span class="badge bg-danger ms-2"><%= user.pendingBannerCount %></span>
+                    <% } %>
+                  </a>
+                </li>
+                <li><hr class="dropdown-divider"></li>
+                 <li><a class="dropdown-item" href="/admin/notifications"><i class="fas fa-cog me-2"></i>Notifications</a></li>
+                
+                <li><a class="dropdown-item" href="/admin/settings"><i class="fas fa-cog me-2"></i>System Settings</a></li>
+                <li><a class="dropdown-item" href="/admin/activation-settings"><i class="fas fa-user-check me-2"></i>Activation Requirements</a></li>
+                <li><a class="dropdown-item" href="/admin/email-status"><i class="fas fa-envelope me-2"></i>Email Service</a></li>
+              </ul>
+            </li>
+          <% } %>
+          <% if (user.role === 'user') { %>
+            <li class="nav-item">
+              <a class="nav-link" href="/upgrade-commission">Upgrade</a>
+            </li>
+          <% } %>
+        <% } %>
+      </ul>
+
+        <ul class="navbar-nav ms-auto">
+        <!-- Currency Switcher -->
+        <li class="nav-item d-flex align-items-center me-3">
+          <%- include('currency-switcher') %>
+        </li>
+    
+        <!-- Install App Button (Hidden by default, shown by JS when installable) -->
+        <li class="nav-item">
+          <button id="install-app" class="btn btn-success btn-sm my-1 mx-2" style="display: none;">
+            <i class="fas fa-download me-1"></i> Install App
+          </button>
+        </li>
+        <% if (typeof user !== 'undefined' && user) { %>
+          <li class="nav-item">
+            <a class="nav-link position-relative" href="/cart">
+              <i class="fas fa-shopping-cart"></i>
+              <% if (typeof cartCount !== 'undefined' && cartCount > 0) { %>
+                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+                  <%= cartCount %>
+                  <span class="visually-hidden">items in cart</span>
+                </span>
+              <% } %>
+            </a>
+          </li>
+          <!-- User dropdown menu for logged in users -->
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+              <%= user.username %>
+            </a>            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
+              <li><a class="dropdown-item" href="/dashboard">Dashboard</a></li>
+              <li><a class="dropdown-item" href="/profile">My Profile</a></li>
+              <li><a class="dropdown-item" href="/shared-links"><i class="fas fa-share-alt me-2"></i>Shared Links</a></li>
+              <li><a class="dropdown-item" href="/orders"><i class="bi bi-box me-2"></i>My Orders</a></li>
+              <li><a class="dropdown-item" href="/wallet">My Wallet</a></li>
+              <li> <a class="dropdwon-item" href="/referrals">My Referrals</a></li>
+              <% if (user.role === 'merchant') { %>
+                <li><a class="dropdown-item" href="/merchant/links">My Links</a></li>
+                <li><a class="dropdown-item" href="/merchant-user/products">My Products</a></li>
+              <% } %>
+              <li><hr class="dropdown-divider"></li>
+              <li><a class="dropdown-item" href="/logout">Logout</a></li>
+            </ul>
+          </li>
+        <% } else { %>
+          <li class="nav-item">
+            <a class="nav-link" href="/login"><i class="fas fa-sign-in-alt me-1"></i> Login</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="/register"><i class="fas fa-user-plus me-1"></i> Register</a>
+          </li>
+        <% } %>
+      </ul>
+    </div>
+  </div>
+</nav>
+
+<style>
+/* Ensure proper navbar positioning and z-index */
+.navbar {
+  position: relative;
+  z-index: 1030;
+}
+
+/* Fix dropdown menus positioning and z-index */
+.dropdown-menu {
+  position: absolute !important;
+  z-index: 1050 !important;
+  top: 100% !important;
+  left: 0 !important;
+  display: none;
+  float: none;
+  min-width: 160px;
+  padding: 5px 0;
+  margin: 2px 0 0;
+  font-size: 14px;
+  text-align: left;
+  background-color: #fff;
+  background-clip: padding-box;
+  border: 1px solid #ccc;
+  border: 1px solid rgba(0,0,0,.15);
+  border-radius: 4px;
+  box-shadow: 0 6px 12px rgba(0,0,0,.175);
+  max-height: none !important;
+  overflow: visible !important;
+}
+
+.dropdown-menu.dropdown-menu-end {
+  right: 0 !important;
+  left: auto !important;
+}
+
+.dropdown.show .dropdown-menu {
+  display: block !important;
+}
+
+/* Hover functionality for desktop */
+.dropdown:hover .dropdown-menu {
+  display: block;
+  margin-top: 0;
+}
+
+/* Disable hover on mobile */
+@media (max-width: 992px) {
+  .dropdown:hover .dropdown-menu {
+    display: none;
+  }
+  .dropdown.show .dropdown-menu {
+    display: block !important;
+  }
+}
+
+/* Ensure dropdown items are properly styled */
+.dropdown-item {
+  display: block;
+  width: 100%;
+  padding: 3px 20px;
+  clear: both;
+  font-weight: normal;
+  line-height: 1.42857143;
+  color: #333;
+  white-space: nowrap;
+  text-decoration: none;
+  background-color: transparent;
+  border: 0;
+}
+
+.dropdown-item:hover,
+.dropdown-item:focus {
+  color: #262626;
+  text-decoration: none;
+  background-color: #f5f5f5;
+}
+
+/* Fix any overflow issues */
+body {
+  overflow-x: auto;
+}
+
+.container, .container-fluid {
+  overflow: visible;
+}
+</style>
+
+<script>
+// Ensure dropdowns work properly on all devices
+document.addEventListener('DOMContentLoaded', function() {
+  // Initialize Bootstrap dropdowns
+  const dropdownElementList = document.querySelectorAll('.dropdown-toggle');
+  const dropdownList = [...dropdownElementList].map(dropdownToggleEl => {
+    return new bootstrap.Dropdown(dropdownToggleEl);
+  });
+
+  // Additional click handling for better mobile support
+  dropdownElementList.forEach(function(dropdownToggle) {
+    dropdownToggle.addEventListener('click', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      
+      // Close other dropdowns first
+      document.querySelectorAll('.dropdown.show').forEach(function(otherDropdown) {
+        if (otherDropdown !== this.parentNode) {
+          otherDropdown.classList.remove('show');
+          otherDropdown.querySelector('.dropdown-toggle').setAttribute('aria-expanded', 'false');
+          otherDropdown.querySelector('.dropdown-menu').classList.remove('show');
+        }
+      }.bind(this));
+      
+      // Toggle current dropdown
+      const dropdown = this.parentNode;
+      const menu = this.nextElementSibling;
+      const isShown = dropdown.classList.contains('show');
+      
+      if (isShown) {
+        dropdown.classList.remove('show');
+        this.setAttribute('aria-expanded', 'false');
+        menu.classList.remove('show');
+      } else {
+        dropdown.classList.add('show');
+        this.setAttribute('aria-expanded', 'true');
+        menu.classList.add('show');
+      }
+    });
+  });
+
+  // Close dropdowns when clicking outside
+  document.addEventListener('click', function(e) {
+    if (!e.target.closest('.dropdown')) {
+      document.querySelectorAll('.dropdown.show').forEach(function(dropdown) {
+        dropdown.classList.remove('show');
+        dropdown.querySelector('.dropdown-toggle').setAttribute('aria-expanded', 'false');
+        dropdown.querySelector('.dropdown-menu').classList.remove('show');
+      });
+    }
+  });
+
+  // Prevent dropdown menu clicks from closing the dropdown
+  document.querySelectorAll('.dropdown-menu').forEach(function(menu) {
+    menu.addEventListener('click', function(e) {
+      e.stopPropagation();
+    });
+  });
+});
+</script>

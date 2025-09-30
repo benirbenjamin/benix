@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Blog Post Analytics - Admin Panel</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 10px;
+        }
+        .stat-card-2 {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            border-radius: 10px;
+        }
+        .stat-card-3 {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            border-radius: 10px;
+        }
+        .chart-container {
+            position: relative;
+            height: 300px;
+        }
+    </style>
+</head>
+<body>
+    <%- include('../partials/navbar') %>
+    
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-12">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h1 class="h3">Blog Post Analytics</h1>
+                    <div>
+                        <a href="/admin/blog-posts/<%= post.id %>/edit" class="btn btn-outline-primary me-2">
+                            <i class="bi bi-pencil"></i> Edit Post
+                        </a>
+                        <a href="/admin/blog-posts" class="btn btn-secondary">
+                            <i class="bi bi-arrow-left"></i> Back to Posts
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Post Info -->
+                <div class="card mb-4">
+                    <div class="card-body">
+                        <div class="row align-items-center">
+                            <div class="col-md-8">
+                                <h4 class="mb-1"><%= post.title %></h4>
+                                <p class="text-muted mb-1">
+                                    By <%= post.author_name || 'Unknown' %> • 
+                                    Status: <span class="badge bg-<%= post.is_active ? 'success' : 'secondary' %>">
+                                        <%= post.is_active ? 'Active' : 'Inactive' %>
+                                    </span>
+                                </p>
+                                <p class="text-muted mb-0">
+                                    Created: <%= new Date(post.created_at).toLocaleDateString() %>
+                                    <% if (post.updated_at && post.updated_at !== post.created_at) { %>
+                                        • Updated: <%= new Date(post.updated_at).toLocaleDateString() %>
+                                    <% } %>
+                                </p>
+                            </div>
+                            <div class="col-md-4 text-md-end">
+                                <a href="/blog/<%= post.slug %>" class="btn btn-outline-info" target="_blank">
+                                    <i class="bi bi-eye"></i> View Post
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Stats Overview -->
+                <div class="row mb-4">
+                    <div class="col-md-4">
+                        <div class="card stat-card">
+                            <div class="card-body text-center">
+                                <i class="bi bi-eye fs-1 mb-2"></i>
+                                <h2 class="mb-1"><%= totalStats.total_clicks || 0 %></h2>
+                                <p class="mb-0">Total Clicks</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card stat-card-2">
+                            <div class="card-body text-center">
+                                <i class="bi bi-share fs-1 mb-2"></i>
+                                <h2 class="mb-1"><%= totalStats.total_shares || 0 %></h2>
+                                <p class="mb-0">Total Shares</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card stat-card-3">
+                            <div class="card-body text-center">
+                                <i class="bi bi-graph-up fs-1 mb-2"></i>
+                                <h2 class="mb-1">
+                                    <%= totalStats.total_shares > 0 ? ((totalStats.total_clicks / totalStats.total_shares) * 100).toFixed(1) : '0' %>%
+                                </h2>
+                                <p class="mb-0">Engagement Rate</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <!-- Click Analytics Chart -->
+                    <div class="col-lg-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0">Daily Clicks (Last 30 Days)</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="chart-container">
+                                    <canvas id="clicksChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Share Analytics Chart -->
+                    <div class="col-lg-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0">Daily Shares (Last 30 Days)</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="chart-container">
+                                    <canvas id="sharesChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recent Activity -->
+                <div class="row mt-4">
+                    <div class="col-12">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0">Recent Clicks (Last 50)</h5>
+                            </div>
+                            <div class="card-body">
+                                <% if (recentClicks.length === 0) { %>
+                                    <div class="text-center text-muted py-4">
+                                        <i class="bi bi-activity fs-1"></i>
+                                        <p class="mt-2">No clicks recorded yet</p>
+                                    </div>
+                                <% } else { %>
+                                    <div class="table-responsive">
+                                        <table class="table table-sm">
+                                            <thead>
+                                                <tr>
+                                                    <th>Date</th>
+                                                    <th>User</th>
+                                                    <th>Share Code</th>
+                                                    <th>IP Address</th>
+                                                    <th>User Agent</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <% recentClicks.forEach(click => { %>
+                                                    <tr>
+                                                        <td>
+                                                            <%= click.clicked_at ? new Date(click.clicked_at).toLocaleString() : 'N/A' %>
+                                                        </td>
+                                                        <td>
+                                                            <% if (click.username) { %>
+                                                                <span class="badge bg-secondary"><%= click.username %></span>
+                                                            <% } else { %>
+                                                                <span class="text-muted">Anonymous</span>
+                                                            <% } %>
+                                                        </td>
+                                                        <td>
+                                                            <% if (click.share_code) { %>
+                                                                <code class="small text-primary"><%= click.share_code %></code>
+                                                            <% } else { %>
+                                                                <span class="text-muted">N/A</span>
+                                                            <% } %>
+                                                        </td>
+                                                        <td>
+                                                            <% 
+                                                            let displayIP = click.ip_address || 'N/A';
+                                                            if (displayIP === '::1' || displayIP === '127.0.0.1') {
+                                                                displayIP = 'Local/Development';
+                                                            }
+                                                            %>
+                                                            <code class="small"><%= displayIP %></code>
+                                                        </td>
+                                                        <td>
+                                                            <small class="text-muted">
+                                                                <%= click.user_agent ? click.user_agent.substring(0, 50) + (click.user_agent.length > 50 ? '...' : '') : 'N/A' %>
+                                                            </small>
+                                                        </td>
+                                                    </tr>
+                                                <% }); %>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                <% } %>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Prepare data for charts
+        const clickData = <%- JSON.stringify(clickStats) %>;
+        const shareData = <%- JSON.stringify(shareStats) %>;
+
+        // Create labels for the last 30 days
+        const last30Days = [];
+        for (let i = 29; i >= 0; i--) {
+            const date = new Date();
+            date.setDate(date.getDate() - i);
+            last30Days.push(date.toISOString().split('T')[0]);
+        }
+
+        // Map data to the last 30 days
+        const clickCounts = last30Days.map(date => {
+            const found = clickData.find(item => item.date === date);
+            return found ? found.clicks : 0;
+        });
+
+        const shareCounts = last30Days.map(date => {
+            const found = shareData.find(item => item.date === date);
+            return found ? found.shares : 0;
+        });
+
+        // Format labels for display
+        const displayLabels = last30Days.map(date => {
+            const d = new Date(date);
+            return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        });
+
+        // Clicks Chart
+        const clicksCtx = document.getElementById('clicksChart').getContext('2d');
+        new Chart(clicksCtx, {
+            type: 'line',
+            data: {
+                labels: displayLabels,
+                datasets: [{
+                    label: 'Clicks',
+                    data: clickCounts,
+                    borderColor: '#667eea',
+                    backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            stepSize: 1
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                }
+            }
+        });
+
+        // Shares Chart
+        const sharesCtx = document.getElementById('sharesChart').getContext('2d');
+        new Chart(sharesCtx, {
+            type: 'line',
+            data: {
+                labels: displayLabels,
+                datasets: [{
+                    label: 'Shares',
+                    data: shareCounts,
+                    borderColor: '#f5576c',
+                    backgroundColor: 'rgba(245, 87, 108, 0.1)',
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            stepSize: 1
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= link ? 'Edit Link' : 'Create New Link' %> - BenixSpace</title>
+  <link rel="icon" href="/static/img/favicon.png" type="image/png">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    .link-type-card {
+      border: 2px solid #dee2e6;
+      border-radius: 12px;
+      padding: 20px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      background: white;
+      position: relative;
+    }
+    
+    .link-type-card:hover {
+      border-color: #0d6efd;
+      box-shadow: 0 4px 12px rgba(13, 110, 253, 0.15);
+      transform: translateY(-2px);
+    }
+    
+    .link-type-card.selected {
+      border-color: #0d6efd;
+      background: linear-gradient(135deg, #0d6efd 0%, #6610f2 100%);
+      color: white;
+      box-shadow: 0 6px 20px rgba(13, 110, 253, 0.3);
+    }
+    
+    .link-type-card .icon {
+      font-size: 2.5rem;
+      margin-bottom: 15px;
+      display: block;
+    }
+    
+    .link-type-card.selected .icon {
+      color: white;
+    }
+    
+    .link-type-card .title {
+      font-weight: 600;
+      font-size: 1.1rem;
+      margin-bottom: 8px;
+    }
+    
+    .link-type-card .description {
+      font-size: 0.9rem;
+      opacity: 0.8;
+      line-height: 1.4;
+    }
+    
+    .link-type-card.selected .description {
+      opacity: 0.9;
+    }
+    
+    .selection-badge {
+      position: absolute;
+      top: -8px;
+      right: -8px;
+      background: #28a745;
+      color: white;
+      border-radius: 50%;
+      width: 24px;
+      height: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.8rem;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+    
+    .link-type-card.selected .selection-badge {
+      opacity: 1;
+    }
+    
+    .type-selection-container {
+      margin-bottom: 30px;
+    }
+    
+    .type-selection-label {
+      font-weight: 600;
+      margin-bottom: 20px;
+      color: #495057;
+      font-size: 1.1rem;
+    }
+  </style>
+</head>
+<body class="bg-light">
+  <%- include('../partials/navbar') %>
+
+  <div class="container mt-4">
+    <div class="row justify-content-center">
+      <div class="col-md-8">
+        <div class="card">
+          <div class="card-header">
+            <h4 class="mb-0"><%= link ? 'Edit Link' : 'Create New Link' %></h4>
+          </div>
+          <div class="card-body">
+            <% if (typeof error !== 'undefined' && error) { %>
+              <div class="alert alert-danger"><%= error %></div>
+            <% } %>
+
+            <form action="<%= link ? `/merchant/links/${link.id}/edit` : '/merchant/links/create' %>" method="POST" enctype="multipart/form-data">
+              <div class="mb-3">
+                <label for="title" class="form-label">Title</label>
+                <input type="text" class="form-control" id="title" name="title" 
+                  value="<%= link ? link.title : '' %>" required>
+              </div>
+
+              <div class="mb-3">
+                <label for="description" class="form-label">Description</label>
+                <textarea class="form-control" id="description" name="description" rows="3"><%= link ? link.description : '' %></textarea>
+              </div>
+
+              <!-- Link Type Selection with Cards -->
+              <div class="type-selection-container">
+                <div class="type-selection-label">
+                  <i class="fas fa-link me-2"></i>Choose Link Type
+                </div>
+                <div class="row g-3">
+                  <div class="col-md-6">
+                    <div class="link-type-card <%= link && link.type === 'link' ? 'selected' : '' %>" 
+                         data-type="link" onclick="selectLinkType('link')">
+                      <div class="selection-badge">
+                        <i class="fas fa-check"></i>
+                      </div>
+                      <i class="fas fa-external-link-alt icon text-primary"></i>
+                      <div class="title">Regular Link</div>
+                      <div class="description">
+                        Standard web link to any website, blog, or external resource
+                      </div>
+                    </div>
+                  </div>
+                  <div class="col-md-6">
+                    <div class="link-type-card <%= link && link.type === 'youtube' ? 'selected' : '' %>" 
+                         data-type="youtube" onclick="selectLinkType('youtube')">
+                      <div class="selection-badge">
+                        <i class="fas fa-check"></i>
+                      </div>
+                      <i class="fab fa-youtube icon text-danger"></i>
+                      <div class="title">YouTube Video</div>
+                      <div class="description">
+                        Link to a YouTube video with enhanced video preview features
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <!-- Hidden input to store the selected type -->
+                <input type="hidden" id="type" name="type" value="<%= link ? link.type : 'link' %>" required>
+              </div>
+
+              <div class="mb-3">
+                <label for="url" class="form-label">URL</label>
+                <input type="url" class="form-control" id="url" name="url" 
+                  value="<%= link ? link.url : '' %>" required>
+              </div>
+
+              <div class="mb-3" id="imageField">
+                <label for="image" class="form-label">Product Image</label>
+                <input type="file" class="form-control" id="image" name="image" accept="image/jpeg,image/png,image/gif">
+                <% if (link && link.image_url) { %>
+                  <div class="mt-2">
+                    <img src="<%= link.image_url %>" alt="Current image" class="img-thumbnail" style="max-height: 200px">
+                    <p class="text-muted small">Current image will be kept if no new image is uploaded</p>
+                  </div>
+                <% } %>
+              </div>
+
+              <div id="productFields" style="display: none;">
+                <div class="mb-3">
+                  <label for="price" class="form-label">Price</label>
+                  <div class="input-group">
+                    <span class="input-group-text">$</span>
+                    <input type="number" step="0.01" class="form-control" id="price" name="price" 
+                      value="<%= link ? link.price : '' %>">
+                  </div>
+                </div>
+
+                <div class="mb-3">
+                  <label for="category" class="form-label">Category</label>
+                  <input type="text" class="form-control" id="category" name="category" 
+                    value="<%= link ? link.category : '' %>">
+                </div>
+              </div>
+
+              <div class="mb-3">
+                <label for="click_target" class="form-label">Click Target</label>
+                <div class="input-group">
+                  <input type="number" class="form-control" id="click_target" name="click_target" 
+                    value="<%= link ? link.click_target : '100' %>" required min="1" data-cost-per-click="<%= parseFloat(costPerClick).toFixed(4) %>">
+                  <span class="input-group-text">clicks</span>
+                </div>
+                <small class="text-muted">
+                  Cost per click: $<%= parseFloat(costPerClick).toFixed(4) %><br>
+                  Total cost: $<span id="totalCost">0.00</span>
+                </small>
+              </div>
+
+              <div class="d-flex justify-content-between">
+                <a href="/merchant/links" class="btn btn-secondary">Cancel</a>
+                <button type="submit" class="btn btn-primary">
+                  <%= link ? 'Update Link' : 'Create Link' %>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <%- include('../partials/footer') %>
+  
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    // Function to select link type
+    function selectLinkType(type) {
+      // Remove selected class from all cards
+      document.querySelectorAll('.link-type-card').forEach(card => {
+        card.classList.remove('selected');
+      });
+      
+      // Add selected class to clicked card
+      document.querySelector(`[data-type="${type}"]`).classList.add('selected');
+      
+      // Update hidden input value
+      document.getElementById('type').value = type;
+      
+      // Trigger change event for other functions
+      document.getElementById('type').dispatchEvent(new Event('change'));
+    }
+
+    // Show/hide product fields and image field based on link type
+    document.getElementById('type').addEventListener('change', function() {
+      const productFields = document.getElementById('productFields');
+      const imageField = document.getElementById('imageField');
+      if (this.value === 'product') {
+        productFields.style.display = 'block';
+        imageField.style.display = 'block';
+      } else {
+        productFields.style.display = 'none';
+        imageField.style.display = 'none';
+      }
+    });
+
+    // Calculate total cost using data attribute
+    const clickTarget = document.getElementById('click_target');
+    const costPerClickValue = parseFloat(document.getElementById('click_target').dataset.costPerClick);
+    
+    function updateTotalCost() {
+      const totalCost = (clickTarget.value * costPerClickValue).toFixed(4);
+      document.getElementById('totalCost').textContent = totalCost;
+    }
+
+    clickTarget.addEventListener('input', updateTotalCost);
+
+    // Trigger initial calculations
+    updateTotalCost();
+    document.getElementById('type').dispatchEvent(new Event('change'));
+  </script>
+</body>
+</html>

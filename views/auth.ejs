@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= page === 'login' ? 'Login' : 'Register' %> - BenixSpace</title>
+  <link rel="icon" href="/static/img/favicon.png" type="image/png" />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <!-- AdSense and Analytics -->
+  <%- include('partials/adsense') %>
+  <style>
+    body {
+      background-color: #f8f9fa;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+    }
+    .auth-container {
+      max-width: 400px;
+      margin: 0 auto;
+      padding: 2rem;
+    }
+    .auth-logo {
+      text-align: center;
+      margin-bottom: 2rem;
+      color: #3498db;
+      font-size: 2.5rem;
+    }
+    .auth-card {
+      border-radius: 10px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+    .auth-card .card-header {
+      background-color: #fff;
+      border-bottom: 2px solid #3498db;
+      padding: 1rem;
+      text-align: center;
+      font-weight: 600;
+      font-size: 1.2rem;
+    }
+    .form-control:focus {
+      border-color: #3498db;
+      box-shadow: 0 0 0 0.2rem rgba(52, 152, 219, 0.25);
+    }
+    .btn-primary {
+      background-color: #3498db;
+      border-color: #3498db;
+    }
+    .btn-primary:hover {
+      background-color: #2980b9;
+      border-color: #2980b9;
+    }
+    .forgot-password {
+      text-align: right;
+      margin-bottom: 15px;
+      font-size: 0.9rem;
+    }
+    .forgot-password a {
+      color: #3498db;
+      text-decoration: none;
+    }
+    .forgot-password a:hover {
+      text-decoration: underline;
+    }
+    .whatsapp-icon {
+      color: #25d366;
+      margin-right: 5px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="auth-container">
+      <div class="auth-logo">
+        <i class="fas fa-link"></i>
+        <div>BenixSpace</div>
+      </div>
+      
+      <div class="card auth-card">
+        <div class="card-header">
+          <%= page === 'login' ? 'Login to Your Account' : 'Create New Account' %>
+        </div>
+        <div class="card-body p-4">
+          <% if (page === 'login') { %>
+            <% if (error) { %>
+              <div class="alert alert-danger"><%= error %></div>
+            <% } %>
+      
+            <form action="/login" method="POST">
+              <div class="mb-3">
+                <label class="form-label">Email</label>
+                <input type="email" name="email" class="form-control" required>
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Password</label>
+                <input type="password" name="password" class="form-control" required>
+              </div>
+              
+              <!-- Forgot Password Link -->
+              <div class="forgot-password">
+                <a href="#" data-bs-toggle="modal" data-bs-target="#forgotPasswordModal">
+                  <i class="fab fa-whatsapp whatsapp-icon"></i>Forgot password?
+                </a>
+              </div>
+              
+              <button type="submit" class="btn btn-primary w-100">Login</button>
+            
+              <div class="mt-3 text-center">
+                <p>New to Benix Space? <a href="/register">Register here</a></p>
+              </div> 
+            </form>
+          <% } else { %>
+            <!-- Register Form -->
+            <% if (error) { %>
+              <div class="alert alert-danger"><%= error %></div>
+            <% } %>
+      
+            <form action="/register" method="POST">
+              <div class="mb-3">
+                <label class="form-label">Account Type</label>
+                <select name="role" class="form-select" id="roleSelect" required>
+                  <option value="user">Regular User</option>
+                  <option value="merchant">Advertiser (Merchant/Artist)</option>
+                </select>
+              </div>
+      
+              <div class="mb-3">
+                <label class="form-label">Username</label>
+                <input type="text" name="username" class="form-control" required>
+              </div>              <div class="mb-3">
+                <label class="form-label">Email</label>
+                <input type="email" name="email" class="form-control" required>
+              </div>
+
+              <div class="mb-3">
+                <label class="form-label">Country</label>
+                <select name="country" id="countrySelect" class="form-select" required>
+                  <option value="">Select your country</option>
+                  <!-- Countries will be loaded via JavaScript -->
+                </select>
+              </div>              <div class="mb-3">
+                <label class="form-label">Phone Number</label>
+                <div class="input-group">
+                  <span class="input-group-text" id="countryCode">+1</span>
+                  <input type="tel" name="phone" class="form-control" required placeholder="Phone number">
+                  <input type="hidden" name="full_phone" id="fullPhoneNumber">
+                </div>
+                <small class="form-text text-muted">Please enter your phone number without the country code.</small>
+              </div>
+
+              <div class="mb-3">
+                <label class="form-label">Password</label>
+                <input type="password" name="password" class="form-control" required>
+              </div>
+
+              <div class="mb-3">
+                <label class="form-label">Confirm Password</label>
+                <input type="password" name="confirmPassword" class="form-control" required>
+              </div>
+
+              <% if (typeof referralCode !== 'undefined' && referralCode) { %>
+                <input type="hidden" name="referral_code" value="<%= referralCode %>">
+              <% } %>
+
+              <!-- Merchant-specific fields -->
+              <div id="merchantFields" style="display: none;">
+                <div class="mb-3">
+                  <label class="form-label">Business Name</label>
+                  <input type="text" name="business_name" class="form-control">
+                </div>
+      
+                <div class="mb-3">
+                  <label class="form-label">Business Description</label>
+                  <textarea name="business_description" class="form-control" rows="3"></textarea>
+                </div>
+              </div>
+      
+              <button type="submit" class="btn btn-primary w-100">Register</button>
+            
+              <div class="mt-3 text-center">
+                <p>Already have an account? <a href="/login">Login here</a></p>
+              </div>
+            </form>
+          <% } %>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Forgot Password Modal -->
+  <div class="modal fade" id="forgotPasswordModal" tabindex="-1" aria-labelledby="forgotPasswordModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="forgotPasswordModalLabel">Forgot Password</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <p>Please contact the admin via WhatsApp to reset your password. Include your username, email, and phone number in your message.</p>
+          
+          <div class="mb-3">
+            <label class="form-label">Username</label>
+            <input type="text" id="forgotUsername" class="form-control" placeholder="Your username">
+          </div>
+          
+          <div class="mb-3">
+            <label class="form-label">Email</label>
+            <input type="email" id="forgotEmail" class="form-control" placeholder="Your email address">
+          </div>
+          
+          <div class="mb-3">
+            <label class="form-label">Phone Number</label>
+            <input type="text" id="forgotPhone" class="form-control" placeholder="Your phone number">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+          <a href="#" id="whatsappLink" class="btn btn-success">
+            <i class="fab fa-whatsapp me-2"></i>Contact Admin on WhatsApp
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    // Country data with country codes
+    const countries = [
+      { name: "Afghanistan", code: "AF", dialCode: "+93" },
+      { name: "Albania", code: "AL", dialCode: "+355" },
+      { name: "Algeria", code: "DZ", dialCode: "+213" },
+      { name: "Andorra", code: "AD", dialCode: "+376" },
+      { name: "Angola", code: "AO", dialCode: "+244" },
+      { name: "Argentina", code: "AR", dialCode: "+54" },
+      { name: "Armenia", code: "AM", dialCode: "+374" },
+      { name: "Australia", code: "AU", dialCode: "+61" },
+      { name: "Austria", code: "AT", dialCode: "+43" },
+      { name: "Azerbaijan", code: "AZ", dialCode: "+994" },
+      { name: "Bahamas", code: "BS", dialCode: "+1242" },
+      { name: "Bahrain", code: "BH", dialCode: "+973" },
+      { name: "Bangladesh", code: "BD", dialCode: "+880" },
+      { name: "Barbados", code: "BB", dialCode: "+1246" },
+      { name: "Belarus", code: "BY", dialCode: "+375" },
+      { name: "Belgium", code: "BE", dialCode: "+32" },
+      { name: "Belize", code: "BZ", dialCode: "+501" },
+      { name: "Benin", code: "BJ", dialCode: "+229" },
+      { name: "Bhutan", code: "BT", dialCode: "+975" },
+      { name: "Bolivia", code: "BO", dialCode: "+591" },
+      { name: "Bosnia and Herzegovina", code: "BA", dialCode: "+387" },
+      { name: "Botswana", code: "BW", dialCode: "+267" },
+      { name: "Brazil", code: "BR", dialCode: "+55" },
+      { name: "Brunei", code: "BN", dialCode: "+673" },
+      { name: "Bulgaria", code: "BG", dialCode: "+359" },
+      { name: "Burkina Faso", code: "BF", dialCode: "+226" },
+      { name: "Burundi", code: "BI", dialCode: "+257" },
+      { name: "Cambodia", code: "KH", dialCode: "+855" },
+      { name: "Cameroon", code: "CM", dialCode: "+237" },
+      { name: "Canada", code: "CA", dialCode: "+1" },
+      { name: "Cape Verde", code: "CV", dialCode: "+238" },
+      { name: "Central African Republic", code: "CF", dialCode: "+236" },
+      { name: "Chad", code: "TD", dialCode: "+235" },
+      { name: "Chile", code: "CL", dialCode: "+56" },
+      { name: "China", code: "CN", dialCode: "+86" },
+      { name: "Colombia", code: "CO", dialCode: "+57" },
+      { name: "Comoros", code: "KM", dialCode: "+269" },
+      { name: "Congo", code: "CG", dialCode: "+242" },
+      { name: "Costa Rica", code: "CR", dialCode: "+506" },
+      { name: "Croatia", code: "HR", dialCode: "+385" },
+      { name: "Cuba", code: "CU", dialCode: "+53" },
+      { name: "Cyprus", code: "CY", dialCode: "+357" },
+      { name: "Czech Republic", code: "CZ", dialCode: "+420" },
+      { name: "Denmark", code: "DK", dialCode: "+45" },
+      { name: "Djibouti", code: "DJ", dialCode: "+253" },
+      { name: "Dominica", code: "DM", dialCode: "+1767" },
+      { name: "Dominican Republic", code: "DO", dialCode: "+1849" },
+      { name: "Ecuador", code: "EC", dialCode: "+593" },
+      { name: "Egypt", code: "EG", dialCode: "+20" },
+      { name: "El Salvador", code: "SV", dialCode: "+503" },
+      { name: "Equatorial Guinea", code: "GQ", dialCode: "+240" },
+      { name: "Eritrea", code: "ER", dialCode: "+291" },
+      { name: "Estonia", code: "EE", dialCode: "+372" },
+      { name: "Ethiopia", code: "ET", dialCode: "+251" },
+      { name: "Fiji", code: "FJ", dialCode: "+679" },
+      { name: "Finland", code: "FI", dialCode: "+358" },
+      { name: "France", code: "FR", dialCode: "+33" },
+      { name: "Gabon", code: "GA", dialCode: "+241" },
+      { name: "Gambia", code: "GM", dialCode: "+220" },
+      { name: "Georgia", code: "GE", dialCode: "+995" },
+      { name: "Germany", code: "DE", dialCode: "+49" },
+      { name: "Ghana", code: "GH", dialCode: "+233" },
+      { name: "Greece", code: "GR", dialCode: "+30" },
+      { name: "Grenada", code: "GD", dialCode: "+1473" },
+      { name: "Guatemala", code: "GT", dialCode: "+502" },
+      { name: "Guinea", code: "GN", dialCode: "+224" },
+      { name: "Guinea-Bissau", code: "GW", dialCode: "+245" },
+      { name: "Guyana", code: "GY", dialCode: "+592" },
+      { name: "Haiti", code: "HT", dialCode: "+509" },
+      { name: "Honduras", code: "HN", dialCode: "+504" },
+      { name: "Hungary", code: "HU", dialCode: "+36" },
+      { name: "Iceland", code: "IS", dialCode: "+354" },
+      { name: "India", code: "IN", dialCode: "+91" },
+      { name: "Indonesia", code: "ID", dialCode: "+62" },
+      { name: "Iran", code: "IR", dialCode: "+98" },
+      { name: "Iraq", code: "IQ", dialCode: "+964" },
+      { name: "Ireland", code: "IE", dialCode: "+353" },
+      { name: "Israel", code: "IL", dialCode: "+972" },
+      { name: "Italy", code: "IT", dialCode: "+39" },
+      { name: "Jamaica", code: "JM", dialCode: "+1876" },
+      { name: "Japan", code: "JP", dialCode: "+81" },
+      { name: "Jordan", code: "JO", dialCode: "+962" },
+      { name: "Kazakhstan", code: "KZ", dialCode: "+7" },
+      { name: "Kenya", code: "KE", dialCode: "+254" },
+      { name: "Kiribati", code: "KI", dialCode: "+686" },
+      { name: "Kuwait", code: "KW", dialCode: "+965" },
+      { name: "Kyrgyzstan", code: "KG", dialCode: "+996" },
+      { name: "Laos", code: "LA", dialCode: "+856" },
+      { name: "Latvia", code: "LV", dialCode: "+371" },
+      { name: "Lebanon", code: "LB", dialCode: "+961" },
+      { name: "Lesotho", code: "LS", dialCode: "+266" },
+      { name: "Liberia", code: "LR", dialCode: "+231" },
+      { name: "Libya", code: "LY", dialCode: "+218" },
+      { name: "Liechtenstein", code: "LI", dialCode: "+423" },
+      { name: "Lithuania", code: "LT", dialCode: "+370" },
+      { name: "Luxembourg", code: "LU", dialCode: "+352" },
+      { name: "Macedonia", code: "MK", dialCode: "+389" },
+      { name: "Madagascar", code: "MG", dialCode: "+261" },
+      { name: "Malawi", code: "MW", dialCode: "+265" },
+      { name: "Malaysia", code: "MY", dialCode: "+60" },
+      { name: "Maldives", code: "MV", dialCode: "+960" },
+      { name: "Mali", code: "ML", dialCode: "+223" },
+      { name: "Malta", code: "MT", dialCode: "+356" },
+      { name: "Marshall Islands", code: "MH", dialCode: "+692" },
+      { name: "Mauritania", code: "MR", dialCode: "+222" },
+      { name: "Mauritius", code: "MU", dialCode: "+230" },
+      { name: "Mexico", code: "MX", dialCode: "+52" },
+      { name: "Micronesia", code: "FM", dialCode: "+691" },
+      { name: "Moldova", code: "MD", dialCode: "+373" },
+      { name: "Monaco", code: "MC", dialCode: "+377" },
+      { name: "Mongolia", code: "MN", dialCode: "+976" },
+      { name: "Montenegro", code: "ME", dialCode: "+382" },
+      { name: "Morocco", code: "MA", dialCode: "+212" },
+      { name: "Mozambique", code: "MZ", dialCode: "+258" },
+      { name: "Myanmar", code: "MM", dialCode: "+95" },
+      { name: "Namibia", code: "NA", dialCode: "+264" },
+      { name: "Nauru", code: "NR", dialCode: "+674" },
+      { name: "Nepal", code: "NP", dialCode: "+977" },
+      { name: "Netherlands", code: "NL", dialCode: "+31" },
+      { name: "New Zealand", code: "NZ", dialCode: "+64" },
+      { name: "Nicaragua", code: "NI", dialCode: "+505" },
+      { name: "Niger", code: "NE", dialCode: "+227" },
+      { name: "Nigeria", code: "NG", dialCode: "+234" },
+      { name: "North Korea", code: "KP", dialCode: "+850" },
+      { name: "Norway", code: "NO", dialCode: "+47" },
+      { name: "Oman", code: "OM", dialCode: "+968" },
+      { name: "Pakistan", code: "PK", dialCode: "+92" },
+      { name: "Palau", code: "PW", dialCode: "+680" },
+      { name: "Panama", code: "PA", dialCode: "+507" },
+      { name: "Papua New Guinea", code: "PG", dialCode: "+675" },
+      { name: "Paraguay", code: "PY", dialCode: "+595" },
+      { name: "Peru", code: "PE", dialCode: "+51" },
+      { name: "Philippines", code: "PH", dialCode: "+63" },
+      { name: "Poland", code: "PL", dialCode: "+48" },
+      { name: "Portugal", code: "PT", dialCode: "+351" },
+      { name: "Qatar", code: "QA", dialCode: "+974" },
+      { name: "Romania", code: "RO", dialCode: "+40" },
+      { name: "Russia", code: "RU", dialCode: "+7" },
+      { name: "Rwanda", code: "RW", dialCode: "+250" },
+      { name: "Saint Kitts and Nevis", code: "KN", dialCode: "+1869" },
+      { name: "Saint Lucia", code: "LC", dialCode: "+1758" },
+      { name: "Saint Vincent and the Grenadines", code: "VC", dialCode: "+1784" },
+      { name: "Samoa", code: "WS", dialCode: "+685" },
+      { name: "San Marino", code: "SM", dialCode: "+378" },
+      { name: "Sao Tome and Principe", code: "ST", dialCode: "+239" },
+      { name: "Saudi Arabia", code: "SA", dialCode: "+966" },
+      { name: "Senegal", code: "SN", dialCode: "+221" },
+      { name: "Serbia", code: "RS", dialCode: "+381" },
+      { name: "Seychelles", code: "SC", dialCode: "+248" },
+      { name: "Sierra Leone", code: "SL", dialCode: "+232" },
+      { name: "Singapore", code: "SG", dialCode: "+65" },
+      { name: "Slovakia", code: "SK", dialCode: "+421" },
+      { name: "Slovenia", code: "SI", dialCode: "+386" },
+      { name: "Solomon Islands", code: "SB", dialCode: "+677" },
+      { name: "Somalia", code: "SO", dialCode: "+252" },
+      { name: "South Africa", code: "ZA", dialCode: "+27" },
+      { name: "South Korea", code: "KR", dialCode: "+82" },
+      { name: "South Sudan", code: "SS", dialCode: "+211" },
+      { name: "Spain", code: "ES", dialCode: "+34" },
+      { name: "Sri Lanka", code: "LK", dialCode: "+94" },
+      { name: "Sudan", code: "SD", dialCode: "+249" },
+      { name: "Suriname", code: "SR", dialCode: "+597" },
+      { name: "Swaziland", code: "SZ", dialCode: "+268" },
+      { name: "Sweden", code: "SE", dialCode: "+46" },
+      { name: "Switzerland", code: "CH", dialCode: "+41" },
+      { name: "Syria", code: "SY", dialCode: "+963" },
+      { name: "Taiwan", code: "TW", dialCode: "+886" },
+      { name: "Tajikistan", code: "TJ", dialCode: "+992" },
+      { name: "Tanzania", code: "TZ", dialCode: "+255" },
+      { name: "Thailand", code: "TH", dialCode: "+66" },
+      { name: "Togo", code: "TG", dialCode: "+228" },
+      { name: "Tonga", code: "TO", dialCode: "+676" },
+      { name: "Trinidad and Tobago", code: "TT", dialCode: "+1868" },
+      { name: "Tunisia", code: "TN", dialCode: "+216" },
+      { name: "Turkey", code: "TR", dialCode: "+90" },
+      { name: "Turkmenistan", code: "TM", dialCode: "+993" },
+      { name: "Tuvalu", code: "TV", dialCode: "+688" },
+      { name: "Uganda", code: "UG", dialCode: "+256" },
+      { name: "Ukraine", code: "UA", dialCode: "+380" },
+      { name: "United Arab Emirates", code: "AE", dialCode: "+971" },
+      { name: "United Kingdom", code: "GB", dialCode: "+44" },
+      { name: "United States", code: "US", dialCode: "+1" },
+      { name: "Uruguay", code: "UY", dialCode: "+598" },
+      { name: "Uzbekistan", code: "UZ", dialCode: "+998" },
+      { name: "Vanuatu", code: "VU", dialCode: "+678" },
+      { name: "Vatican City", code: "VA", dialCode: "+379" },
+      { name: "Venezuela", code: "VE", dialCode: "+58" },
+      { name: "Vietnam", code: "VN", dialCode: "+84" },
+      { name: "Yemen", code: "YE", dialCode: "+967" },
+      { name: "Zambia", code: "ZM", dialCode: "+260" },
+      { name: "Zimbabwe", code: "ZW", dialCode: "+263" }
+    ];
+  
+    // Toggle merchant fields based on role selection
+    document.addEventListener('DOMContentLoaded', function() {
+      // Populate country select
+      const countrySelect = document.getElementById('countrySelect');
+      if (countrySelect) {
+        // Sort countries alphabetically
+        countries.sort((a, b) => a.name.localeCompare(b.name));
+        
+        // Add options to the select
+        countries.forEach(country => {
+          const option = document.createElement('option');
+          option.value = country.code;
+          option.textContent = country.name;
+          option.setAttribute('data-dial-code', country.dialCode);
+          countrySelect.appendChild(option);
+        });
+
+        // Set US as default
+        countrySelect.value = 'RW';
+        document.getElementById('countryCode').textContent = '+250'; // Default to Rwanda's dial code
+          // Add change event listener to update country code
+        countrySelect.addEventListener('change', function() {
+          const selectedOption = this.options[this.selectedIndex];
+          const dialCode = selectedOption.getAttribute('data-dial-code');
+          document.getElementById('countryCode').textContent = dialCode;
+          updateFullPhoneNumber();
+        });
+      }
+      
+      const roleSelect = document.getElementById('roleSelect');
+      if (roleSelect) {
+        roleSelect.addEventListener('change', function() {
+          const merchantFields = document.getElementById('merchantFields');
+          merchantFields.style.display = this.value === 'merchant' ? 'block' : 'none';
+          
+          // Toggle required attribute on merchant fields
+          const merchantInputs = merchantFields.querySelectorAll('input, textarea');
+          merchantInputs.forEach(input => {
+            input.required = this.value === 'merchant';
+          });
+        });
+      }
+        // Function to update the full phone number hidden field
+      function updateFullPhoneNumber() {
+        const phoneInput = document.querySelector('input[name="phone"]');
+        const countryCode = document.getElementById('countryCode').textContent;
+        const fullPhoneField = document.getElementById('fullPhoneNumber');
+        
+        if (phoneInput && fullPhoneField) {
+          const phoneValue = phoneInput.value.trim();
+          // Remove any leading zeros from the phone number
+          const cleanPhone = phoneValue.replace(/^0+/, '');
+          // Combine country code and phone number
+          fullPhoneField.value = countryCode + cleanPhone;
+        }
+      }
+        // Add event listener to phone input to update the full phone number
+      const phoneInput = document.querySelector('input[name="phone"]');
+      if (phoneInput) {
+        phoneInput.addEventListener('input', updateFullPhoneNumber);
+        // Initialize the full phone field when the page loads
+        updateFullPhoneNumber();
+      }
+      
+      // Ensure the full phone number is updated when the form is submitted
+      const registerForm = document.querySelector('form[action="/register"]');
+      if (registerForm) {
+        registerForm.addEventListener('submit', function(e) {
+          updateFullPhoneNumber();
+        });
+      }
+      
+      // WhatsApp link handling
+      const whatsappLink = document.getElementById('whatsappLink');
+      if (whatsappLink) {
+        whatsappLink.addEventListener('click', function(e) {
+          const username = document.getElementById('forgotUsername').value;
+          const email = document.getElementById('forgotEmail').value;
+          const phone = document.getElementById('forgotPhone').value;
+          
+          if (!username || !email) {
+            alert('Please fill in at least your username and email address');
+            e.preventDefault();
+            return;
+          }
+          
+          const message = `Hello Admin, I forgot my password for BenixSpace. Here are my details:\nUsername: ${username}\nEmail: ${email}\nPhone: ${phone || 'Not provided'}`;
+          const encodedMessage = encodeURIComponent(message);
+          
+          this.href = `https://wa.me/250783987223?text=${encodedMessage}`;
+        });
+      }
+    });
+  </script>
+</body>
+</html>

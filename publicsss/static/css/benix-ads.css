@@ -1,0 +1,96 @@
+/* BenixAds Core Styles */
+.benix-ad-container {
+  display: block;
+  margin: 0 auto;
+  max-width: 100%;
+  text-align: center;
+}
+
+/* Ad Slot Styles */
+[data-benix-ad] {
+  display: inline-block;
+  margin: 10px;
+  min-height: 250px;
+  background: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  overflow: hidden;
+  vertical-align: top;
+}
+
+/* Responsive Sizes */
+[data-benix-size="300x250"] {
+  width: 300px;
+  height: 250px;
+}
+
+[data-benix-size="728x90"] {
+  width: 728px;
+  height: 90px;
+}
+
+[data-benix-size="160x600"] {
+  width: 160px;
+  height: 600px;
+}
+
+/* Placeholder Styles */
+.benix-ad-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  padding: 20px;
+  background: #f8f9fa;
+  color: #6c757d;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.benix-ad-placeholder:hover {
+  background: #e9ecef;
+}
+
+.benix-ad-placeholder i {
+  font-size: 24px;
+  margin-bottom: 10px;
+}
+
+.benix-ad-placeholder p {
+  margin: 0;
+  font-size: 14px;
+}
+
+/* Image Ad Styles */
+.benix-ad-content {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+.benix-ad-content img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.2s ease;
+}
+
+.benix-ad-content:hover img {
+  transform: scale(1.05);
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+  [data-benix-size="728x90"] {
+    width: 320px;
+    height: 100px;
+  }
+  
+  [data-benix-size="300x250"],
+  [data-benix-size="160x600"] {
+    width: 300px;
+    height: 250px;
+  }
+}

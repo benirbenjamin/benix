@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Platform Analytics | Admin - BenixSpace</title>
+    <link rel="icon" href="/static/img/favicon.png" type="image/png" />
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .stats-card {
+            transition: all 0.3s;
+            border-radius: 10px;
+        }
+        .stats-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+        }
+        .chart-container {
+            position: relative;
+            height: 300px;
+            margin-bottom: 20px;
+        }
+        .metric-value {
+            font-size: 2rem;
+            font-weight: bold;
+        }
+        .metric-label {
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .growth-indicator {
+            font-size: 0.9rem;
+            padding: 2px 8px;
+            border-radius: 12px;
+        }
+        .growth-positive { background-color: #d4edda; color: #155724; }
+        .growth-negative { background-color: #f8d7da; color: #721c24; }
+    </style>
+</head>
+<body class="bg-light">
+    <%- include('../partials/navbar.ejs', { user: user, currentPath: '/admin/performance' }) %>
+
+    <div class="container-fluid py-4">
+        <!-- Time Range Selector -->
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1 class="h3">Platform Analytics</h1>
+            <div class="btn-group">
+                <a href="?range=7" class="btn btn-outline-primary <%= timeRange === '7' ? 'active' : '' %>">7 Days</a>
+                <a href="?range=30" class="btn btn-outline-primary <%= timeRange === '30' ? 'active' : '' %>">30 Days</a>
+                <a href="?range=90" class="btn btn-outline-primary <%= timeRange === '90' ? 'active' : '' %>">90 Days</a>
+                <a href="?range=365" class="btn btn-outline-primary <%= timeRange === '365' ? 'active' : '' %>">1 Year</a>
+            </div>
+        </div>
+
+        <!-- Key Financial Metrics -->
+        <div class="row mb-4">
+            <div class="col-xl-3 col-md-6 mb-3">
+                <div class="card stats-card bg-primary text-white">
+                    <div class="card-body">
+                        <div class="metric-label">Revenue</div>
+                        <div class="metric-value">$<%= parseFloat(stats.total_revenue || 0).toFixed(2) %></div>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <small>Period: $<%= parseFloat(stats.period.revenue || 0).toFixed(2) %></small>
+                            <span class="growth-indicator <%= parseFloat(stats.period.growth) >= 0 ? 'bg-success' : 'bg-danger' %> bg-opacity-25">
+                                <%= stats.period.growth %>%
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-xl-3 col-md-6 mb-3">
+                <div class="card stats-card bg-success text-white">
+                    <div class="card-body">
+                        <div class="metric-label">Net Profit</div>
+                        <div class="metric-value">$<%= parseFloat(stats.net_profit || 0).toFixed(2) %></div>
+                        <small>After user earnings & costs</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-xl-3 col-md-6 mb-3">
+                <div class="card stats-card bg-info text-white">
+                    <div class="card-body">
+                        <div class="metric-label">User Earnings</div>
+                        <div class="metric-value">$<%= parseFloat(stats.total_user_earnings || 0).toFixed(2) %></div>
+                        <small>Total commissions paid</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-xl-3 col-md-6 mb-3">
+                <div class="card stats-card bg-warning text-dark">
+                    <div class="card-body">
+                        <div class="metric-label">Pending Payments</div>
+                        <div class="metric-value">$<%= parseFloat(stats.total_amount_due || 0).toFixed(2) %></div>
+                        <small>To be paid to merchants</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Platform Metrics -->
+        <div class="row mb-4">
+            <!-- Links Performance -->
+            <div class="col-xl-3 col-md-6 mb-3">
+                <div class="card stats-card h-100">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">Links Performance</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between mb-3">
+                            <div>
+                                <div class="h3 mb-0"><%= stats.links.total_links %></div>
+                                <small class="text-muted">Total Links</small>
+                            </div>
+                            <div>
+                                <div class="h3 mb-0"><%= stats.links.total_clicks %></div>
+                                <small class="text-muted">Total Clicks</small>
+                            </div>
+                        </div>
+                        <div class="text-center">
+                            <div class="h4 mb-0"><%= stats.links.new_links %></div>
+                            <small class="text-muted">New Links This Period</small>
+                        </div>
+                        <div class="text-center mt-2">
+                            <span class="growth-indicator <%= parseFloat(stats.links.growth) >= 0 ? 'growth-positive' : 'growth-negative' %>">
+                                <%= stats.links.growth %>% Growth
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Banner Performance -->
+            <div class="col-xl-3 col-md-6 mb-3">
+                <div class="card stats-card h-100">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">Banner Performance</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between mb-3">
+                            <div>
+                                <div class="h3 mb-0"><%= stats.banners.total_views %></div>
+                                <small class="text-muted">Total Views</small>
+                            </div>
+                            <div>
+                                <div class="h3 mb-0"><%= stats.banners.total_clicks %></div>
+                                <small class="text-muted">Total Clicks</small>
+                            </div>
+                        </div>
+                        <div class="text-center">
+                            <div class="h4 mb-0">$<%= parseFloat(stats.banners.revenue || 0).toFixed(2) %></div>
+                            <small class="text-muted">Banner Revenue</small>
+                        </div>
+                        <div class="text-center mt-2">
+                            <span class="growth-indicator <%= parseFloat(stats.banners.growth) >= 0 ? 'growth-positive' : 'growth-negative' %>">
+                                <%= stats.banners.growth %>% Growth
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Blog Performance -->
+            <div class="col-xl-3 col-md-6 mb-3">
+                <div class="card stats-card h-100">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">Blog Performance</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between mb-3">
+                            <div>
+                                <div class="h3 mb-0"><%= stats.blog.total_posts %></div>
+                                <small class="text-muted">Total Posts</small>
+                            </div>
+                            <div>
+                                <div class="h3 mb-0"><%= stats.blog.total_views %></div>
+                                <small class="text-muted">Total Views</small>
+                            </div>
+                        </div>
+                        <div class="text-center">
+                            <div class="h4 mb-0"><%= stats.blog.new_posts %></div>
+                            <small class="text-muted">New Posts This Period</small>
+                        </div>
+                        <div class="text-center mt-2">
+                            <span class="growth-indicator <%= parseFloat(stats.blog.growth) >= 0 ? 'growth-positive' : 'growth-negative' %>">
+                                <%= stats.blog.growth %>% Growth
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- User Activity -->
+            <div class="col-xl-3 col-md-6 mb-3">
+                <div class="card stats-card h-100">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">User Activity</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between mb-3">
+                            <div>
+                                <div class="h3 mb-0"><%= stats.total_users %></div>
+                                <small class="text-muted">Total Users</small>
+                            </div>
+                            <div>
+                                <div class="h3 mb-0"><%= stats.total_merchants %></div>
+                                <small class="text-muted">Merchants</small>
+                            </div>
+                        </div>
+                        <div class="text-center">
+                            <div class="h4 mb-0"><%= stats.period.new_users %></div>
+                            <small class="text-muted">New Users This Period</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Performance Charts -->
+        <div class="row mb-4">
+            <!-- Daily Performance -->
+            <div class="col-xl-6 mb-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">Daily Performance</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container">
+                            <canvas id="dailyChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Weekly Performance -->
+            <div class="col-xl-6 mb-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">Weekly Performance</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container">
+                            <canvas id="weeklyChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Monthly Performance -->
+            <div class="col-xl-6 mb-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">Monthly Performance</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container">
+                            <canvas id="monthlyChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Yearly Performance -->
+            <div class="col-xl-6 mb-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">Yearly Performance</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container">
+                            <canvas id="yearlyChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Top Performing Merchants Table -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Top Performing Merchants</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Merchant</th>
+                                <th class="text-end">Total Links</th>
+                                <th class="text-end">Total Clicks</th>
+                                <th class="text-end">Revenue Generated</th>
+                                <th class="text-end">Amount Due</th>
+                                <th class="text-end">Amount Paid</th>
+                                <th class="text-center">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <% topMerchantsByRevenue.forEach(merchant => { %>
+                                <tr>
+                                    <td><%= merchant.username %></td>
+                                    <td class="text-end"><%= merchant.total_links.toLocaleString() %></td>
+                                    <td class="text-end"><%= merchant.total_clicks.toLocaleString() %></td>
+                                    <td class="text-end">$<%= parseFloat(merchant.total_revenue_generated || 0).toFixed(2) %></td>
+                                    <td class="text-end">$<%= parseFloat(merchant.amount_to_pay || 0).toFixed(2) %></td>
+                                    <td class="text-end">$<%= parseFloat(merchant.paid_balance || 0).toFixed(2) %></td>
+                                    <td class="text-center">
+                                        <a href="/admin/merchant-analytics/<%= merchant.id %>" class="btn btn-sm btn-outline-primary">View Details</a>
+                                    </td>
+                                </tr>
+                            <% }); %>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Top Performing Links Table -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Top Performing Links</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Title</th>
+                                <th>Merchant</th>
+                                <th class="text-end">Total Clicks</th>
+                                <th class="text-end">Total Shares</th>
+                                <th class="text-end">Period Clicks</th>
+                                <th class="text-end">Total Earnings</th>
+                                <th class="text-center">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <% stats.topLinks.forEach(link => { %>
+                                <tr>
+                                    <td><%= link.title %></td>
+                                    <td><%= link.merchant_name %></td>
+                                    <td class="text-end"><%= link.total_clicks.toLocaleString() %></td>
+                                    <td class="text-end"><%= link.total_shares.toLocaleString() %></td>
+                                    <td class="text-end"><%= link.period_clicks.toLocaleString() %></td>
+                                    <td class="text-end">$<%= link.total_earnings %></td>
+                                    <td class="text-center">
+                                        <a href="<%= link.url %>" target="_blank" class="btn btn-sm btn-outline-primary me-2">View Link</a>
+
+                                    </td>
+                                </tr>
+                            <% }); %>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Helper function to create performance charts
+        function createPerformanceChart(ctx, data, label) {
+            return new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: data.map(d => d.date || d.week || d.month || d.year),
+                    datasets: [
+                        {
+                            label: 'Clicks',
+                            data: data.map(d => d.clicks),
+                            borderColor: 'rgb(75, 192, 192)',
+                            backgroundColor: 'rgba(75, 192, 192, 0.1)',
+                            yAxisID: 'y'
+                        },
+                        {
+                            label: 'Revenue',
+                            data: data.map(d => d.revenue),
+                            borderColor: 'rgb(255, 99, 132)',
+                            backgroundColor: 'rgba(255, 99, 132, 0.1)',
+                            yAxisID: 'y1'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false,
+                    },
+                    scales: {
+                        y: {
+                            type: 'linear',
+                            display: true,
+                            position: 'left',
+                            title: {
+                                display: true,
+                                text: 'Clicks'
+                            }
+                        },
+                        y1: {
+                            type: 'linear',
+                            display: true,
+                            position: 'right',
+                            title: {
+                                display: true,
+                                text: 'Revenue ($)'
+                            },
+                            grid: {
+                                drawOnChartArea: false,
+                            }
+                        }
+                    },
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: label
+                        }
+                    }
+                }
+            });
+        }
+
+        // Initialize all charts
+        const analytics = <%- JSON.stringify(analytics) %>;
+        
+        createPerformanceChart(
+            document.getElementById('dailyChart').getContext('2d'),
+            analytics.daily,
+            'Daily Performance'
+        );
+        
+        createPerformanceChart(
+            document.getElementById('weeklyChart').getContext('2d'),
+            analytics.weekly,
+            'Weekly Performance'
+        );
+        
+        createPerformanceChart(
+            document.getElementById('monthlyChart').getContext('2d'),
+            analytics.monthly,
+            'Monthly Performance'
+        );
+        
+        createPerformanceChart(
+            document.getElementById('yearlyChart').getContext('2d'),
+            analytics.yearly,
+            'Yearly Performance'
+        );
+    </script>
+</body>
+</html>

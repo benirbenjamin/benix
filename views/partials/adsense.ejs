@@ -1,0 +1,38 @@
+<!-- Google AdSense Auto Ads -->
+<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4078466828008985"
+     crossorigin="anonymous"></script>
+<script>
+     (adsbygoogle = window.adsbygoogle || []).push({
+          google_ad_client: "ca-pub-4078466828008985",
+          enable_page_level_ads: true
+     });
+</script>
+
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-42T2JBVEYE"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-42T2JBVEYE');
+</script>
+
+<!-- Ad Block Detection -->
+<script>
+  // Basic ad block detection
+  window.addEventListener('load', function() {
+    var testAd = document.createElement('div');
+    testAd.innerHTML = '&nbsp;';
+    testAd.className = 'adsbox';
+    testAd.style.position = 'absolute';
+    testAd.style.left = '-9999px';
+    document.body.appendChild(testAd);
+    
+    setTimeout(function() {
+      if (testAd.offsetHeight === 0) {
+        console.log('Ad blocker detected');
+      }
+      document.body.removeChild(testAd);
+    }, 100);
+  });
+</script>

@@ -1,0 +1,218 @@
+<!-- Mobile Bottom Navigation -->
+<nav class="mobile-bottom-nav d-md-none">
+  <div class="nav-container">
+    <% if (typeof user !== 'undefined' && user) { %>
+      <!-- Navigation items for logged-in users -->
+      <a href="/" class="nav-item <%= typeof page !== 'undefined' && page === 'home' ? 'active' : '' %>">
+        <i class="fas fa-home"></i>
+        <span>Home</span>
+      </a>
+      
+      <a href="/user/products" class="nav-item <%= typeof page !== 'undefined' && page === 'shop' ? 'active' : '' %>">
+        <i class="fas fa-shopping-bag"></i>
+        <span>Shop</span>
+      </a>
+      
+      <a href="/blog" class="nav-item <%= typeof page !== 'undefined' && page === 'blog' ? 'active' : '' %>">
+        <i class="fas fa-blog"></i>
+        <span>Blog</span>
+      </a>
+      
+      <a href="/cart" class="nav-item position-relative <%= typeof page !== 'undefined' && page === 'cart' ? 'active' : '' %>">
+        <i class="fas fa-shopping-cart"></i>
+        <span>Cart</span>
+        <% if (typeof cartCount !== 'undefined' && cartCount > 0) { %>
+          <span class="cart-badge"><%= cartCount %></span>
+        <% } %>
+      </a>
+      
+      <% if (user.role === 'merchant' || user.role === 'admin') { %>
+        <a href="/merchant/links" class="nav-item <%= typeof page !== 'undefined' && page === 'links' ? 'active' : '' %>">
+          <i class="fas fa-link"></i>
+          <span>Links</span>
+        </a>
+      <% } else { %>
+        <a href="/shared-links" class="nav-item <%= typeof page !== 'undefined' && page === 'shared-links' ? 'active' : '' %>">
+          <i class="fas fa-share-alt"></i>
+          <span>Shared</span>
+        </a>
+      <% } %>
+      
+      <a href="/dashboard" class="nav-item <%= typeof page !== 'undefined' && page === 'dashboard' ? 'active' : '' %>">
+        <i class="fas fa-user-circle"></i>
+        <span>Profile</span>
+      </a>
+    <% } else { %>
+      <!-- Navigation items for guests -->
+      <a href="/" class="nav-item <%= typeof page !== 'undefined' && page === 'home' ? 'active' : '' %>">
+        <i class="fas fa-home"></i>
+        <span>Home</span>
+      </a>
+      
+      <a href="/user/products" class="nav-item <%= typeof page !== 'undefined' && page === 'shop' ? 'active' : '' %>">
+        <i class="fas fa-shopping-bag"></i>
+        <span>Shop</span>
+      </a>
+      
+      <a href="/blog" class="nav-item <%= typeof page !== 'undefined' && page === 'blog' ? 'active' : '' %>">
+        <i class="fas fa-blog"></i>
+        <span>Blog</span>
+      </a>
+      
+      <a href="/about" class="nav-item <%= typeof page !== 'undefined' && page === 'about' ? 'active' : '' %>">
+        <i class="fas fa-info-circle"></i>
+        <span>About</span>
+      </a>
+      
+      <a href="/login" class="nav-item <%= typeof page !== 'undefined' && page === 'login' ? 'active' : '' %>">
+        <i class="fas fa-sign-in-alt"></i>
+        <span>Login</span>
+      </a>
+      
+      <a href="/register" class="nav-item <%= typeof page !== 'undefined' && page === 'register' ? 'active' : '' %>">
+        <i class="fas fa-user-plus"></i>
+        <span>Register</span>
+      </a>
+    <% } %>
+  </div>
+</nav>
+
+<style>
+.mobile-bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  z-index: 1000;
+  padding: 8px 0;
+  box-shadow: 0 -2px 20px rgba(0, 0, 0, 0.1);
+}
+
+.mobile-bottom-nav .nav-container {
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 0 10px;
+}
+
+.mobile-bottom-nav .nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 8px 12px;
+  color: rgba(255, 255, 255, 0.8);
+  text-decoration: none;
+  border-radius: 12px;
+  transition: all 0.3s ease;
+  position: relative;
+  min-width: 60px;
+}
+
+.mobile-bottom-nav .nav-item:hover {
+  color: white;
+  background: rgba(255, 255, 255, 0.1);
+  transform: translateY(-2px);
+}
+
+.mobile-bottom-nav .nav-item.active {
+  color: white;
+  background: rgba(255, 255, 255, 0.2);
+  transform: translateY(-2px);
+}
+
+.mobile-bottom-nav .nav-item i {
+  font-size: 18px;
+  margin-bottom: 4px;
+}
+
+.mobile-bottom-nav .nav-item span {
+  font-size: 11px;
+  font-weight: 500;
+  text-align: center;
+}
+
+.mobile-bottom-nav .cart-badge {
+  position: absolute;
+  top: 4px;
+  right: 8px;
+  background: #ff4757;
+  color: white;
+  border-radius: 50%;
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: bold;
+  border: 2px solid white;
+}
+
+/* Add bottom padding to body to prevent content from being hidden behind the bottom nav */
+body {
+  padding-bottom: 80px;
+}
+
+/* Remove bottom padding on desktop */
+@media (min-width: 768px) {
+  body {
+    padding-bottom: 0;
+  }
+}
+
+/* Animation for active state */
+.mobile-bottom-nav .nav-item.active::before {
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 4px;
+  height: 4px;
+  background: white;
+  border-radius: 50%;
+}
+
+/* Responsive adjustments */
+@media (max-width: 375px) {
+  .mobile-bottom-nav .nav-item {
+    padding: 6px 8px;
+    min-width: 50px;
+  }
+  
+  .mobile-bottom-nav .nav-item i {
+    font-size: 16px;
+  }
+  
+  .mobile-bottom-nav .nav-item span {
+    font-size: 10px;
+  }
+}
+
+/* Add smooth scrolling and prevent horizontal scroll */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Prevent content from jumping when bottom nav appears */
+.mobile-bottom-nav {
+  animation: slideUp 0.3s ease-out;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+</style>

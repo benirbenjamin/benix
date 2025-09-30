@@ -1,0 +1,987 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Blog Posts - BenixSpace</title>
+    <link rel="icon" href="/static/img/favicon.png" type="image/png" />
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Include AdSense -->
+          <%- include('../partials/auto-ads') %>
+  <%- include('../partials/adsense') %>
+    
+    <style>
+        /* Reset and Base Styles */
+        body {
+            background: #f8f9fa;
+            font-family: 'Times New Roman', serif;
+            line-height: 1.6;
+            color: #2c3e50;
+        }
+
+        /* Newspaper Masthead */
+        .newspaper-header {
+            background: white;
+            border-bottom: 3px solid #000;
+            padding: 2rem 0 1rem;
+            margin-bottom: 0;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .newspaper-title {
+            font-family: 'Old English Text MT', 'Times New Roman', serif;
+            font-size: 3.5rem;
+            font-weight: bold;
+            text-align: center;
+            color: #000;
+            letter-spacing: 2px;
+            margin-bottom: 0.5rem;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .newspaper-subtitle {
+            text-align: center;
+            font-style: italic;
+            color: #666;
+            font-size: 1.1rem;
+            margin-bottom: 1rem;
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 0.5rem;
+        }
+
+        .newspaper-date {
+            text-align: center;
+            font-size: 0.9rem;
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* Navigation Bar in Newspaper Style */
+        .newspaper-nav {
+            background: #000;
+            color: white;
+            padding: 0.5rem 0;
+            text-align: center;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .newspaper-nav a {
+            color: white;
+            text-decoration: none;
+            padding: 0 1rem;
+            border-right: 1px solid #444;
+        }
+
+        .newspaper-nav a:last-child {
+            border-right: none;
+        }
+
+        .newspaper-nav a:hover {
+            color: #ddd;
+        }
+
+        .newspaper-nav a.active {
+            background: white;
+            color: #000;
+            font-weight: bold;
+        }
+
+        /* Main Content Layout */
+        .newspaper-content {
+            background: white;
+            min-height: 100vh;
+            padding: 2rem 0;
+        }
+
+        /* Featured Story Section */
+        .featured-section {
+            border-bottom: 2px solid #000;
+            margin-bottom: 2rem;
+            padding-bottom: 2rem;
+        }
+
+        .featured-story {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .featured-image {
+            width: 100%;
+            height: 300px;
+            object-fit: cover;
+            border: 1px solid #ddd;
+        }
+
+        .featured-content h1 {
+            font-family: 'Times New Roman', serif;
+            font-size: 2.5rem;
+            font-weight: bold;
+            line-height: 1.2;
+            margin-bottom: 1rem;
+            color: #000;
+            border-bottom: 2px solid #000;
+            padding-bottom: 0.5rem;
+        }
+
+        .featured-byline {
+            font-style: italic;
+            color: #666;
+            margin-bottom: 1rem;
+            font-size: 0.9rem;
+        }
+
+        .featured-excerpt {
+            font-size: 1.1rem;
+            line-height: 1.8;
+            text-align: justify;
+            margin-bottom: 1rem;
+        }
+
+        /* Section Headers */
+        .section-header {
+            border-top: 3px solid #000;
+            border-bottom: 1px solid #000;
+            background: #f8f9fa;
+            padding: 0.5rem 1rem;
+            margin: 2rem 0 1rem;
+            text-transform: uppercase;
+            font-weight: bold;
+            letter-spacing: 1px;
+            font-size: 1.1rem;
+        }
+
+        /* Multi-Column Layout */
+        .newspaper-columns {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 2rem;
+            margin-top: 2rem;
+        }
+
+        .main-stories {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+        }
+
+        .sidebar {
+            border-left: 2px solid #ddd;
+            padding-left: 2rem;
+        }
+
+        /* Article Cards */
+        .news-article {
+            border-bottom: 1px solid #eee;
+            padding-bottom: 1.5rem;
+            margin-bottom: 1.5rem;
+            transition: all 0.3s ease;
+        }
+
+        .news-article:hover {
+            background: #f8f9fa;
+            padding: 1rem;
+            margin: -1rem -1rem 0.5rem;
+            border-radius: 5px;
+        }
+
+        .article-image {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+            margin-bottom: 1rem;
+            border: 1px solid #ddd;
+        }
+
+        .article-title {
+            font-size: 1.3rem;
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+            line-height: 1.3;
+        }
+
+        .article-title a {
+            color: #000;
+            text-decoration: none;
+        }
+
+        .article-title a:hover {
+            color: #333;
+            text-decoration: underline;
+        }
+
+        .article-excerpt {
+            text-align: justify;
+            margin-bottom: 1rem;
+            color: #444;
+        }
+
+        .article-meta {
+            font-size: 0.85rem;
+            color: #666;
+            border-top: 1px solid #eee;
+            padding-top: 0.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        /* Sidebar Articles */
+        .sidebar-article {
+            border-bottom: 1px solid #eee;
+            padding-bottom: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .sidebar-article:last-child {
+            border-bottom: none;
+        }
+
+        .sidebar-title {
+            font-size: 1rem;
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+            line-height: 1.2;
+        }
+
+        .sidebar-title a {
+            color: #000;
+            text-decoration: none;
+        }
+
+        .sidebar-excerpt {
+            font-size: 0.9rem;
+            color: #666;
+            line-height: 1.4;
+        }
+
+        /* Share Button */
+        .share-btn {
+            background: #000;
+            color: white;
+            border: none;
+            padding: 0.3rem 0.8rem;
+            font-size: 0.8rem;
+            border-radius: 3px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .share-btn:hover {
+            background: #333;
+            color: white;
+        }
+
+        /* Search Section */
+        .search-section {
+            background: white;
+            border: 2px solid #000;
+            padding: 1rem;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+
+        .search-input {
+            width: 70%;
+            padding: 0.8rem;
+            border: 1px solid #ddd;
+            margin-right: 0.5rem;
+            font-family: 'Times New Roman', serif;
+        }
+
+        .search-btn {
+            background: #000;
+            color: white;
+            border: none;
+            padding: 0.8rem 1.5rem;
+            cursor: pointer;
+            font-family: 'Times New Roman', serif;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .newspaper-title {
+                font-size: 2.5rem;
+            }
+            
+            .featured-story {
+                grid-template-columns: 1fr;
+            }
+            
+            .newspaper-columns {
+                grid-template-columns: 1fr;
+            }
+            
+            .sidebar {
+                border-left: none;
+                border-top: 2px solid #ddd;
+                padding-left: 0;
+                padding-top: 2rem;
+                margin-top: 2rem;
+            }
+            
+            .main-stories {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Advertisements placeholder */
+        .ad-space {
+            border: 2px dashed #ddd;
+            padding: 2rem;
+            text-align: center;
+            color: #999;
+            margin: 2rem 0;
+            background: #f8f9fa;
+        }
+
+        /* Print styles */
+        @media print {
+            .search-section, .share-btn {
+                display: none;
+            }
+            
+            body {
+                background: white;
+            }
+        }
+    </style>
+          
+</head>
+<body>
+    <%- include('../partials/navbar') %>
+
+    <!-- Newspaper Header -->
+    <div class="newspaper-header">
+        <div class="container">
+            <h1 class="newspaper-title">BenixSpace Daily</h1>
+            <p class="newspaper-subtitle">Your trusted source for technology, business, and innovation news</p>
+            <p class="newspaper-date">
+                <%= new Date().toLocaleDateString('en-US', { 
+                    weekday: 'long', 
+                    year: 'numeric', 
+                    month: 'long', 
+                    day: 'numeric' 
+                }) %>
+            </p>
+        </div>
+    </div>
+
+    <!-- Newspaper Navigation -->
+    <div class="newspaper-nav">
+        <div class="container">
+            <a href="/blog" class="<%= !currentFilter ? 'active' : '' %>">All Articles</a>
+            <% if (categories && categories.length > 0) { %>
+                <% categories.slice(0, 6).forEach(cat => { %>
+                    <a href="/blog?filter=<%= encodeURIComponent(cat.tag) %>" class="<%= currentFilter === cat.tag ? 'active' : '' %>">
+                        <%= cat.tag.charAt(0).toUpperCase() + cat.tag.slice(1) %> (<%= cat.count %>)
+                    </a>
+                <% }); %>
+            <% } else { %>
+                <a href="/blog?sort=popular">Popular</a>
+                <a href="/blog?sort=recent">Recent</a>
+                <a href="/blog?sort=trending">Trending</a>
+            <% } %>
+            <a href="/blog?author=true">Authors</a>
+            <a href="#archives">Archives</a>
+        </div>
+    </div>
+
+    <!-- Main Newspaper Content -->
+    <div class="newspaper-content">
+        <div class="container">
+        
+        <!-- Earning Information Banner -->
+        <% if (user) { %>
+            <div style="background: linear-gradient(135deg, #28a745, #20c997); color: white; padding: 1rem; margin-bottom: 2rem; border-radius: 8px; text-align: center;">
+                <h5 style="margin: 0; font-weight: bold;">
+                    <i class="fas fa-dollar-sign me-2"></i>EARN MONEY BY SHARING ARTICLES!
+                </h5>
+                <p style="margin: 0.5rem 0 0; font-size: 0.9rem;">
+                    Read any article and share it with your network to earn commissions on every click. Start earning today!
+                </p>
+            </div>
+        <% } else { %>
+            <div style="background: linear-gradient(135deg, #007bff, #6f42c1); color: white; padding: 1rem; margin-bottom: 2rem; border-radius: 8px; text-align: center;">
+                <h5 style="margin: 0; font-weight: bold;">
+                    <i class="fas fa-sign-in-alt me-2"></i>JOIN TO START EARNING!
+                </h5>
+                <p style="margin: 0.5rem 0 0; font-size: 0.9rem;">
+                    <a href="/login" style="color: white; text-decoration: underline;">Sign in</a> to share articles and earn money on every click from your network.
+                </p>
+            </div>
+        <% } %>
+        
+        <!-- Search Section -->
+        <div class="search-section">
+            <h3 style="margin-bottom: 1rem; font-weight: bold;">SEARCH THE ARCHIVES</h3>
+            <div style="display: flex; justify-content: center; align-items: center;">
+                <input type="text" class="search-input" placeholder="Search articles, categories, or topics..." id="searchInput">
+                <button class="search-btn" onclick="performSearch()">
+                    <i class="fas fa-search"></i> SEARCH
+                </button>
+            </div>
+        </div>
+
+        <% if (posts && posts.length > 0) { %>
+            <!-- Featured Story Section -->
+            <% if (posts[0]) { %>
+                <div class="featured-section">
+                    <div class="section-header">
+                        <i class="fas fa-star"></i> FEATURED STORY
+                    </div>
+                    
+                    <div class="featured-story">
+                        <div>
+                            <% if (posts[0].featured_image) { %>
+                                <img src="<%= posts[0].featured_image %>" alt="<%= posts[0].title %>" class="featured-image">
+                            <% } else { %>
+                                <div class="featured-image" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: flex; align-items: center; justify-content: center;">
+                                    <i class="fas fa-blog fa-3x text-white"></i>
+                                </div>
+                            <% } %>
+                        </div>
+                        
+                        <div class="featured-content">
+                            <h1>
+                                <a href="/blog/<%= posts[0].slug %>" style="color: #000; text-decoration: none;">
+                                    <%= posts[0].title %>
+                                </a>
+                            </h1>
+                            
+                            <div class="featured-byline">
+                                By <%= posts[0].merchant_name || 'BenixSpace Editor' %> | 
+                                <%= new Date(posts[0].created_at).toLocaleDateString('en-US', { 
+                                    year: 'numeric', 
+                                    month: 'long', 
+                                    day: 'numeric' 
+                                }) %>
+                            </div>
+                            
+                            <div class="featured-excerpt">
+                                <%- posts[0].content ? posts[0].content.replace(/<[^>]*>/g, '').substring(0, 300) + '...' : 'Breaking news and insights from the world of technology and business.' %>
+                            </div>
+                            
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 1rem;">
+                                <% if (user) { %>
+                                    <a href="/blog/<%= posts[0].slug %>" style="background: #007bff; color: white; padding: 0.5rem 1rem; text-decoration: none; font-weight: bold;">
+                                        <i class="fas fa-share-alt me-2"></i>READ, SHARE & EARN →
+                                    </a>
+                                <% } else { %>
+                                    <a href="/blog/<%= posts[0].slug %>" style="background: #000; color: white; padding: 0.5rem 1rem; text-decoration: none; font-weight: bold;">
+                                        View, Share & Earn                                    </a>
+                                <% } %>
+                                
+                                <div style="display: flex; gap: 1rem; font-size: 0.9rem; color: #666;">
+                                    <span><i class="fas fa-eye"></i> <%= posts[0].view_count || 0 %></span>
+                                    <span><i class="fas fa-share"></i> <%= posts[0].share_count || 0 %></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            <% } %>
+
+            <!-- Main Newspaper Layout -->
+            <div class="newspaper-columns">
+                <!-- Main Stories Column -->
+                <div class="main-stories">
+                    <div class="section-header">
+                        <i class="fas fa-newspaper"></i> LATEST HEADLINES
+                    </div>
+                    
+                    <% posts.slice(1, 7).forEach((post, index) => { %>
+                        <article class="news-article">
+                            <% if (post.featured_image) { %>
+                                <img src="<%= post.featured_image %>" alt="<%= post.title %>" class="article-image">
+                            <% } else { %>
+                                <div class="article-image" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: flex; align-items: center; justify-content: center;">
+                                    <i class="fas fa-blog fa-2x text-white"></i>
+                                </div>
+                            <% } %>
+                            
+                            <h2 class="article-title">
+                                <a href="/blog/<%= post.slug %>"><%= post.title %></a>
+                            </h2>
+                            
+                            <div class="article-excerpt">
+                                <%- post.content ? post.content.replace(/<[^>]*>/g, '').substring(0, 150) + '...' : 'Read this fascinating article to learn more about the latest developments.' %>
+                            </div>
+                            
+                            <div class="article-meta">
+                                <div>
+                                    <strong><%= post.merchant_name || 'Staff Writer' %></strong> | 
+                                    <%= new Date(post.created_at).toLocaleDateString('en-US', { 
+                                        month: 'short', 
+                                        day: 'numeric' 
+                                    }) %>
+                                </div>
+                                
+                                <div style="display: flex; gap: 1rem; align-items: center;">
+                                    <span><i class="fas fa-eye"></i> <%= post.view_count || 0 %></span>
+                                    <% if (user) { %>
+                                        <a href="/blog/<%= post.slug %>" style="color: #007bff; text-decoration: none; font-size: 0.85rem; font-weight: bold;">
+                                            <i class="fas fa-share-alt me-1"></i>Read, Share & EARN
+                                        </a>
+                                    <% } else { %>
+                                        <a href="/blog/<%= post.slug %>" style="color: #28a745; text-decoration: none; font-size: 0.85rem; font-weight: bold;">
+                                            <i class="fas fa-book-reader me-1"></i>View, Share & Share
+                                        </a>
+                                    <% } %>
+                                </div>
+                            </div>
+                        </article>
+                    <% }); %>
+                </div>
+
+                <!-- Sidebar -->
+                <div class="sidebar">
+                    <!-- Quick Headlines -->
+                    <div class="section-header">
+                        <i class="fas fa-bolt"></i> QUICK READS
+                    </div>
+                    
+                    <% posts.slice(7, 15).forEach((post, index) => { %>
+                        <article class="sidebar-article">
+                            <h3 class="sidebar-title">
+                                <a href="/blog/<%= post.slug %>"><%= post.title %></a>
+                            </h3>
+                            <div class="sidebar-excerpt">
+                                <%- post.content ? post.content.replace(/<[^>]*>/g, '').substring(0, 80) + '...' : 'Latest updates and insights.' %>
+                            </div>
+                            <div style="font-size: 0.8rem; color: #888; margin-top: 0.5rem;">
+                                <%= new Date(post.created_at).toLocaleDateString('en-US', { 
+                                    month: 'short', 
+                                    day: 'numeric' 
+                                }) %>
+                            </div>
+                        </article>
+                    <% }); %>
+
+                    <!-- Advertisement Space -->
+                    <% if (banners && banners.length > 0) { %>
+                        <% banners.forEach((banner, index) => { %>
+                            <div class="ad-space">
+                                <div style="text-align: center; margin-bottom: 0.5rem; font-size: 0.8rem; color: #888;">
+                                    SPONSORED
+                                </div>
+                                <% if (banner.image_url) { %>
+                                    <a href="<%= banner.click_url || '#' %>" target="_blank" onclick="trackBannerClick(<%= banner.id %>)">
+                                        <img src="<%= banner.image_url %>" alt="<%= banner.title || 'Advertisement' %>" 
+                                             style="width: 100%; max-height: 200px; object-fit: cover; border-radius: 5px;">
+                                    </a>
+                                <% } %>
+                                <% if (banner.title) { %>
+                                    <h6 style="margin: 0.5rem 0; font-weight: bold;"><%= banner.title %></h6>
+                                <% } %>
+                            </div>
+                            <% if (index < banners.length - 1) { %><br><% } %>
+                        <% }); %>
+                    <% } else { %>
+                        <div class="ad-space">
+                            <strong>ADVERTISEMENT</strong>
+                            <p>Your ad could be here</p>
+                            <% if (user && (user.role === 'admin' || user.role === 'merchant')) { %>
+                                <a href="/admin/banners/create" style="color: #007bff; text-decoration: none;">
+                                    <i class="fas fa-plus"></i> Create Banner
+                                </a>
+                            <% } %>
+                        </div>
+                    <% } %>
+
+                    <!-- Trending Topics -->
+                    <div class="section-header">
+                        <i class="fas fa-trending-up"></i> TRENDING TOPICS
+                    </div>
+                    
+                    <div style="padding: 1rem 0;">
+                        <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
+                            <% if (categories && categories.length > 0) { %>
+                                <% categories.forEach(cat => { %>
+                                    <a href="/blog?filter=<%= encodeURIComponent(cat.tag) %>" 
+                                       style="background: #f0f0f0; padding: 0.3rem 0.6rem; font-size: 0.8rem; border-radius: 3px; text-decoration: none; color: #333; transition: all 0.3s ease;"
+                                       onmouseover="this.style.background='#007bff'; this.style.color='white';"
+                                       onmouseout="this.style.background='#f0f0f0'; this.style.color='#333';">
+                                        #<%= cat.tag %> (<%= cat.count %>)
+                                    </a>
+                                <% }); %>
+                            <% } else { %>
+                                <span style="background: #f0f0f0; padding: 0.3rem 0.6rem; font-size: 0.8rem; border-radius: 3px; color: #666;">
+                                    No trending topics yet
+                                </span>
+                            <% } %>
+                        </div>
+                        
+                        <!-- Statistics Section -->
+                        <div style="margin-top: 1.5rem; padding: 1rem; background: #f8f9fa; border-radius: 5px;">
+                            <h6 style="margin-bottom: 0.5rem; font-weight: bold;">TODAY'S STATS</h6>
+                            <div style="font-size: 0.9rem; color: #666;">
+                                <div><i class="fas fa-newspaper"></i> <%= totalPosts || 0 %> Total Articles</div>
+                                <div><i class="fas fa-users"></i> <%= posts.length > 0 ? posts.map(p => p.username).filter((v, i, a) => a.indexOf(v) === i).length : 0 %> Active Authors</div>
+                                <div><i class="fas fa-eye"></i> <%= posts.reduce((sum, post) => sum + (parseInt(post.view_count) || 0), 0) %> Total Views</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        <% } else { %>
+            <div class="text-center p-5">
+                <div class="mb-4">
+                    <i class="fas fa-newspaper fa-5x text-muted opacity-50"></i>
+                </div>
+                <h3 class="text-muted mb-3">No articles published yet</h3>
+                <p class="text-muted mb-4">Be the first to create and share amazing content with our community!</p>
+                <% if (user && (user.role === 'merchant' || user.role === 'admin')) { %>
+                    <a href="/blog/create" class="btn btn-primary btn-lg rounded-pill">
+                        <i class="fas fa-plus me-2"></i>Create First Article
+                    </a>
+                <% } else { %>
+                    <a href="/login" class="btn btn-primary btn-lg rounded-pill">
+                        <i class="fas fa-sign-in-alt me-2"></i>Join Community
+                    </a>
+                <% } %>
+            </div>
+        <% } %>
+        
+        </div> <!-- Close newspaper-content -->
+    </div> <!-- Close container -->
+
+        <!-- Pagination -->
+        <% if (totalPages > 1) { %>
+            <nav aria-label="Blog pagination" class="mt-4">
+                <ul class="pagination justify-content-center">
+                    <% if (currentPage > 1) { %>
+                        <li class="page-item">
+                            <a class="page-link" href="/blog?page=<%= currentPage - 1 %>">
+                                <i class="fas fa-chevron-left"></i> Previous
+                            </a>
+                        </li>
+                    <% } %>
+                    
+                    <% for (let i = Math.max(1, currentPage - 2); i <= Math.min(totalPages, currentPage + 2); i++) { %>
+                        <li class="page-item <%= i === currentPage ? 'active' : '' %>">
+                            <a class="page-link" href="/blog?page=<%= i %>"><%= i %></a>
+                        </li>
+                    <% } %>
+                    
+                    <% if (currentPage < totalPages) { %>
+                        <li class="page-item">
+                            <a class="page-link" href="/blog?page=<%= currentPage + 1 %>">
+                                Next <i class="fas fa-chevron-right"></i>
+                            </a>
+                        </li>
+                    <% } %>
+                </ul>
+            </nav>
+        <% } %>
+    </div>
+
+    <!-- Floating Action Button -->
+    <% if (user && (user.role === 'merchant' || user.role === 'admin')) { %>
+        <button class="floating-fab" onclick="window.location.href='/blog/create'" title="Create New Post">
+            <i class="fas fa-plus"></i>
+        </button>
+    <% } %>
+
+    <!-- Share Modal -->
+    <div class="modal fade" id="shareModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="fas fa-share me-2"></i>Share Post & Earn
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <p class="text-muted">Share this post and earn when people click your link!</p>
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle me-2"></i>
+                            You'll earn <strong id="shareEarnings"></strong> for each click on your shared link.
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Your Share Link:</label>
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="shareUrl" readonly>
+                            <button class="btn btn-outline-secondary" onclick="copyShareLink()">
+                                <i class="fas fa-copy"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Social Share Buttons -->
+                    <div class="d-flex gap-2 mb-3">
+                        <button class="btn btn-success flex-grow-1" onclick="shareToWhatsApp()">
+                            <i class="fab fa-whatsapp me-1"></i>WhatsApp
+                        </button>
+                        <button class="btn btn-primary flex-grow-1" onclick="shareToFacebook()">
+                            <i class="fab fa-facebook me-1"></i>Facebook
+                        </button>
+                        <button class="btn btn-info flex-grow-1" onclick="shareToTwitter()">
+                            <i class="fab fa-twitter me-1"></i>Twitter
+                        </button>
+                    </div>
+                    
+                    <!-- Share Stats -->
+                    <div class="row text-center" id="shareStats" style="display: none;">
+                        <div class="col-4">
+                            <div class="bg-light p-2 rounded">
+                                <div class="h5 mb-0" id="shareClicks">0</div>
+                                <small class="text-muted">Clicks</small>
+                            </div>
+                        </div>
+                        <div class="col-4">
+                            <div class="bg-light p-2 rounded">
+                                <div class="h5 mb-0" id="shareEarned">$0.00</div>
+                                <small class="text-muted">Earned</small>
+                            </div>
+                        </div>
+                        <div class="col-4">
+                            <div class="bg-light p-2 rounded">
+                                <div class="h5 mb-0 text-success">Active</div>
+                                <small class="text-muted">Status</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+        // Filter and Search functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            const filterButtons = document.querySelectorAll('.filter-btn');
+            const searchInput = document.getElementById('searchInput');
+            const blogCards = document.querySelectorAll('.blog-card');
+
+            // Filter functionality
+            filterButtons.forEach(button => {
+                button.addEventListener('click', function() {
+                    // Update active button
+                    filterButtons.forEach(btn => btn.classList.remove('active'));
+                    this.classList.add('active');
+
+                    const filterCategory = this.dataset.category;
+                    filterPosts(filterCategory);
+                });
+            });
+
+            // Search functionality
+            if (searchInput) {
+                searchInput.addEventListener('input', function() {
+                    const searchTerm = this.value.toLowerCase().trim();
+                    searchPosts(searchTerm);
+                });
+            }
+
+            function filterPosts(category) {
+                blogCards.forEach(card => {
+                    if (category === 'all') {
+                        card.style.display = 'block';
+                    } else if (category === 'trending') {
+                        // Show posts with high click counts
+                        const clickCount = parseInt(card.querySelector('.stat-item i.fa-eye + span')?.textContent || 0);
+                        card.style.display = clickCount > 50 ? 'block' : 'none';
+                    } else if (category === 'recent') {
+                        // Show recent posts (last 7 days)
+                        const postDate = new Date(card.dataset.date);
+                        const weekAgo = new Date();
+                        weekAgo.setDate(weekAgo.getDate() - 7);
+                        card.style.display = postDate > weekAgo ? 'block' : 'none';
+                    } else if (category === 'popular') {
+                        // Show posts with high share counts
+                        const shareCount = parseInt(card.querySelector('.stat-item i.fa-share + span')?.textContent || 0);
+                        card.style.display = shareCount > 10 ? 'block' : 'none';
+                    } else {
+                        // Category-based filtering
+                        const cardCategory = card.dataset.category;
+                        card.style.display = cardCategory === category ? 'block' : 'none';
+                    }
+                });
+
+                // Update layout after filtering
+                updateGridLayout();
+            }
+
+            function searchPosts(searchTerm) {
+                if (!searchTerm) {
+                    blogCards.forEach(card => card.style.display = 'block');
+                    updateGridLayout();
+                    return;
+                }
+
+                blogCards.forEach(card => {
+                    const title = card.querySelector('.blog-card-title')?.textContent.toLowerCase() || '';
+                    const excerpt = card.querySelector('.blog-card-excerpt')?.textContent.toLowerCase() || '';
+                    const author = card.querySelector('.author-info span')?.textContent.toLowerCase() || '';
+
+                    const isMatch = title.includes(searchTerm) || 
+                                  excerpt.includes(searchTerm) || 
+                                  author.includes(searchTerm);
+
+                    card.style.display = isMatch ? 'block' : 'none';
+                });
+
+                updateGridLayout();
+            }
+
+            function updateGridLayout() {
+                // Force grid recalculation
+                const grid = document.querySelector('.blog-grid');
+                if (grid) {
+                    grid.style.display = 'none';
+                    grid.offsetHeight; // Trigger reflow
+                    grid.style.display = 'grid';
+                }
+            }
+        });
+
+        // Existing share functionality
+        let currentShareData = {};
+        const shareModal = new bootstrap.Modal(document.getElementById('shareModal'));
+        
+        async function sharePost(postId, title, slug) {
+            try {
+                console.log('Sharing post:', postId, title, slug);
+                
+                const response = await fetch(`/blog/share/${postId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                console.log('Share response status:', response.status);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const result = await response.json();
+                console.log('Share result:', result);
+                
+                if (result.success) {
+                    // Simply redirect to the share URL instead of showing modal
+                    window.open(result.shareUrl, '_blank');
+                    
+                    // Show success message
+                    alert('Share link created! Opening in new tab.');
+                } else {
+                    alert('Error: ' + (result.error || 'Failed to create share link'));
+                }
+            } catch (error) {
+                console.error('Share error:', error);
+                alert('Failed to create share link: ' + error.message);
+            }
+        }
+        
+        function copyShareLink() {
+            const shareUrl = document.getElementById('shareUrl');
+            shareUrl.select();
+            document.execCommand('copy');
+            
+            // Show feedback
+            const button = event.target.closest('button');
+            const originalHTML = button.innerHTML;
+            button.innerHTML = '<i class="fas fa-check"></i>';
+            button.classList.add('btn-success');
+            button.classList.remove('btn-outline-secondary');
+            
+            setTimeout(() => {
+                button.innerHTML = originalHTML;
+                button.classList.remove('btn-success');
+                button.classList.add('btn-outline-secondary');
+            }, 2000);
+        }
+        
+        function shareToWhatsApp() {
+            const text = `Check out this blog post: ${currentShareData.title}`;
+            const url = `https://wa.me/?text=${encodeURIComponent(text + ' ' + currentShareData.url)}`;
+            window.open(url, '_blank');
+        }
+        
+        function shareToFacebook() {
+            const url = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(currentShareData.url)}`;
+            window.open(url, '_blank', 'width=600,height=400');
+        }
+        
+        function shareToTwitter() {
+            const text = `Check out this blog post: ${currentShareData.title}`;
+            const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(currentShareData.url)}`;
+            window.open(url, '_blank', 'width=600,height=400');
+        }
+        
+        // Category filtering
+        document.querySelectorAll('.category-filter').forEach(button => {
+            button.addEventListener('click', function() {
+                // Remove active class from all buttons
+                document.querySelectorAll('.category-filter').forEach(btn => btn.classList.remove('active'));
+                // Add active class to clicked button
+                this.classList.add('active');
+                
+                // Here you can add actual filtering logic
+                // For now, it's just visual feedback
+                const category = this.dataset.category;
+                console.log('Filtering by:', category);
+            });
+        });
+        
+        // Banner click tracking
+        function trackBannerClick(bannerId) {
+            fetch('/api/banner-click', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ bannerId: bannerId })
+            }).catch(err => console.log('Banner tracking error:', err));
+        }
+        
+        // Enhanced search functionality for newspaper layout
+        function performSearch() {
+            const searchTerm = document.getElementById('searchInput').value.trim();
+            if (searchTerm) {
+                window.location.href = `/blog?search=${encodeURIComponent(searchTerm)}`;
+            }
+        }
+        
+        // Enter key search
+        document.getElementById('searchInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                performSearch();
+            }
+        });
+        
+        // Newsletter subscription (if you want to add it later)
+        function subscribeNewsletter(email) {
+            fetch('/api/newsletter-subscribe', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ email: email })
+            }).then(response => response.json())
+            .then(data => {
+                alert(data.message || 'Subscription successful!');
+            }).catch(err => {
+                alert('Subscription failed. Please try again.');
+            });
+        }
+    </script>
+</body>
+</html>

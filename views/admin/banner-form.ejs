@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= isEdit ? 'Edit' : 'Create' %> Banner - Admin Dashboard</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    body {
+      background-color: #f8f9fa;
+    }
+    .form-card {
+      background: white;
+      border-radius: 10px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    .banner-preview {
+      max-width: 100%;
+      max-height: 200px;
+      object-fit: cover;
+      border-radius: 5px;
+    }
+    .link-item {
+      border: 1px solid #dee2e6;
+      border-radius: 5px;
+      padding: 10px;
+      margin-bottom: 10px;
+      transition: all 0.2s;
+    }
+    .link-item:hover {
+      background-color: #f8f9fa;
+    }
+    .link-item.selected {
+      border-color: #0d6efd;
+      background-color: #e7f3ff;
+    }
+    .popularity-badge {
+      font-size: 0.75rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="container-fluid">
+    <div class="row">
+      <!-- Sidebar -->
+      <div class="col-md-2 bg-dark text-white min-vh-100 p-3">
+        <h5><i class="fas fa-shield-alt me-2"></i>Admin Panel</h5>
+        <ul class="nav flex-column mt-4">
+          <li class="nav-item">
+            <a class="nav-link text-white" href="/admin/dashboard">
+              <i class="fas fa-tachometer-alt me-2"></i>Dashboard
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link text-white" href="/admin/users">
+              <i class="fas fa-users me-2"></i>Users
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link text-white" href="/admin/links">
+              <i class="fas fa-link me-2"></i>Links
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link text-white" href="/admin/products">
+              <i class="fas fa-box me-2"></i>Products
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link text-white-50 active bg-primary rounded" href="/admin/banners">
+              <i class="fas fa-ad me-2"></i>Ad Banners
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link text-white" href="/admin/transactions">
+              <i class="fas fa-credit-card me-2"></i>Transactions
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link text-white" href="/admin/settings">
+              <i class="fas fa-cog me-2"></i>Settings
+            </a>
+          </li>
+        </ul>
+      </div>
+
+      <!-- Main Content -->
+      <div class="col-md-10">
+        <div class="container-fluid py-4">
+          <!-- Header -->
+          <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+              <h2><i class="fas fa-ad me-3"></i><%= isEdit ? 'Edit' : 'Create' %> Banner</h2>
+              <p class="text-muted">Set up advertisement banner targeting and content</p>
+            </div>
+            <a href="/admin/banners" class="btn btn-outline-secondary">
+              <i class="fas fa-arrow-left me-2"></i>Back to Banners
+            </a>
+          </div>
+
+          <!-- Alerts -->
+          <% if (typeof errorMessage !== 'undefined' && errorMessage) { %>
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+              <i class="fas fa-exclamation-circle me-2"></i><%= errorMessage %>
+              <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+          <% } %>
+
+          <!-- Form -->
+          <form method="POST" enctype="multipart/form-data" class="form-card p-4">
+            <div class="row">
+              <!-- Basic Information -->
+              <div class="col-md-6">
+                <h5 class="mb-3"><i class="fas fa-info-circle me-2"></i>Basic Information</h5>
+                
+                <div class="mb-3">
+                  <label for="title" class="form-label">Banner Title *</label>
+                  <input type="text" class="form-control" id="title" name="title" 
+                         value="<%= (typeof formData !== 'undefined' && formData ? formData.title : '') || (banner ? banner.title : '') %>" required>
+                  <div class="form-text">A descriptive name for your banner</div>
+                </div>
+
+                <div class="mb-3">
+                  <label for="banner_image" class="form-label">Banner Image <%= isEdit ? '' : '*' %></label>
+                  <input type="file" class="form-control" id="banner_image" name="banner_image" 
+                         accept="image/*" <%= isEdit ? '' : 'required' %>>
+                  <div class="form-text">Upload JPG, PNG, or GIF. Recommended size: 300x250px or 728x90px</div>
+                  <% if (banner && banner.image_url) { %>
+                    <div class="mt-2">
+                      <small class="text-muted">Current image:</small><br>
+                      <img src="<%= banner.image_url %>" alt="Current banner" class="banner-preview mt-1">
+                    </div>
+                  <% } %>
+                </div>
+
+                <div class="mb-3">
+                  <label for="targetUrl" class="form-label">Target URL *</label>
+                  <input type="url" class="form-control" id="targetUrl" name="targetUrl" 
+                         value="<%= (typeof formData !== 'undefined' && formData ? formData.targetUrl : '') || (banner ? banner.target_url : '') %>" required>
+                  <div class="form-text">Where users will be redirected when they click the banner</div>
+                </div>
+
+                <% if (isEdit) { %>
+                  <div class="mb-3">
+                    <div class="form-check">
+                      <input class="form-check-input" type="checkbox" id="is_active" name="is_active" 
+                             <%= banner && banner.is_active ? 'checked' : '' %>>
+                      <label class="form-check-label" for="is_active">
+                        Banner is active
+                      </label>
+                    </div>
+                  </div>
+                <% } %>
+              </div>
+
+              <!-- Targeting Options -->
+              <div class="col-md-6">
+                <h5 class="mb-3"><i class="fas fa-crosshairs me-2"></i>Targeting Options</h5>
+                
+                <div class="mb-3">
+                  <label class="form-label">Target Type *</label>
+                  <div class="mb-2">
+                    <div class="form-check">
+                      <input class="form-check-input" type="radio" name="target_type" id="target_all" 
+                             value="all" <%= !banner || banner.target_type === 'all' ? 'checked' : '' %>>
+                      <label class="form-check-label" for="target_all">
+                        <strong>All Links</strong> - Show on every shared link
+                      </label>
+                    </div>
+                  </div>
+                  <div class="mb-2">
+                    <div class="form-check">
+                      <input class="form-check-input" type="radio" name="target_type" id="target_popular" 
+                             value="popular" <%= banner && banner.target_type === 'popular' ? 'checked' : '' %>>
+                      <label class="form-check-label" for="target_popular">
+                        <strong>Popular Links</strong> - Show only on links with minimum clicks
+                      </label>
+                    </div>
+                  </div>
+                  <div class="mb-2">
+                    <div class="form-check">
+                      <input class="form-check-input" type="radio" name="target_type" id="target_specific" 
+                             value="specific" <%= banner && banner.target_type === 'specific' ? 'checked' : '' %>>
+                      <label class="form-check-label" for="target_specific">
+                        <strong>Specific Links</strong> - Choose individual links
+                      </label>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Minimum Clicks for Popular Targeting -->
+                <div class="mb-3" id="min_clicks_section" style="display: none;">
+                  <label for="min_clicks" class="form-label">Minimum Clicks</label>
+                  <input type="number" class="form-control" id="min_clicks" name="min_clicks" 
+                         value="<%= (typeof formData !== 'undefined' && formData ? formData.min_clicks : '') || (banner ? banner.min_clicks : 100) %>" min="0">
+                  <div class="form-text">Show banner only on links with at least this many clicks</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Specific Link Selection -->
+            <div id="link_selection_section" style="display: none;">
+              <hr>
+              <h5 class="mb-3"><i class="fas fa-list me-2"></i>Select Target Links</h5>
+              <div class="row">
+                <div class="col-md-6">
+                  <div class="mb-3">
+                    <input type="text" class="form-control" id="link_search" placeholder="Search links...">
+                  </div>
+                  <div style="max-height: 400px; overflow-y: auto;" id="link_list">
+                    <% popularLinks.forEach(link => { %>
+                      <div class="link-item" data-title="<%= (link.title || 'Untitled').toLowerCase() %>">
+                        <div class="form-check">
+                          <input class="form-check-input" type="checkbox" name="target_links" 
+                                 value="<%= link.id %>" id="link_<%= link.id %>"
+                                 <%= link.is_targeted ? 'checked' : '' %>>
+                          <label class="form-check-label" for="link_<%= link.id %>">
+                            <div class="d-flex justify-content-between align-items-start">
+                              <div>
+                                <strong><%= link.title || 'Untitled' %></strong>
+                                <br>
+                                <small class="text-muted">
+                                  <%= link.type || 'Unknown' %> • 
+                                  <span class="popularity-badge badge bg-<%= link.click_count >= 100 ? 'success' : link.click_count >= 50 ? 'warning' : 'secondary' %>">>
+                                    <%= link.click_count %> clicks
+                                  </span>
+                                </small>
+                              </div>
+                            </div>
+                          </label>
+                        </div>
+                      </div>
+                    <% }); %>
+                  </div>
+                </div>
+                <div class="col-md-6">
+                  <div class="card">
+                    <div class="card-header">
+                      <h6 class="mb-0">Selected Links (<span id="selected_count">0</span>)</h6>
+                    </div>
+                    <div class="card-body" style="max-height: 400px; overflow-y: auto;" id="selected_links">
+                      <p class="text-muted">No links selected</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Submit Buttons -->
+            <hr>
+            <div class="d-flex justify-content-between">
+              <a href="/admin/banners" class="btn btn-outline-secondary">
+                <i class="fas fa-times me-2"></i>Cancel
+              </a>
+              <button type="submit" class="btn btn-primary">
+                <i class="fas fa-save me-2"></i><%= isEdit ? 'Update' : 'Create' %> Banner
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    // Handle target type changes
+    document.addEventListener('DOMContentLoaded', function() {
+      const targetTypeRadios = document.querySelectorAll('input[name="target_type"]');
+      const minClicksSection = document.getElementById('min_clicks_section');
+      const linkSelectionSection = document.getElementById('link_selection_section');
+      
+      function updateTargetingSections() {
+        const selectedType = document.querySelector('input[name="target_type"]:checked').value;
+        
+        if (selectedType === 'popular') {
+          minClicksSection.style.display = 'block';
+          linkSelectionSection.style.display = 'none';
+        } else if (selectedType === 'specific') {
+          minClicksSection.style.display = 'none';
+          linkSelectionSection.style.display = 'block';
+        } else {
+          minClicksSection.style.display = 'none';
+          linkSelectionSection.style.display = 'none';
+        }
+      }
+      
+      targetTypeRadios.forEach(radio => {
+        radio.addEventListener('change', updateTargetingSections);
+      });
+      
+      // Initialize on page load
+      updateTargetingSections();
+      
+      // Handle link search
+      const linkSearch = document.getElementById('link_search');
+      const linkItems = document.querySelectorAll('.link-item');
+      
+      linkSearch.addEventListener('input', function() {
+        const searchTerm = this.value.toLowerCase();
+        
+        linkItems.forEach(item => {
+          const title = item.getAttribute('data-title');
+          if (title.includes(searchTerm)) {
+            item.style.display = 'block';
+          } else {
+            item.style.display = 'none';
+          }
+        });
+      });
+      
+      // Handle link selection
+      const linkCheckboxes = document.querySelectorAll('input[name="target_links"]');
+      const selectedLinksContainer = document.getElementById('selected_links');
+      const selectedCountSpan = document.getElementById('selected_count');
+      
+      function updateSelectedLinks() {
+        const selectedLinks = [];
+        linkCheckboxes.forEach(checkbox => {
+          if (checkbox.checked) {
+            const linkItem = checkbox.closest('.link-item');
+            const title = linkItem.querySelector('strong').textContent;
+            selectedLinks.push(title);
+          }
+        });
+        
+        selectedCountSpan.textContent = selectedLinks.length;
+        
+        if (selectedLinks.length === 0) {
+          selectedLinksContainer.innerHTML = '<p class="text-muted">No links selected</p>';
+        } else {
+          selectedLinksContainer.innerHTML = selectedLinks.map(title => 
+            `<div class="badge bg-primary me-2 mb-2">${title}</div>`
+          ).join('');
+        }
+      }
+      
+      linkCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', updateSelectedLinks);
+      });
+      
+      // Initialize selected links display
+      updateSelectedLinks();
+    });
+  </script>
+</body>
+</html>

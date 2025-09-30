@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>Register New User | Admin - BenixSpace</title>
+  <link rel="icon" href="/static/img/favicon.png" type="image/png" />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    .form-section {
+      background: white;
+      border-radius: 10px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+  </style>
+</head>
+<body class="bg-light">
+  <!-- Navbar -->
+  <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <div class="container-fluid">
+      <a class="navbar-brand" href="/">BenixSpace</a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav me-auto">
+          <li class="nav-item">
+            <a class="nav-link" href="/admin/dashboard">Dashboard</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link active" href="/admin/users">Users</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="/admin/products">Products</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="/admin/links">Links</a>
+          </li>
+        </ul>
+        <ul class="navbar-nav">
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+              <%= user.username %>
+            </a>
+            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdown">
+              <li><a class="dropdown-item" href="/admin/profile">My Profile</a></li>
+              <li><hr class="dropdown-divider"></li>
+              <li><a class="dropdown-item" href="/logout">Logout</a></li>
+            </ul>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </nav>
+
+  <div class="container-fluid py-4">
+    <div class="row">
+      <div class="col-12">
+        <!-- Breadcrumb -->
+        <nav aria-label="breadcrumb" class="mb-4">
+          <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="/admin/dashboard">Dashboard</a></li>
+            <li class="breadcrumb-item"><a href="/admin/users">Users</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Register New User</li>
+          </ol>
+        </nav>
+
+        <!-- Page Header -->
+        <div class="d-flex justify-content-between align-items-center mb-4">
+          <div>
+            <h2>Register New User</h2>
+            <p class="text-muted mb-0">Create a new user account</p>
+          </div>
+          <div>
+            <a href="/admin/users" class="btn btn-secondary">
+              <i class="bi bi-arrow-left"></i> Back to Users
+            </a>
+          </div>
+        </div>
+
+        <!-- Alerts -->
+        <% if (typeof success !== 'undefined' && success) { %>
+          <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <%= success %>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+          </div>
+        <% } %>
+        
+        <% if (typeof error !== 'undefined' && error) { %>
+          <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <%= error %>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+          </div>
+        <% } %>
+
+        <!-- Register Form -->
+        <div class="row justify-content-center">
+          <div class="col-lg-8">
+            <div class="card form-section">
+              <div class="card-header">
+                <h5 class="card-title mb-0">
+                  <i class="bi bi-person-plus"></i> User Information
+                </h5>
+              </div>
+              <div class="card-body">
+                <form action="/admin/register" method="POST" id="registerForm">
+                  <div class="row">
+                    <div class="col-md-6">
+                      <div class="mb-3">
+                        <label for="username" class="form-label">Username *</label>
+                        <input type="text" class="form-control" id="username" name="username" required>
+                      </div>
+                    </div>
+                    <div class="col-md-6">
+                      <div class="mb-3">
+                        <label for="email" class="form-label">Email *</label>
+                        <input type="email" class="form-control" id="email" name="email" required>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="row">
+                    <div class="col-md-6">
+                      <div class="mb-3">
+                        <label for="password" class="form-label">Password *</label>
+                        <input type="password" class="form-control" id="password" name="password" required minlength="8">
+                        <div class="form-text">Minimum 8 characters</div>
+                      </div>
+                    </div>
+                    <div class="col-md-6">
+                      <div class="mb-3">
+                        <label for="phone_number" class="form-label">Phone Number</label>
+                        <input type="tel" class="form-control" id="phone_number" name="phone_number" 
+                               placeholder="+1234567890">
+                        <div class="form-text">Include country code (e.g., +1234567890)</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="row">
+                    <div class="col-md-6">
+                      <div class="mb-3">
+                        <label for="role" class="form-label">Role</label>
+                        <select class="form-select" id="role" name="role">
+                          <option value="user">User</option>
+                          <option value="merchant">Merchant</option>
+                          <option value="admin">Admin</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div class="col-md-6">
+                      <div class="mb-3">
+                        <label for="wallet" class="form-label">Initial Wallet Balance</label>
+                        <div class="input-group">
+                          <span class="input-group-text">$</span>
+                          <input type="number" class="form-control" id="wallet" name="wallet" 
+                                 value="0.0000" step="0.0001" min="0" placeholder="0.0000">
+                        </div>
+                        <div class="form-text">Starting wallet balance in USD</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="row">
+                    <div class="col-md-6">
+                      <div class="mb-3">
+                        <label for="has_lifetime_commission" class="form-label">Premium Status</label>
+                        <select class="form-select" id="has_lifetime_commission" name="has_lifetime_commission">
+                          <option value="0">Regular User</option>
+                          <option value="1">Premium User</option>
+                        </select>
+                        <div class="form-text">Premium users get lifetime commission benefits</div>
+                      </div>
+                    </div>
+                    <div class="col-md-6">
+                      <div class="mb-3">
+                        <label for="earnings" class="form-label">Initial Earnings</label>
+                        <div class="input-group">
+                          <span class="input-group-text">$</span>
+                          <input type="number" class="form-control" id="earnings" name="earnings" 
+                                 value="0.0000" step="0.0001" min="0" placeholder="0.0000">
+                        </div>
+                        <div class="form-text">Initial earnings from commissions</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Business Information (for merchants) -->
+                  <div id="businessInfo" style="display: none;">
+                    <hr>
+                    <h6 class="text-muted mb-3">Business Information</h6>
+                    
+                    <div class="row">
+                      <div class="col-md-6">
+                        <div class="mb-3">
+                          <label for="business_name" class="form-label">Business Name</label>
+                          <input type="text" class="form-control" id="business_name" name="business_name">
+                        </div>
+                      </div>
+                      <div class="col-md-6">
+                        <div class="mb-3">
+                          <label for="account_name" class="form-label">Account Name</label>
+                          <input type="text" class="form-control" id="account_name" name="account_name" 
+                                 placeholder="Account holder name">
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="row">
+                      <div class="col-md-6">
+                        <div class="mb-3">
+                          <label for="account_number" class="form-label">Account Number</label>
+                          <input type="text" class="form-control" id="account_number" name="account_number" 
+                                 placeholder="Bank account number">
+                        </div>
+                      </div>
+                      <div class="col-md-6">
+                        <div class="mb-3">
+                          <label for="bank_name" class="form-label">Bank Name</label>
+                          <input type="text" class="form-control" id="bank_name" name="bank_name" 
+                                 placeholder="Bank name">
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="mb-3">
+                      <label for="business_description" class="form-label">Business Description</label>
+                      <textarea class="form-control" id="business_description" name="business_description" 
+                                rows="3" placeholder="Describe your business..."></textarea>
+                    </div>
+                  </div>
+
+                  <!-- Admin Notes -->
+                  <div class="mb-3">
+                    <label for="notes" class="form-label">Admin Notes</label>
+                    <textarea class="form-control" id="notes" name="notes" 
+                              rows="3" placeholder="Internal notes about this user..."></textarea>
+                    <div class="form-text">These notes are only visible to administrators</div>
+                  </div>
+
+                  <div class="d-flex justify-content-end gap-2 mt-4">
+                    <a href="/admin/users" class="btn btn-secondary">Cancel</a>
+                    <button type="submit" class="btn btn-primary">
+                      <i class="bi bi-person-plus"></i> Create User
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    // Toggle business info based on role
+    document.getElementById('role').addEventListener('change', function() {
+      const businessInfo = document.getElementById('businessInfo');
+      if (this.value === 'merchant') {
+        businessInfo.style.display = 'block';
+      } else {
+        businessInfo.style.display = 'none';
+      }
+    });
+
+    // Form validation
+    document.getElementById('registerForm').addEventListener('submit', function(e) {
+      const username = document.getElementById('username').value.trim();
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+      
+      if (!username || !email || !password) {
+        e.preventDefault();
+        alert('Username, email, and password are required');
+        return false;
+      }
+      
+      if (password.length < 6) {
+        e.preventDefault();
+        alert('Password must be at least 6 characters long');
+        return false;
+      }
+      
+      if (email && !email.includes('@')) {
+        e.preventDefault();
+        alert('Please enter a valid email address');
+        return false;
+      }
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title %> - BenixSpace</title>
+  <link rel="icon" href="/static/img/favicon.png" type="image/png" />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    .profile-header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 60px 0;
+    }
+    
+    .user-avatar {
+      width: 120px;
+      height: 120px;
+      font-size: 3rem;
+      border: 4px solid white;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+    }
+    
+    .stat-card {
+      background: white;
+      border-radius: 15px;
+      padding: 20px;
+      text-align: center;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+      margin-bottom: 20px;
+    }
+    
+    .stat-number {
+      font-size: 2rem;
+      font-weight: bold;
+      color: #667eea;
+    }
+    
+    .content-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 20px;
+      margin-top: 20px;
+    }
+    
+    .link-card, .product-card {
+      border-radius: 15px;
+      overflow: hidden;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+      transition: transform 0.3s ease;
+    }
+    
+    .link-card:hover, .product-card:hover {
+      transform: translateY(-5px);
+    }
+    
+    .card-img-top {
+      height: 200px;
+      object-fit: cover;
+    }
+    
+    .badge-type {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      z-index: 10;
+    }
+    
+    .engagement-stats {
+      font-size: 0.9rem;
+      color: #6c757d;
+      margin-top: 10px;
+    }
+    
+    .engagement-stats span {
+      margin-right: 15px;
+    }
+  </style>
+</head>
+<body>
+  <%- include('partials/navbar') %>
+
+  <!-- Profile Header -->
+  <section class="profile-header">
+    <div class="container">
+      <div class="row align-items-center">
+        <div class="col-md-4 text-center">
+          <div class="user-avatar d-inline-flex align-items-center justify-content-center rounded-circle bg-light text-primary">
+            <%= profileUser.username.charAt(0).toUpperCase() %>
+          </div>
+        </div>
+        <div class="col-md-8">
+          <h1 class="mb-2"><%= profileUser.business_name || profileUser.username %></h1>
+          <p class="lead mb-3">
+            <%= profileUser.business_description || 'Welcome to my profile on BenixSpace!' %>
+          </p>
+          <p class="mb-0">
+            <i class="fas fa-calendar-alt me-2"></i>
+            Joined <%= new Date(profileUser.created_at).toLocaleDateString('en-US', { 
+              year: 'numeric', 
+              month: 'long', 
+              day: 'numeric' 
+            }) %>
+          </p>
+          <% if (profileUser.role === 'merchant') { %>
+            <span class="badge bg-success mt-2">
+              <i class="fas fa-store me-1"></i>Verified Merchant
+            </span>
+          <% } %>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Stats Section -->
+  <section class="py-5 bg-light">
+    <div class="container">
+      <div class="row">
+        <div class="col-md-4">
+          <div class="stat-card">
+            <div class="stat-number"><%= stats.totalLinks %></div>
+            <div>Active Links</div>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="stat-card">
+            <div class="stat-number"><%= stats.totalProducts %></div>
+            <div>Products</div>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="stat-card">
+            <div class="stat-number"><%= stats.totalViews %></div>
+            <div>Total Views</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Content Section -->
+  <section class="py-5">
+    <div class="container">
+      <% if (profileUser.role === 'merchant') { %>
+        <!-- Links Section -->
+        <% if (userLinks && userLinks.length > 0) { %>
+          <div class="row mb-5">
+            <div class="col-12">
+              <h3 class="mb-4">
+                <i class="fas fa-link me-2 text-primary"></i>
+                Recent Links
+              </h3>
+              <div class="content-grid">
+                <% userLinks.forEach(link => { %>
+                  <div class="link-item">
+                    <div class="card link-card">
+                      <span class="badge <%= 
+                        link.type === 'product' ? 'bg-primary' : 
+                        link.type === 'youtube' ? 'bg-danger' : 
+                        'bg-info' %> badge-type">
+                        <%= link.type %>
+                      </span>
+                      
+                      <% if (link.type === 'youtube' && link.url) { %>
+                        <% 
+                          let videoId = '';
+                          const youtubeUrl = link.url;
+                          const regex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
+                          const match = youtubeUrl.match(regex);
+                          if (match) {
+                            videoId = match[1];
+                          }
+                        %>
+                        <% if (videoId) { %>
+                          <div class="youtube-preview">
+                            <iframe src="https://www.youtube.com/embed/<%= videoId %>?rel=0&modestbranding=1&iv_load_policy=3" 
+                                    width="100%" 
+                                    height="200" 
+                                    frameborder="0" 
+                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                                    allowfullscreen
+                                    class="card-img-top">
+                            </iframe>
+                          </div>
+                        <% } else { %>
+                          <div class="card-img-top bg-dark d-flex align-items-center justify-content-center">
+                            <div class="text-center text-white">
+                              <i class="fab fa-youtube fa-3x text-danger mb-2"></i>
+                              <p class="mb-0">Invalid URL</p>
+                            </div>
+                          </div>
+                        <% } %>
+                      <% } else if (link.image_url) { %>
+                        <img src="<%= link.image_url %>" class="card-img-top" alt="<%= link.title %>">
+                      <% } else { %>
+                        <div class="card-img-top bg-light d-flex align-items-center justify-content-center">
+                          <i class="<%= 
+                            link.type === 'product' ? 'fas fa-shopping-bag' : 
+                            link.type === 'youtube' ? 'fab fa-youtube' : 
+                            'fas fa-link' %> fa-3x text-muted"></i>
+                        </div>
+                      <% } %>
+                      
+                      <div class="card-body">
+                        <h5 class="card-title"><%= link.title %></h5>
+                        <% if (link.description) { %>
+                          <p class="card-text">
+                            <% if (link.description.length > 100) { %>
+                              <%= link.description.substring(0, 100) %>...
+                            <% } else { %>
+                              <%= link.description %>
+                            <% } %>
+                          </p>
+                        <% } %>
+                        
+                        <div class="engagement-stats">
+                          <span>
+                            <i class="fas fa-eye me-1"></i><%= link.total_clicks || 0 %> views
+                          </span>
+                          <span>
+                            <i class="fas fa-clock me-1"></i>
+                            <%= new Date(link.created_at).toLocaleDateString() %>
+                          </span>
+                        </div>
+                      </div>
+                      
+                      <div class="card-footer">
+                        <% if (user) { %>
+                          <a href="/links/<%= link.id %>/share" class="btn btn-primary w-100">
+                            <i class="fas fa-share-alt me-1"></i> Share & Earn
+                          </a>
+                        <% } else { %>
+                          <a href="/links/<%= link.id %>/share" class="btn btn-outline-primary w-100">
+                            <i class="fas fa-external-link-alt me-1"></i> Visit Link
+                          </a>
+                        <% } %>
+                      </div>
+                    </div>
+                  </div>
+                <% }); %>
+              </div>
+            </div>
+          </div>
+        <% } %>
+
+        <!-- Products Section -->
+        <% if (userProducts && userProducts.length > 0) { %>
+          <div class="row">
+            <div class="col-12">
+              <h3 class="mb-4">
+                <i class="fas fa-shopping-bag me-2 text-success"></i>
+                Products
+              </h3>
+              <div class="content-grid">
+                <% userProducts.forEach(product => { %>
+                  <div class="product-item">
+                    <div class="card product-card">
+                      <% if (product.image_url) { %>
+                        <img src="<%= product.image_url %>" class="card-img-top" alt="<%= product.name %>">
+                      <% } else { %>
+                        <div class="card-img-top bg-light d-flex align-items-center justify-content-center">
+                          <i class="fas fa-shopping-bag fa-3x text-muted"></i>
+                        </div>
+                      <% } %>
+                      
+                      <div class="card-body">
+                        <h5 class="card-title"><%= product.name %></h5>
+                        <% if (product.description) { %>
+                          <p class="card-text">
+                            <% if (product.description.length > 100) { %>
+                              <%= product.description.substring(0, 100) %>...
+                            <% } else { %>
+                              <%= product.description %>
+                            <% } %>
+                          </p>
+                        <% } %>
+                        <h6 class="text-success mb-0">$<%= parseFloat(product.price).toFixed(2) %></h6>
+                      </div>
+                      
+                      <div class="card-footer">
+                        <a href="/products/<%= product.id %>" class="btn btn-success w-100">
+                          <i class="fas fa-shopping-cart me-1"></i> View Product
+                        </a>
+                      </div>
+                    </div>
+                  </div>
+                <% }); %>
+              </div>
+            </div>
+          </div>
+        <% } %>
+
+        <% if ((!userLinks || userLinks.length === 0) && (!userProducts || userProducts.length === 0)) { %>
+          <div class="text-center py-5">
+            <i class="fas fa-inbox fa-4x text-muted mb-3"></i>
+            <h4>No content available</h4>
+            <p class="text-muted">This merchant hasn't shared any links or products yet.</p>
+          </div>
+        <% } %>
+      <% } else { %>
+        <!-- Regular User Profile -->
+        <div class="text-center py-5">
+          <i class="fas fa-user fa-4x text-muted mb-3"></i>
+          <h4>User Profile</h4>
+          <p class="text-muted">This user is part of the BenixSpace community.</p>
+        </div>
+      <% } %>
+    </div>
+  </section>
+
+  <%- include('partials/footer') %>
+
+  <!-- Bootstrap JS -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

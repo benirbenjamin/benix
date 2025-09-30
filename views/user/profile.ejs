@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Profile - BenixSpace</title>
+    <link rel="icon" href="/static/img/favicon.png" type="image/png" />
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/intl-tel-input/17.0.8/css/intlTelInput.css">
+    
+    <!-- AdSense and Analytics -->
+    <%- include('../partials/adsense') %>
+    <style>
+        .stat-card {
+            transition: transform 0.2s;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .stat-card:hover {
+            transform: translateY(-5px);
+        }
+        .contact-btn {
+            background-color: #25D366;
+            color: white;
+        }
+        .contact-btn:hover {
+            background-color: #128C7E;
+            color: white;
+        }
+        .profile-header {
+            background-color: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .avatar {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+        /* Phone input styles */
+        .iti {
+            width: 100%;
+        }
+        /* Tab styles */
+        .nav-pills .nav-link.active {
+            background-color: #0d6efd;
+        }
+    </style>
+</head>
+<body class="bg-light">
+    <%- include('../partials/navbar', { user: user }) %>
+    
+    <div class="container mt-4 mb-5">        <div class="profile-header d-flex align-items-center justify-content-between">
+            <div class="d-flex align-items-center">
+                <% if (user.avatar_url) { %>
+                    <img src="<%= user.avatar_url %>" alt="Profile" class="avatar me-4">
+                <% } else { %>
+                    <div class="avatar bg-primary d-flex align-items-center justify-content-center me-4">
+                        <span class="text-white display-6"><%= user.username.charAt(0).toUpperCase() %></span>
+                    </div>
+                <% } %>
+                <div>
+                    <h2 class="mb-0"><%= user.username %></h2>
+                    <p class="text-muted mb-0"><%= user.email %></p>
+                    <% if (user.phone_number) { %>
+                        <p class="text-muted mb-0"><i class="bi bi-telephone"></i> <%= user.phone_number %></p>
+                    <% } %>
+                    <small class="text-secondary">Member since: <%= new Date(user.created_at).toLocaleDateString() %></small>
+                    <% if (user.country) { %>
+                        <small class="text-secondary ms-2"><i class="bi bi-globe"></i> <%= user.country %></small>
+                    <% } %>
+                </div>            </div>
+            
+            <a href="https://wa.me/<%= user.phone_number ? user.phone_number.replace(/\D/g, '') : '' %>?text=Hello%20<%= user.username %>" target="_blank" class="btn contact-btn">
+                <i class="bi bi-whatsapp me-2"></i> Contact on WhatsApp
+            </a>
+        </div>
+
+        <h4 class="mb-3">My Statistics</h4>
+        <div class="row mb-4">
+            <div class="col-md-3 mb-3">
+                <div class="stat-card card h-100">
+                    <div class="card-body text-center">
+                        <i class="bi bi-link-45deg text-primary" style="font-size: 2rem;"></i>
+                        <h5 class="mt-2">Shared Links</h5>
+                        <h2 class="display-5 fw-bold"><%= stats.totalLinks %></h2>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="stat-card card h-100">
+                    <div class="card-body text-center">
+                        <i class="bi bi-mouse2 text-success" style="font-size: 2rem;"></i>
+                        <h5 class="mt-2">Total Clicks</h5>
+                        <h2 class="display-5 fw-bold"><%= stats.totalClicks %></h2>
+                    </div>
+                </div>
+            </div>            <div class="col-md-3 mb-3">
+                <div class="stat-card card h-100">
+                    <div class="card-body text-center">
+                        <i class="bi bi-cart-check text-info" style="font-size: 2rem;"></i>
+                        <h5 class="mt-2">Orders Made</h5>
+                        <h2 class="display-5 fw-bold"><%= stats.orderCount %></h2>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="stat-card card h-100">
+                    <div class="card-body text-center">
+                        <i class="bi bi-currency-dollar text-warning" style="font-size: 2rem;"></i>
+                        <h5 class="mt-2">Total Earnings</h5>
+                        <h2 class="display-5 fw-bold">$<%= parseFloat(stats.totalEarnings).toFixed(4) %></h2>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card mb-4">                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">Recent Orders</h5>
+                        <a href="/orders" class="btn btn-sm btn-outline-primary">View All</a>
+                    </div>                    <div class="card-body">
+                        <% 
+                        // Ensure orders is defined with a fallback
+                        const userOrders = typeof orders !== 'undefined' ? orders : [];
+                        if (userOrders.length === 0) { 
+                        %>
+                            <div class="text-center p-4">
+                                <i class="bi bi-bag-x" style="font-size: 3rem;"></i>
+                                <p class="mt-3">You haven't placed any orders yet.</p>
+                            </div>
+                        <% } else { %>                            <div class="list-group">
+                                <% userOrders.forEach(order => { %>
+                                    <a href="/orders/<%= order.id %>" class="list-group-item list-group-item-action">
+                                        <div class="d-flex justify-content-between">
+                                            <div>
+                                                <h6 class="mb-1">Order #<%= order.id %></h6>
+                                                <small class="text-muted">
+                                                    <%= new Date(order.created_at).toLocaleDateString() %> • 
+                                                    <%= order.product_count %> product(s)
+                                                </small>
+                                            </div>
+                                            <span class="badge bg-<%= order.status === 'completed' ? 'success' : 
+                                                  order.status === 'processing' ? 'info' : 'warning' %> rounded-pill align-self-center">
+                                                <%= order.status.charAt(0).toUpperCase() + order.status.slice(1) %>
+                                            </span>
+                                        </div>
+                                    </a>
+                                <% }) %>
+                            </div>
+                        <% } %>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <div class="card mb-4">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">Recently Shared Links</h5>
+                        <a href="/shared-links" class="btn btn-sm btn-outline-primary">View All</a>
+                    </div>
+                    <div class="card-body">                        <% if (!recentLinks || recentLinks.length === 0) { %>
+                            <div class="text-center p-4">
+                                <i class="bi bi-share" style="font-size: 3rem;"></i>
+                                <p class="mt-3">You haven't shared any links yet.</p>
+                            </div>
+                        <% } else { %>                            <div class="list-group">
+                                <% (recentLinks || []).forEach(link => { %>
+                                    <a href="<%= link.short_url %>" target="_blank" class="list-group-item list-group-item-action">
+                                        <div class="d-flex justify-content-between">
+                                            <div>
+                                                <h6 class="mb-1"><%= link.title %></h6>
+                                                <small class="text-muted">
+                                                    <%= link.merchant_name %> • 
+                                                    <%= link.type.charAt(0).toUpperCase() + link.type.slice(1) %>
+                                                </small>
+                                            </div>
+                                            <span class="badge bg-primary rounded-pill align-self-center">
+                                                <%= link.clicks %> clicks
+                                            </span>
+                                        </div>
+                                    </a>
+                                <% }) %>
+                            </div>
+                        <% } %>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row mt-4">
+            <div class="col-md-12">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <ul class="nav nav-tabs card-header-tabs" id="profileTabs" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active" id="account-tab" data-bs-toggle="tab" data-bs-target="#account" type="button" role="tab">Account Details</button>
+                            </li>
+                            <% if (user.role === 'merchant') { %>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="business-tab" data-bs-toggle="tab" data-bs-target="#business" type="button" role="tab">Business Information</button>
+                            </li>
+                            <% } %>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="payment-tab" data-bs-toggle="tab" data-bs-target="#payment" type="button" role="tab">Payment Details</button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="password-tab" data-bs-toggle="tab" data-bs-target="#password" type="button" role="tab">Change Password</button>
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="card-body">
+                        <!-- Success and error messages -->
+                        <% if (typeof success !== 'undefined' && success) { %>
+                            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                                <%= success %>
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        <% } %>
+                        <% if (typeof error !== 'undefined' && error) { %>
+                            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                                <%= error %>
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        <% } %>
+
+                        <div class="tab-content" id="profileTabsContent">
+                            <!-- Account Information Tab -->
+                            <div class="tab-pane fade show active" id="account" role="tabpanel" aria-labelledby="account-tab">
+                                <form action="/profile/update" method="POST">
+                                    <!-- Preserve other data -->
+                                    <input type="hidden" name="business_name" value="<%= user.business_name || '' %>">
+                                    <input type="hidden" name="business_description" value="<%= user.business_description || '' %>">
+                                    <input type="hidden" name="account_name" value="<%= user.account_name || '' %>">
+                                    <input type="hidden" name="account_number" value="<%= user.account_number || '' %>">
+                                    <input type="hidden" name="bank_code" value="<%= user.bank_code || '' %>">
+                                    
+                                    <div class="mb-3">
+                                        <label for="username" class="form-label">Username</label>
+                                        <input type="text" class="form-control" id="username" name="username" value="<%= user.username %>" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="email" class="form-label">Email</label>
+                                        <input type="email" class="form-control" id="email" name="email" value="<%= user.email %>" required>
+                                    </div>
+                                    <div class="row">                                        <div class="col-md-6 mb-3">
+                                            <label for="country" class="form-label">Country</label>
+                                            <select class="form-select" id="country" name="country">
+                                                <option value="">Select country</option>
+                                                <!-- Countries will be populated by JavaScript -->
+                                            </select>
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <label for="phone" class="form-label">Phone Number</label>
+                                            <div class="input-group">
+                                                <input type="hidden" id="dialCode" name="dialCode" value="<%= phoneDetails && phoneDetails.countryCode ? phoneDetails.countryCode : '+1' %>">
+                                                <input type="tel" class="form-control" id="phone" name="phone" value="<%= phoneDetails && phoneDetails.number ? phoneDetails.number : '' %>">
+                                            </div>
+                                            <small class="text-muted">Include country code</small>
+                                        </div>
+                                    </div>
+                                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                                </form>
+                            </div>
+
+                            <% if (user.role === 'merchant') { %>
+                            <!-- Business Information Tab -->
+                            <div class="tab-pane fade" id="business" role="tabpanel" aria-labelledby="business-tab">
+                                <form action="/profile/update" method="POST">
+                                    <!-- Preserve other data -->
+                                    <input type="hidden" name="username" value="<%= user.username %>">
+                                    <input type="hidden" name="email" value="<%= user.email %>">
+                                    <input type="hidden" name="phone" value="<%= phoneDetails && phoneDetails.number ? phoneDetails.number : '' %>">
+                                    <input type="hidden" name="dialCode" value="<%= phoneDetails && phoneDetails.countryCode ? phoneDetails.countryCode : '+1' %>">
+                                    <input type="hidden" name="country" value="<%= user.country || '' %>">
+                                    <input type="hidden" name="account_name" value="<%= user.account_name || '' %>">
+                                    <input type="hidden" name="account_number" value="<%= user.account_number || '' %>">
+                                    <input type="hidden" name="bank_code" value="<%= user.bank_code || '' %>">
+                                    
+                                    <div class="mb-3">
+                                        <label for="business_name" class="form-label">Business Name</label>
+                                        <input type="text" class="form-control" id="business_name" name="business_name" value="<%= user.business_name || '' %>">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="business_description" class="form-label">Business Description</label>
+                                        <textarea class="form-control" id="business_description" name="business_description" rows="4"><%= user.business_description || '' %></textarea>
+                                    </div>
+                                    <button type="submit" class="btn btn-primary">Save Business Information</button>
+                                </form>
+                            </div>
+                            <% } %>                            <!-- Payment Information Tab -->
+                            <div class="tab-pane fade" id="payment" role="tabpanel" aria-labelledby="payment-tab">
+                                <form action="/profile/update" method="POST">
+                                    <!-- Preserve other data -->
+                                    <input type="hidden" name="username" value="<%= user.username %>">
+                                    <input type="hidden" name="email" value="<%= user.email %>">
+                                    <input type="hidden" name="phone" value="<%= phoneDetails && phoneDetails.number ? phoneDetails.number : '' %>">
+                                    <input type="hidden" name="dialCode" value="<%= phoneDetails && phoneDetails.countryCode ? phoneDetails.countryCode : '+1' %>">
+                                    <input type="hidden" name="country" value="<%= user.country || '' %>">
+                                    <input type="hidden" name="business_name" value="<%= user.business_name || '' %>">
+                                    <input type="hidden" name="business_description" value="<%= user.business_description || '' %>">
+                                    
+                                    <div class="mb-3">
+                                        <label for="account_name" class="form-label">Account Name</label>
+                                        <input type="text" class="form-control" id="account_name" name="account_name" value="<%= user.account_name || '' %>">
+                                    </div>
+                                    <div class="row">
+                                        <div class="col-md-6 mb-3">
+                                            <label for="account_number" class="form-label">Account Number</label>
+                                            <input type="text" class="form-control" id="account_number" name="account_number" value="<%= user.account_number || '' %>">
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <label for="bank_code" class="form-label">Bank Code</label>
+                                            <input type="text" class="form-control" id="bank_code" name="bank_code" value="<%= user.bank_code || '' %>">
+                                        </div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <p class="mb-2">Current Wallet Balance: <strong>$<%= parseFloat(user.wallet || 0).toFixed(4) %></strong></p>
+                                    </div>
+                                    <button type="submit" class="btn btn-primary">Save Payment Information</button>
+                                </form>
+                            </div>
+
+                            <!-- Change Password Tab -->
+                            <div class="tab-pane fade" id="password" role="tabpanel" aria-labelledby="password-tab">
+                                <form action="/profile/update" method="POST" id="passwordForm">
+                                    <!-- Preserve other data -->
+                                    <input type="hidden" name="username" value="<%= user.username %>">
+                                    <input type="hidden" name="email" value="<%= user.email %>">
+                                    <input type="hidden" name="phone" value="<%= phoneDetails && phoneDetails.number ? phoneDetails.number : '' %>">
+                                    <input type="hidden" name="dialCode" value="<%= phoneDetails && phoneDetails.countryCode ? phoneDetails.countryCode : '+1' %>">
+                                    <input type="hidden" name="country" value="<%= user.country || '' %>">
+                                    <input type="hidden" name="business_name" value="<%= user.business_name || '' %>">
+                                    <input type="hidden" name="business_description" value="<%= user.business_description || '' %>">
+                                    <input type="hidden" name="account_name" value="<%= user.account_name || '' %>">
+                                    <input type="hidden" name="account_number" value="<%= user.account_number || '' %>">
+                                    <input type="hidden" name="bank_code" value="<%= user.bank_code || '' %>">
+                                    
+                                    <div class="mb-3">
+                                        <label for="current_password" class="form-label">Current Password</label>
+                                        <input type="password" class="form-control" id="current_password" name="current_password" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="new_password" class="form-label">New Password</label>
+                                        <input type="password" class="form-control" id="new_password" name="new_password" required>
+                                        <div class="form-text">Password must be at least 8 characters long</div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="confirm_password" class="form-label">Confirm New Password</label>
+                                        <input type="password" class="form-control" id="confirm_password" name="confirm_password" required>
+                                    </div>
+                                    <button type="submit" class="btn btn-primary">Change Password</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mt-3">
+            <div class="col-md-12">
+                <div class="d-flex justify-content-between">                    <a href="javascript:history.back()" class="btn btn-outline-secondary">
+                        <i class="bi bi-arrow-left"></i> Back
+                    </a>
+                    <a href="https://wa.me/250783987223?text=Hello%20Support,%20this%20is%20<%= user.username %>%20with%20user%20ID%20<%= user.id %>" target="_blank" class="btn contact-btn">
+                        <i class="bi bi-whatsapp me-2"></i> Contact Support via WhatsApp
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/intl-tel-input/17.0.8/js/intlTelInput.min.js"></script>    <script>
+        // Countries data
+        const countries = [
+            { name: "Afghanistan", code: "AF", dialCode: "+93" },
+            { name: "Albania", code: "AL", dialCode: "+355" },
+            { name: "Algeria", code: "DZ", dialCode: "+213" },
+            { name: "Andorra", code: "AD", dialCode: "+376" },
+            { name: "Angola", code: "AO", dialCode: "+244" },
+            { name: "Argentina", code: "AR", dialCode: "+54" },
+            { name: "Armenia", code: "AM", dialCode: "+374" },
+            { name: "Australia", code: "AU", dialCode: "+61" },
+            { name: "Austria", code: "AT", dialCode: "+43" },
+            { name: "Azerbaijan", code: "AZ", dialCode: "+994" },
+            { name: "Bahamas", code: "BS", dialCode: "+1242" },
+            { name: "Bahrain", code: "BH", dialCode: "+973" },
+            { name: "Bangladesh", code: "BD", dialCode: "+880" },
+            { name: "Barbados", code: "BB", dialCode: "+1246" },
+            { name: "Belarus", code: "BY", dialCode: "+375" },
+            { name: "Belgium", code: "BE", dialCode: "+32" },
+            { name: "Belize", code: "BZ", dialCode: "+501" },
+            { name: "Benin", code: "BJ", dialCode: "+229" },
+            { name: "Bhutan", code: "BT", dialCode: "+975" },
+            { name: "Bolivia", code: "BO", dialCode: "+591" },
+            { name: "Bosnia and Herzegovina", code: "BA", dialCode: "+387" },
+            { name: "Botswana", code: "BW", dialCode: "+267" },
+            { name: "Brazil", code: "BR", dialCode: "+55" },
+            { name: "Brunei", code: "BN", dialCode: "+673" },
+            { name: "Bulgaria", code: "BG", dialCode: "+359" },
+            { name: "Burkina Faso", code: "BF", dialCode: "+226" },
+            { name: "Burundi", code: "BI", dialCode: "+257" },
+            { name: "Cambodia", code: "KH", dialCode: "+855" },
+            { name: "Cameroon", code: "CM", dialCode: "+237" },
+            { name: "Canada", code: "CA", dialCode: "+1" },
+            { name: "Cape Verde", code: "CV", dialCode: "+238" },
+            { name: "Central African Republic", code: "CF", dialCode: "+236" },
+            { name: "Chad", code: "TD", dialCode: "+235" },
+            { name: "Chile", code: "CL", dialCode: "+56" },
+            { name: "China", code: "CN", dialCode: "+86" },
+            { name: "Colombia", code: "CO", dialCode: "+57" },
+            { name: "Comoros", code: "KM", dialCode: "+269" },
+            { name: "Congo", code: "CG", dialCode: "+242" },
+            { name: "Costa Rica", code: "CR", dialCode: "+506" },
+            { name: "Croatia", code: "HR", dialCode: "+385" },
+            { name: "Cuba", code: "CU", dialCode: "+53" },
+            { name: "Cyprus", code: "CY", dialCode: "+357" },
+            { name: "Czech Republic", code: "CZ", dialCode: "+420" },
+            { name: "Denmark", code: "DK", dialCode: "+45" },
+            { name: "Djibouti", code: "DJ", dialCode: "+253" },
+            { name: "Dominica", code: "DM", dialCode: "+1767" },
+            { name: "Dominican Republic", code: "DO", dialCode: "+1849" },
+            { name: "Ecuador", code: "EC", dialCode: "+593" },
+            { name: "Egypt", code: "EG", dialCode: "+20" },
+            { name: "El Salvador", code: "SV", dialCode: "+503" },
+            { name: "Equatorial Guinea", code: "GQ", dialCode: "+240" },
+            { name: "Eritrea", code: "ER", dialCode: "+291" },
+            { name: "Estonia", code: "EE", dialCode: "+372" },
+            { name: "Ethiopia", code: "ET", dialCode: "+251" },
+            { name: "Fiji", code: "FJ", dialCode: "+679" },
+            { name: "Finland", code: "FI", dialCode: "+358" },
+            { name: "France", code: "FR", dialCode: "+33" },
+            { name: "Gabon", code: "GA", dialCode: "+241" },
+            { name: "Gambia", code: "GM", dialCode: "+220" },
+            { name: "Georgia", code: "GE", dialCode: "+995" },
+            { name: "Germany", code: "DE", dialCode: "+49" },
+            { name: "Ghana", code: "GH", dialCode: "+233" },
+            { name: "Greece", code: "GR", dialCode: "+30" },
+            { name: "Grenada", code: "GD", dialCode: "+1473" },
+            { name: "Guatemala", code: "GT", dialCode: "+502" },
+            { name: "Guinea", code: "GN", dialCode: "+224" },
+            { name: "Guinea-Bissau", code: "GW", dialCode: "+245" },
+            { name: "Guyana", code: "GY", dialCode: "+592" },
+            { name: "Haiti", code: "HT", dialCode: "+509" },
+            { name: "Honduras", code: "HN", dialCode: "+504" },
+            { name: "Hungary", code: "HU", dialCode: "+36" },
+            { name: "Iceland", code: "IS", dialCode: "+354" },
+            { name: "India", code: "IN", dialCode: "+91" },
+            { name: "Indonesia", code: "ID", dialCode: "+62" },
+            { name: "Iran", code: "IR", dialCode: "+98" },
+            { name: "Iraq", code: "IQ", dialCode: "+964" },
+            { name: "Ireland", code: "IE", dialCode: "+353" },
+            { name: "Israel", code: "IL", dialCode: "+972" },
+            { name: "Italy", code: "IT", dialCode: "+39" },
+            { name: "Jamaica", code: "JM", dialCode: "+1876" },
+            { name: "Japan", code: "JP", dialCode: "+81" },
+            { name: "Jordan", code: "JO", dialCode: "+962" },
+            { name: "Kazakhstan", code: "KZ", dialCode: "+7" },
+            { name: "Kenya", code: "KE", dialCode: "+254" },
+            { name: "Kiribati", code: "KI", dialCode: "+686" },
+            { name: "Kuwait", code: "KW", dialCode: "+965" },
+            { name: "Kyrgyzstan", code: "KG", dialCode: "+996" },
+            { name: "Laos", code: "LA", dialCode: "+856" },
+            { name: "Latvia", code: "LV", dialCode: "+371" },
+            { name: "Lebanon", code: "LB", dialCode: "+961" },
+            { name: "Lesotho", code: "LS", dialCode: "+266" },
+            { name: "Liberia", code: "LR", dialCode: "+231" },
+            { name: "Libya", code: "LY", dialCode: "+218" },
+            { name: "Liechtenstein", code: "LI", dialCode: "+423" },
+            { name: "Lithuania", code: "LT", dialCode: "+370" },
+            { name: "Luxembourg", code: "LU", dialCode: "+352" },
+            { name: "Macedonia", code: "MK", dialCode: "+389" },
+            { name: "Madagascar", code: "MG", dialCode: "+261" },
+            { name: "Malawi", code: "MW", dialCode: "+265" },
+            { name: "Malaysia", code: "MY", dialCode: "+60" },
+            { name: "Maldives", code: "MV", dialCode: "+960" },
+            { name: "Mali", code: "ML", dialCode: "+223" },
+            { name: "Malta", code: "MT", dialCode: "+356" },
+            { name: "Marshall Islands", code: "MH", dialCode: "+692" },
+            { name: "Mauritania", code: "MR", dialCode: "+222" },
+            { name: "Mauritius", code: "MU", dialCode: "+230" },
+            { name: "Mexico", code: "MX", dialCode: "+52" },
+            { name: "Micronesia", code: "FM", dialCode: "+691" },
+            { name: "Moldova", code: "MD", dialCode: "+373" },
+            { name: "Monaco", code: "MC", dialCode: "+377" },
+            { name: "Mongolia", code: "MN", dialCode: "+976" },
+            { name: "Montenegro", code: "ME", dialCode: "+382" },
+            { name: "Morocco", code: "MA", dialCode: "+212" },
+            { name: "Mozambique", code: "MZ", dialCode: "+258" },
+            { name: "Myanmar", code: "MM", dialCode: "+95" },
+            { name: "Namibia", code: "NA", dialCode: "+264" },
+            { name: "Nauru", code: "NR", dialCode: "+674" },
+            { name: "Nepal", code: "NP", dialCode: "+977" },
+            { name: "Netherlands", code: "NL", dialCode: "+31" },
+            { name: "New Zealand", code: "NZ", dialCode: "+64" },
+            { name: "Nicaragua", code: "NI", dialCode: "+505" },
+            { name: "Niger", code: "NE", dialCode: "+227" },
+            { name: "Nigeria", code: "NG", dialCode: "+234" },
+            { name: "North Korea", code: "KP", dialCode: "+850" },
+            { name: "Norway", code: "NO", dialCode: "+47" },
+            { name: "Oman", code: "OM", dialCode: "+968" },
+            { name: "Pakistan", code: "PK", dialCode: "+92" },
+            { name: "Palau", code: "PW", dialCode: "+680" },
+            { name: "Panama", code: "PA", dialCode: "+507" },
+            { name: "Papua New Guinea", code: "PG", dialCode: "+675" },
+            { name: "Paraguay", code: "PY", dialCode: "+595" },
+            { name: "Peru", code: "PE", dialCode: "+51" },
+            { name: "Philippines", code: "PH", dialCode: "+63" },
+            { name: "Poland", code: "PL", dialCode: "+48" },
+            { name: "Portugal", code: "PT", dialCode: "+351" },
+            { name: "Qatar", code: "QA", dialCode: "+974" },
+            { name: "Romania", code: "RO", dialCode: "+40" },
+            { name: "Russia", code: "RU", dialCode: "+7" },
+            { name: "Rwanda", code: "RW", dialCode: "+250" },
+            { name: "Saint Kitts and Nevis", code: "KN", dialCode: "+1869" },
+            { name: "Saint Lucia", code: "LC", dialCode: "+1758" },
+            { name: "Saint Vincent and the Grenadines", code: "VC", dialCode: "+1784" },
+            { name: "Samoa", code: "WS", dialCode: "+685" },
+            { name: "San Marino", code: "SM", dialCode: "+378" },
+            { name: "Sao Tome and Principe", code: "ST", dialCode: "+239" },
+            { name: "Saudi Arabia", code: "SA", dialCode: "+966" },
+            { name: "Senegal", code: "SN", dialCode: "+221" },
+            { name: "Serbia", code: "RS", dialCode: "+381" },
+            { name: "Seychelles", code: "SC", dialCode: "+248" },
+            { name: "Sierra Leone", code: "SL", dialCode: "+232" },
+            { name: "Singapore", code: "SG", dialCode: "+65" },
+            { name: "Slovakia", code: "SK", dialCode: "+421" },
+            { name: "Slovenia", code: "SI", dialCode: "+386" },
+            { name: "Solomon Islands", code: "SB", dialCode: "+677" },
+            { name: "Somalia", code: "SO", dialCode: "+252" },
+            { name: "South Africa", code: "ZA", dialCode: "+27" },
+            { name: "South Korea", code: "KR", dialCode: "+82" },
+            { name: "South Sudan", code: "SS", dialCode: "+211" },
+            { name: "Spain", code: "ES", dialCode: "+34" },
+            { name: "Sri Lanka", code: "LK", dialCode: "+94" },
+            { name: "Sudan", code: "SD", dialCode: "+249" },
+            { name: "Suriname", code: "SR", dialCode: "+597" },
+            { name: "Swaziland", code: "SZ", dialCode: "+268" },
+            { name: "Sweden", code: "SE", dialCode: "+46" },
+            { name: "Switzerland", code: "CH", dialCode: "+41" },
+            { name: "Syria", code: "SY", dialCode: "+963" },
+            { name: "Taiwan", code: "TW", dialCode: "+886" },
+            { name: "Tajikistan", code: "TJ", dialCode: "+992" },
+            { name: "Tanzania", code: "TZ", dialCode: "+255" },
+            { name: "Thailand", code: "TH", dialCode: "+66" },
+            { name: "Togo", code: "TG", dialCode: "+228" },
+            { name: "Tonga", code: "TO", dialCode: "+676" },
+            { name: "Trinidad and Tobago", code: "TT", dialCode: "+1868" },
+            { name: "Tunisia", code: "TN", dialCode: "+216" },
+            { name: "Turkey", code: "TR", dialCode: "+90" },
+            { name: "Turkmenistan", code: "TM", dialCode: "+993" },
+            { name: "Tuvalu", code: "TV", dialCode: "+688" },
+            { name: "Uganda", code: "UG", dialCode: "+256" },
+            { name: "Ukraine", code: "UA", dialCode: "+380" },
+            { name: "United Arab Emirates", code: "AE", dialCode: "+971" },
+            { name: "United Kingdom", code: "GB", dialCode: "+44" },
+            { name: "United States", code: "US", dialCode: "+1" },
+            { name: "Uruguay", code: "UY", dialCode: "+598" },
+            { name: "Uzbekistan", code: "UZ", dialCode: "+998" },
+            { name: "Vanuatu", code: "VU", dialCode: "+678" },
+            { name: "Vatican City", code: "VA", dialCode: "+379" },
+            { name: "Venezuela", code: "VE", dialCode: "+58" },
+            { name: "Vietnam", code: "VN", dialCode: "+84" },
+            { name: "Yemen", code: "YE", dialCode: "+967" },
+            { name: "Zambia", code: "ZM", dialCode: "+260" },
+            { name: "Zimbabwe", code: "ZW", dialCode: "+263" }
+        ];
+        
+        // Alert handling - auto hide after 5 seconds
+        window.addEventListener('DOMContentLoaded', function() {
+            // Auto hide alerts after 5 seconds
+            setTimeout(function() {
+                const alerts = document.querySelectorAll('.alert');
+                alerts.forEach(function(alert) {
+                    bootstrap.Alert.getOrCreateInstance(alert).close();
+                });
+            }, 5000);
+            
+            // Show active tab based on hash in URL
+            const hash = window.location.hash;
+            if (hash) {
+                const tab = document.querySelector(`button[data-bs-target="${hash}"]`);
+                if (tab) {
+                    new bootstrap.Tab(tab).show();
+                }
+            }
+            
+            // Populate country dropdown
+            const countrySelect = document.getElementById('country');
+            if (countrySelect) {
+                const currentCountry = '<%= user.country || "" %>';
+                
+                countries.forEach(country => {
+                    const option = document.createElement('option');
+                    option.value = country.code;
+                    option.text = country.name;
+                    option.selected = country.code === currentCountry;
+                    countrySelect.appendChild(option);
+                });
+                
+                // Update phone dial code when country changes
+                countrySelect.addEventListener('change', function() {
+                    const selectedCountry = countries.find(c => c.code === this.value);
+                    if (selectedCountry && phoneInput) {
+                        // Set the country in the phone input
+                        iti.setCountry(selectedCountry.code);
+                        
+                        // Update the dial code
+                        document.getElementById('dialCode').value = selectedCountry.dialCode;
+                    }
+                });
+            }
+            
+            // Password validation
+            const passwordForm = document.getElementById('passwordForm');
+            if (passwordForm) {
+                passwordForm.addEventListener('submit', function(e) {
+                    const newPassword = document.getElementById('new_password').value;
+                    const confirmPassword = document.getElementById('confirm_password').value;
+                    
+                    if (newPassword !== confirmPassword) {
+                        e.preventDefault();
+                        alert('Passwords do not match!');
+                        return false;
+                    }
+                    
+                    if (newPassword.length < 8) {
+                        e.preventDefault();
+                        alert('Password must be at least 8 characters long!');
+                        return false;
+                    }
+                });
+            }
+            
+            // Initialize phone input
+            const phoneInput = document.getElementById('phone');
+            let iti;
+            if (phoneInput) {
+                iti = window.intlTelInput(phoneInput, {
+                    utilsScript: "https://cdnjs.cloudflare.com/ajax/libs/intl-tel-input/17.0.8/js/utils.js",
+                    separateDialCode: true,
+                    initialCountry: "<%= user.country || 'auto' %>"
+                });
+                
+                // Update hidden dial code field when country changes
+                phoneInput.addEventListener('countrychange', function() {
+                    const dialCode = '+' + iti.getSelectedCountryData().dialCode;
+                    document.getElementById('dialCode').value = dialCode;
+                    
+                    // Also update country select to match
+                    const countryCode = iti.getSelectedCountryData().iso2.toUpperCase();
+                    if (countrySelect && countrySelect.value !== countryCode) {
+                        countrySelect.value = countryCode;
+                    }
+                });
+                
+                // Set initial dial code based on selected country
+                const dialCodeInput = document.getElementById('dialCode');
+                if (dialCodeInput && dialCodeInput.value) {
+                    // Find country by dial code
+                    const countryByDialCode = countries.find(c => c.dialCode === dialCodeInput.value);
+                    if (countryByDialCode) {
+                        iti.setCountry(countryByDialCode.code);
+                    }
+                }
+            }
+        });
+    </script>
+    
+    <%- include('../partials/footer') %>
+</body>
+</html>

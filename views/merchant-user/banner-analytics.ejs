@@ -1,0 +1,312 @@
+<%- include('../partials/header') %>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<%- include('../partials/navbar', { user: user }) %>
+
+<div class="container-fluid py-4">
+  <div class="row">
+    <div class="col-12">
+      <!-- Page Header -->
+      <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+          <h2>Banner Analytics</h2>
+          <p class="text-muted mb-0"><%= banner.title %></p>
+        </div>
+        <a href="/merchant-user/banners" class="btn btn-secondary">
+          <i class="fas fa-arrow-left"></i> Back to Banners
+        </a>
+      </div>
+
+      <!-- Banner Preview -->
+      <div class="card mb-4">
+        <div class="card-body">
+          <div class="row align-items-center">
+            <div class="col-md-4">
+              <img src="<%= banner.image_url %>" alt="<%= banner.title %>" class="img-fluid">
+            </div>
+            <div class="col-md-8">
+              <h4><%= banner.title %></h4>
+              <p class="mb-2">
+                <strong>Target URL:</strong> 
+                <a href="<%= banner.target_url %>" target="_blank"><%= banner.target_url %></a>
+              </p>
+              <p class="mb-2">
+                <strong>Status:</strong>
+                <% if (banner.status === 'pending') { %>
+                  <span class="badge bg-warning">Pending</span>
+                <% } else if (banner.status === 'approved') { %>
+                  <span class="badge bg-success">Approved</span>
+                  <% if (banner.is_active) { %>
+                    <span class="badge bg-info ms-1">Active</span>
+                  <% } %>
+                <% } else { %>
+                  <span class="badge bg-danger">Rejected</span>
+                <% } %>
+              </p>
+              <p class="mb-0">
+                <strong>Created:</strong> <%= new Date(banner.created_at).toLocaleString() %>
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Analytics Overview Cards -->
+      <div class="row mb-4">
+        <div class="col-md-3">
+          <div class="card">
+            <div class="card-body text-center">
+              <h1 class="display-4 mb-0"><%= parseInt(stats[0].total_views || 0).toLocaleString() %></h1>
+              <p class="text-muted">Total Views</p>
+              <small class="text-info">Cost per 1000: $<%= parseFloat(stats[0].cost_per_view || 0).toFixed(2) %></small>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="card">
+            <div class="card-body text-center">
+              <h1 class="display-4 mb-0"><%= parseInt(stats[0].total_clicks || 0).toLocaleString() %></h1>
+              <p class="text-muted">Total Clicks</p>
+              <small class="text-info">Cost per Click: $<%= parseFloat(stats[0].cost_per_click || 0).toFixed(2) %></small>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="card">
+            <div class="card-body text-center">
+              <h1 class="display-4 mb-0"><%= ((parseInt(stats[0].total_clicks || 0) / parseInt(stats[0].total_views || 1) * 100) || 0).toFixed(2) %>%</h1>
+              <p class="text-muted">Click-Through Rate</p>
+              <small class="text-info">Avg Cost per Conversion: $<%= (parseFloat(stats[0].total_cost || 0) / parseInt(stats[0].total_clicks || 1)).toFixed(2) %></small>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="card">
+            <div class="card-body text-center">
+              <h1 class="display-4 mb-0">$<%= parseFloat(stats[0].total_cost || 0).toFixed(2) %></h1>
+              <p class="text-muted">Total Spend</p>
+              <div class="d-flex justify-content-around">
+                <small class="text-info">Views: $<%= parseFloat(stats[0].view_costs || 0).toFixed(2) %></small>
+                <small class="text-info">Clicks: $<%= parseFloat(stats[0].click_costs || 0).toFixed(2) %></small>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Performance Charts -->
+      <div class="row mb-4">
+        <div class="col-md-8">
+          <div class="card">
+            <div class="card-header">
+              <h5 class="card-title mb-0">Daily Performance</h5>
+            </div>
+            <div class="card-body">
+              <canvas id="dailyChart" 
+                     height="300"
+                     data-daily='<%- JSON.stringify(dailyStats || []) %>'></canvas>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="card">
+            <div class="card-header">
+              <h5 class="card-title mb-0">Geographic Distribution</h5>
+            </div>
+            <div class="card-body">
+              <canvas id="geoChart" 
+                     height="300"
+                     data-geo='<%- JSON.stringify(countryStats || []) %>'></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Analytics Tables -->
+      <div class="row">
+        <div class="col-md-6">
+          <div class="card h-100">
+            <div class="card-header">
+              <h5 class="card-title mb-0">Click Statistics</h5>
+            </div>
+            <div class="card-body">
+              <% if (!clicks || clicks.length === 0) { %>
+                <div class="text-center py-4">
+                  <i class="fas fa-mouse-pointer fa-3x text-muted mb-3"></i>
+                  <p class="mb-0">No clicks recorded yet</p>
+                </div>
+              <% } else { %>
+                <div class="table-responsive">
+                  <table class="table">
+                    <thead>
+                      <tr>
+                        <th>Date</th>
+                        <th>Location</th>
+                        <th>Clicks</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <% clicks.forEach(click => { %>
+                        <tr>
+                          <td><%= new Date(click.date).toLocaleDateString() %></td>
+                          <td>
+                            <% if (click.city && click.country) { %>
+                              <%= click.city %>, <%= click.country %>
+                            <% } else { %>
+                              <%= click.country || 'Unknown' %>
+                            <% } %>
+                          </td>
+                          <td><%= click.click_count %></td>
+                        </tr>
+                      <% }); %>
+                    </tbody>
+                  </table>
+                </div>
+              <% } %>
+            </div>
+          </div>
+        </div>
+        
+        <div class="col-md-6">
+          <div class="card h-100">
+            <div class="card-header">
+              <h5 class="card-title mb-0">View Statistics</h5>
+            </div>
+            <div class="card-body">
+              <% if (!views || views.length === 0) { %>
+                <div class="text-center py-4">
+                  <i class="fas fa-eye fa-3x text-muted mb-3"></i>
+                  <p class="mb-0">No views recorded yet</p>
+                </div>
+              <% } else { %>
+                <div class="table-responsive">
+                  <table class="table">
+                    <thead>
+                      <tr>
+                        <th>Date</th>
+                        <th>Location</th>
+                        <th>Views</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <% views.forEach(view => { %>
+                        <tr>
+                          <td><%= new Date(view.date).toLocaleDateString() %></td>
+                          <td>
+                            <% if (view.city && view.country) { %>
+                              <%= view.city %>, <%= view.country %>
+                            <% } else { %>
+                              <%= view.country || 'Unknown' %>
+                            <% } %>
+                          </td>
+                          <td><%= view.view_count %></td>
+                        </tr>
+                      <% }); %>
+                    </tbody>
+                  </table>
+                </div>
+              <% } %>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ChartJS Initialization -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// Initialize charts when document is ready
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize daily performance chart
+    const dailyCanvas = document.getElementById('dailyChart');
+    const dailyData = JSON.parse(dailyCanvas.dataset.daily);
+    
+    new Chart(dailyCanvas.getContext('2d'), {
+        type: 'line',
+        data: {
+            labels: dailyData.map(d => d.date),
+            datasets: [{
+                label: 'Views',
+                data: dailyData.map(d => d.views),
+                borderColor: '#0d6efd',
+                backgroundColor: 'rgba(13, 110, 253, 0.1)',
+                tension: 0.4,
+                fill: true
+            }, {
+                label: 'Clicks',
+                data: dailyData.map(d => d.clicks),
+                borderColor: '#198754',
+                backgroundColor: 'rgba(25, 135, 84, 0.1)',
+                tension: 0.4,
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'top' }
+            },
+            scales: {
+                y: { beginAtZero: true }
+            }
+        }
+    });
+
+    // Initialize geographic distribution chart
+    const geoCanvas = document.getElementById('geoChart');
+    const geoData = JSON.parse(geoCanvas.dataset.geo);
+    const colors = [
+        '#0d6efd', '#6610f2', '#6f42c1', '#d63384', '#dc3545',
+        '#fd7e14', '#ffc107', '#198754', '#20c997', '#0dcaf0'
+    ];
+
+    new Chart(geoCanvas.getContext('2d'), {
+        type: 'doughnut',
+        data: {
+            labels: geoData.map(d => d.country),
+            datasets: [{
+                data: geoData.map(d => d.views),
+                backgroundColor: colors.slice(0, geoData.length)
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'right',
+                    labels: {
+                        boxWidth: 12
+                    }
+                }
+            }
+        }
+    });
+});
+
+    const geoCtx = document.getElementById('geoChart').getContext('2d');
+    new Chart(geoCtx, {
+        type: 'doughnut',
+        data: {
+            labels: countries,
+            datasets: [{
+                data: countryViews,
+                backgroundColor: colors.slice(0, countries.length)
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'right'
+                }
+            }
+        }
+    });
+});
+</script>
+
+<%- include('../partials/footer') %>

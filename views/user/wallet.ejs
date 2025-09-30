@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Wallet - BenixSpace</title>
+  <link rel="icon" href="/favicon.png" type="image/x-icon" />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+   <%- include('../partials/auto-ads') %>
+  <%- include('../partials/adsense') %>
+  <style>
+    .activation-requirements {
+      background-color: #f8f9fa;
+      border-radius: 8px;
+      padding: 15px;
+    }
+    .requirement-item {
+      padding: 8px 0;
+    }
+    .progress {
+      background-color: rgba(0,0,0,0.05);
+    }
+    .progress-bar {
+      transition: width 0.5s ease-in-out;
+    }
+    .requirement-item:not(:last-child) {
+      border-bottom: 1px solid rgba(0,0,0,0.05);
+    }
+  </style>
+</head>
+<body class="bg-light">
+  <%- include('../partials/navbar') %>
+
+  <div class="container mt-4">
+    <div class="row">
+      <div class="col-md-4">
+        <div class="card shadow-sm mb-4">
+          <div class="card-header bg-primary text-white">
+            <h5 class="mb-0">Wallet Amount</h5>
+          </div>
+          <div class="card-body">
+            <h2 class="mb-0">$<%= parseFloat(user.wallet).toFixed(4) %></h2>
+            <small class="text-muted">Available for withdrawal</small>
+
+            <hr>
+
+            <% if (activationProgress) { %>
+              <div class="activation-requirements mb-4">
+                <h6 class="d-flex align-items-center mb-3">
+                  <i class="fas <%= activationProgress.status === 'active' ? 'fa-check-circle text-success' : 'fa-clock text-warning' %> me-2"></i>
+                  Activation Requirements
+                  <% if (activationProgress.status === 'active') { %>
+                    <span class="badge bg-success ms-auto">Activated</span>
+                  <% } else { %>
+                    <span class="badge bg-warning ms-auto">Pending</span>
+                  <% } %>
+                </h6>
+
+                <div class="requirements-list">
+                  <!-- Shared Content Requirement -->
+                  <div class="requirement-item mb-2">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                      <small class="text-muted">Shared Content</small>
+                      <small class="text-muted">
+                        <%= activationProgress.progress.links.current %>/<%= activationProgress.progress.links.required %>
+                      </small>
+                    </div>
+                    <div class="progress" style="height: 5px;">
+                      <div class="progress-bar <%= activationProgress.progress.links.current >= activationProgress.progress.links.required ? 'bg-success' : 'bg-primary' %>" 
+                           style="width: <%= Math.min(100, (activationProgress.progress.links.current / activationProgress.progress.links.required * 100)) %>%">
+                      </div>
+                    </div>
+                    <div class="mt-1">
+                      <small class="text-muted">
+                        <i class="fas fa-share-alt me-1"></i> Links: <%= activationProgress.progress.links.links || 0 %>
+                        <i class="fas fa-blog ms-2 me-1"></i> Blogs: <%= activationProgress.progress.links.blogs || 0 %>
+                        <i class="fas fa-store ms-2 me-1"></i> Products: <%= activationProgress.progress.links.products || 0 %>
+                        <div class="text-success mt-1">
+                          <i class="fas fa-info-circle me-1"></i> Total: <%= activationProgress.progress.links.current %> shared items
+                        </div>
+                      </small>
+                    </div>
+                  </div>
+
+                  <!-- Weekly Logins Requirement -->
+                  <div class="requirement-item mb-2">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                      <small class="text-muted">Weekly Logins</small>
+                      <small class="text-muted">
+                        <%= activationProgress.progress.logins.current %>/<%= activationProgress.progress.logins.required %>
+                      </small>
+                    </div>
+                    <div class="progress" style="height: 5px;">
+                      <div class="progress-bar <%= activationProgress.progress.logins.current >= activationProgress.progress.logins.required ? 'bg-success' : 'bg-primary' %>" 
+                           style="width: <%= Math.min(100, (activationProgress.progress.logins.current / activationProgress.progress.logins.required * 100)) %>%">
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Clicks Requirement -->
+                  <div class="requirement-item mb-2">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                      <small class="text-muted">Required Clicks</small>
+                      <small class="text-muted">
+                        <%= activationProgress.progress.clicks.current %>/<%= activationProgress.progress.clicks.required %>
+                      </small>
+                    </div>
+                    <div class="progress" style="height: 5px;">
+                      <div class="progress-bar <%= activationProgress.progress.clicks.current >= activationProgress.progress.clicks.required ? 'bg-success' : 'bg-primary' %>" 
+                           style="width: <%= Math.min(100, (activationProgress.progress.clicks.current / activationProgress.progress.clicks.required * 100)) %>%">
+                      </div>
+                    </div>
+                    <div class="mt-1">
+                      <small class="text-muted">
+                        <i class="fas fa-mouse-pointer me-1"></i> Link Clicks: <%= activationProgress.progress.clicks.linkClicks || 0 %>
+                        <i class="fas fa-blog ms-2 me-1"></i> Blog Clicks: <%= activationProgress.progress.clicks.blogClicks || 0 %>
+                        <div class="text-success mt-1">
+                          <i class="fas fa-info-circle me-1"></i> Total: <%= activationProgress.progress.clicks.current %> total clicks
+                        </div>
+                      </small>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            <% } %>
+
+            <div class="d-grid gap-2">
+              <button type="button" class="btn btn-success" 
+                      onclick="handleWithdrawClick()"
+                      <%= (parseFloat(user.wallet) < minPayout || 
+                          (activationProgress.isActivationRequired && 
+                           (activationProgress.progress.links.current < activationProgress.progress.links.required ||
+                            activationProgress.progress.clicks.current < activationProgress.progress.clicks.required ||
+                            activationProgress.progress.logins.current < activationProgress.progress.logins.required))) ? 'disabled' : '' %>>
+                <i class="fas fa-money-bill-wave me-2"></i>Withdraw Funds
+              </button>
+            </div>
+
+            <% if (activationProgress.isActivationRequired) { %>
+              <% if (activationProgress.status === 'active' && 
+                     (activationProgress.progress.links.current < activationProgress.progress.links.required ||
+                      activationProgress.progress.clicks.current < activationProgress.progress.clicks.required ||
+                      activationProgress.progress.logins.current < activationProgress.progress.logins.required)) { %>
+                <div class="alert alert-info mt-3">
+                  <small>
+                    <i class="fas fa-info-circle me-1"></i>
+                    <strong>Next Withdrawal Requirements:</strong> You need to complete the activation requirements again to qualify for your next withdrawal.
+                  </small>
+                </div>
+              <% } else if (activationProgress.status !== 'active' && 
+                           (activationProgress.progress.links.current < activationProgress.progress.links.required ||
+                            activationProgress.progress.clicks.current < activationProgress.progress.clicks.required ||
+                            activationProgress.progress.logins.current < activationProgress.progress.logins.required)) { %>
+                <div class="alert alert-warning mt-3">
+                  <small>
+                    <i class="fas fa-exclamation-circle me-1"></i>
+                    Complete all activation requirements above to enable withdrawals
+                  </small>
+                </div>
+              <% } %>
+            <% } else if (parseFloat(user.wallet) < minPayout) { %>
+              <div class="alert alert-info mt-3 mb-0">
+                <small>
+                  <i class="fas fa-info-circle me-1"></i>
+                  Minimum withdrawal amount is $<%= minPayout %>
+                </small>
+              </div>
+            <% } %>
+          </div>
+        </div>
+
+        <div class="card shadow-sm">
+          <div class="card-header bg-success text-white">
+            <h5 class="mb-0">Total Earnings</h5>
+          </div>
+          <div class="card-body">
+            <h3 class="mb-0">$<%= parseFloat(user.earnings).toFixed(4) %></h3>
+            <small class="text-muted">Lifetime earnings</small>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-md-8">
+        <div class="card shadow-sm">
+          <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Transaction History</h5>
+          </div>
+          <div class="card-body">
+            <div class="table-responsive">
+              <table class="table table-hover">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Type</th>
+                    <th>Amount</th>
+                    <th>Status</th>
+                    <th>Details</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <% transactions.forEach(transaction => { %>
+                    <tr>
+                      <td><%= new Date(transaction.created_at).toLocaleDateString() %></td>
+                      <td>
+                        <span class="badge <%= 
+                          transaction.type === 'commission' ? 'bg-success' : 
+                          'bg-primary' %>">
+                          <%= transaction.type %>
+                        </span>
+                      </td>
+                      <td>$<%= parseFloat(transaction.amount).toFixed(4) %></td>
+                      <td>
+                        <span class="badge <%= 
+                          transaction.status === 'completed' ? 'bg-success' :
+                          transaction.status === 'pending' ? 'bg-warning' :
+                          'bg-danger' %>">
+                          <%= transaction.status %>
+                        </span>
+                      </td>
+                      <td><small class="text-muted"><%= transaction.details || '-' %></small></td>
+                    </tr>
+                  <% }); %>
+                  <% if (transactions.length === 0) { %>
+                    <tr>
+                      <td colspan="5" class="text-center text-muted">
+                        No transactions yet
+                      </td>
+                    </tr>
+                  <% } %>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Withdraw Modal -->
+  <div class="modal fade" id="withdrawModal" tabindex="-1">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Withdraw Funds</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <form id="withdrawForm">
+            <div class="mb-3">
+              <label class="form-label">Amount to Withdraw</label>
+              <div class="input-group">
+                <span class="input-group-text">$</span>
+                <input type="number" class="form-control" id="amount" name="amount" 
+                       min="<%= minPayout %>" max="<%= user.wallet %>" step="0.01" required>
+              </div>
+              <div class="form-text">
+                Minimum: $<%= minPayout %>, Available: $<%= parseFloat(user.wallet).toFixed(4) %>
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label">Withdrawal Method</label>
+              <div class="row">
+                <div class="col-12">
+                  <div class="form-check card">
+                    <div class="card-body">
+                      <input class="form-check-input" type="radio" name="gateway" 
+                             id="manual" value="Manual" checked required>
+                      <label class="form-check-label w-100" for="manual">
+                        <i class="fas fa-money-bill-wave" style="font-size: 24px; color: #28a745;"></i>
+                        <div class="small text-muted mt-2">
+                          Manual Bank/Momo transfer
+                        </div>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div id="manualPaymentInfo" class="alert alert-info">
+              <i class="fas fa-info-circle me-2"></i>
+              <p><strong>Manual Withdrawal Information:</strong></p>
+              <p>Your withdrawal request will be processed manually by our team. Please ensure your bank details are correct before submitting.</p>
+              <p>Manual withdrawals usually take 1-3 business days to process.</p>
+            </div>
+
+            <div class="alert alert-info">
+              <i class="fas fa-info-circle me-2"></i>
+              <p class="mb-2">Your funds will be sent to:</p>
+              <div class="d-flex align-items-center mb-2">
+                <i class="fas fa-university me-2 text-primary"></i>
+                <strong>Bank:</strong> <span class="ms-2"><%= user.bank_code || 'Not set' %></span>
+              </div>
+              <div class="d-flex align-items-center mb-2">
+                <i class="fas fa-credit-card me-2 text-primary"></i>
+                <strong>Account:</strong> <span class="ms-2"><%= user.account_number || 'Not set' %></span>
+              </div>
+              <div class="d-flex align-items-center">
+                <i class="fas fa-user me-2 text-primary"></i>
+                <strong>Name:</strong> <span class="ms-2"><%= user.account_name || 'Not set' %></span>
+              </div>
+            </div>
+            
+            <div class="alert alert-warning">
+              <i class="fas fa-exclamation-triangle me-2"></i>
+              <p class="mb-0"><strong>Note:</strong> Once your withdrawal request is approved, the funds will be sent to your bank account. All withdrawals are subject to review for security purposes.</p>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-success" id="confirmWithdrawBtn">
+            <i class="fas fa-check me-2"></i>Confirm Withdrawal
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <%- include('../partials/activationStatus') %>
+
+  <!-- Payment Details Modal -->
+  <div class="modal fade" id="paymentDetailsModal" tabindex="-1">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Setup Payment Details</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="alert alert-info">
+            <i class="fas fa-info-circle me-2"></i>
+            <strong>Payment details required!</strong> Please enter your bank account details to proceed with withdrawal.
+          </div>
+          <form id="paymentDetailsForm">
+            <div class="mb-3">
+              <label for="account_name" class="form-label">Account Holder Name</label>
+              <input type="text" class="form-control" id="account_name" name="account_name" 
+                     value="<%= user.account_name || '' %>" required>
+              <div class="form-text">Enter the full name as it appears on your bank account</div>
+            </div>
+
+            <div class="mb-3">
+              <label for="account_number" class="form-label">Account Number</label>
+              <input type="text" class="form-control" id="account_number" name="account_number" 
+                     value="<%= user.account_number || '' %>" required>
+              <div class="form-text">Enter your bank account number</div>
+            </div>
+
+            <div class="mb-3">
+              <label for="bank_code" class="form-label">Bank Name/Code</label>
+              <input type="text" class="form-control" id="bank_code" name="bank_code" 
+                     value="<%= user.bank_code || '' %>" required>
+              <div class="form-text">Enter your bank name or bank code</div>
+            </div>
+
+            <div class="alert alert-success">
+              <i class="fas fa-shield-alt me-2"></i>
+              <strong>Secure:</strong> Your payment details are encrypted and stored securely. They will only be used for processing withdrawals.
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-primary" id="savePaymentDetailsBtn">
+            <i class="fas fa-save me-2"></i>Save & Continue
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <%- include('../partials/footer') %>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    // Check if user has payment details set
+    const hasPaymentDetails = <%= !!(user.account_number && user.bank_code && user.account_name) %>;
+    
+    // Handle withdraw button click
+    function handleWithdrawClick() {
+      if (!hasPaymentDetails) {
+        // Show payment details modal first
+        const paymentDetailsModal = new bootstrap.Modal(document.getElementById('paymentDetailsModal'));
+        paymentDetailsModal.show();
+      } else {
+        // Show withdraw modal directly
+        const withdrawModal = new bootstrap.Modal(document.getElementById('withdrawModal'));
+        withdrawModal.show();
+      }
+    }
+
+    // Handle saving payment details
+    document.getElementById('savePaymentDetailsBtn').addEventListener('click', async function() {
+      try {
+        const form = document.getElementById('paymentDetailsForm');
+        
+        if (!form.checkValidity()) {
+          form.reportValidity();
+          return;
+        }
+
+        // Get form values directly instead of using FormData
+        const account_name = document.getElementById('account_name').value.trim();
+        const account_number = document.getElementById('account_number').value.trim();
+        const bank_code = document.getElementById('bank_code').value.trim();
+
+        // Validate fields on frontend too
+        if (!account_name || !account_number || !bank_code) {
+          alert('Please fill in all required fields');
+          return;
+        }
+        
+        // Disable button and show loading
+        this.disabled = true;
+        this.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Saving...';
+
+        const response = await fetch('/profile/update-payment-details', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            account_name,
+            account_number,
+            bank_code
+          })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          // Update the user data in memory
+          window.location.reload(); // Reload to get updated user data
+        } else {
+          alert(data.message || 'Failed to save payment details');
+          // Re-enable button
+          this.disabled = false;
+          this.innerHTML = '<i class="fas fa-save me-2"></i>Save & Continue';
+        }
+      } catch (error) {
+        console.error('Error:', error);
+        alert('An error occurred. Please try again.');
+        // Re-enable button
+        this.disabled = false;
+        this.innerHTML = '<i class="fas fa-save me-2"></i>Save & Continue';
+      }
+    });
+
+    // Toggle manual payment info when payment method changes
+    // Since we only have manual now, no need for dynamic toggling
+    
+    document.getElementById('confirmWithdrawBtn').addEventListener('click', async function() {
+      try {
+        const form = document.getElementById('withdrawForm');
+        const amount = document.getElementById('amount').value;
+        const gateway = 'Manual'; // Always manual now
+
+        if (!form.checkValidity()) {
+          form.reportValidity();
+          return;
+        }
+
+        // Always use manual withdrawal endpoint
+        const response = await fetch('/api/withdraw-manual', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            amount,
+            gateway
+          })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          alert('Withdrawal request submitted successfully. Your request will be reviewed by admin.');
+          window.location.reload();
+        } else {
+          alert(data.message || 'Failed to submit withdrawal request');
+        }
+      } catch (error) {
+        console.error('Error:', error);
+        alert('An error occurred. Please try again.');
+      }
+    });
+
+    // Validate amount input
+    document.getElementById('amount')?.addEventListener('input', function() {
+      const min = parseFloat(this.min);
+      const max = parseFloat(this.max);
+      const value = parseFloat(this.value);
+
+      if (value < min) {
+        this.setCustomValidity(`Minimum withdrawal amount is $${min}`);
+      } else if (value > max) {
+        this.setCustomValidity('Amount exceeds available balance');
+      } else {
+        this.setCustomValidity('');
+      }
+    });
+  </script>
+
+  <!-- Activation Status Modal -->
+  <div class="modal fade" id="activationStatusModal" tabindex="-1">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Activation Status</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <% if (activationProgress) { %>
+            <% if (!activationProgress.isActivationRequired) { %>
+              <div class="alert alert-info">
+                <i class="fas fa-info-circle me-2"></i>
+                Account activation is currently not required by admin settings.
+              </div>
+            <% } else { %>
+              <div class="alert <%= activationProgress.status === 'active' ? 'alert-success' : 'alert-warning' %>">
+                <i class="fas <%= activationProgress.status === 'active' ? 'fa-check-circle' : 'fa-exclamation-circle' %> me-2"></i>
+                Account Status: <strong><%= activationProgress.status.toUpperCase() %></strong>
+              </div>
+
+              <h6>Progress towards activation:</h6>
+              
+              <div class="mb-3">
+                <label class="form-label">
+                  Shared Links: <%= activationProgress.progress.links.current %>/<%= activationProgress.progress.links.required %>
+                </label>
+                <div class="progress">
+                  <div class="progress-bar" role="progressbar" 
+                       style="width: <%= Math.min(100, (activationProgress.progress.links.current / activationProgress.progress.links.required * 100)) %>%">
+                  </div>
+                </div>
+                <small class="text-muted">
+                  <%= activationProgress.progress.links.remaining %> more links needed
+                </small>
+              </div>
+
+              <div class="mb-3">
+                <label class="form-label">
+                  Weekly Logins: <%= activationProgress.progress.logins.current %>/<%= activationProgress.progress.logins.required %>
+                </label>
+                <div class="progress">
+                  <div class="progress-bar" role="progressbar" 
+                       style="width: <%= Math.min(100, (activationProgress.progress.logins.current / activationProgress.progress.logins.required * 100)) %>%">
+                  </div>
+                </div>
+                <small class="text-muted">
+                  <%= activationProgress.progress.logins.remaining %> more days needed
+                </small>
+              </div>
+
+              <div class="mb-3">
+                <label class="form-label">
+                  Clicks Before Withdraw: <%= activationProgress.progress.clicks.current %>/<%= activationProgress.progress.clicks.required %>
+                </label>
+                <div class="progress">
+                  <div class="progress-bar" role="progressbar" 
+                       style="width: <%= Math.min(100, (activationProgress.progress.clicks.current / activationProgress.progress.clicks.required * 100)) %>%">
+                  </div>
+                </div>
+                <small class="text-muted">
+                  <%= activationProgress.progress.clicks.remaining %> more clicks needed
+                </small>
+              </div>
+            <% } %>
+          <% } %>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
